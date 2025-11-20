@@ -6,7 +6,7 @@ A JavaFX-based coffee shop management system with separate interfaces for Custom
 
 ### Customer Interface
 - Browse product menu with real-time stock information
-- Customize drinks (temperature, sugar level, add-ons dropdown)
+- Customize drinks (temperature, sugar level, add-ons checkboxes)
 - Build orders with multiple items
 - View order summary and total
 - Stock validation before checkout
