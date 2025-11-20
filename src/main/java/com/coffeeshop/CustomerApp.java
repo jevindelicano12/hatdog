@@ -140,14 +140,20 @@ public class CustomerApp extends Application {
         HBox customBox = new HBox(10);
         customBox.getChildren().addAll(tempLabel, tempCombo, sugarLabel, sugarCombo);
 
-        // Add-ons dropdown
+        // Add-ons checkboxes
         Label addOnsLabel = new Label("Add-ons (optional):");
-        ComboBox<String> addOnsCombo = new ComboBox<>();
-        addOnsCombo.getItems().addAll("None", "Extra Shot (+₱1.00)", "Whipped Cream (+₱0.50)", 
-                                       "Extra Shot + Whipped Cream (+₱1.50)", "Vanilla Syrup (+₱0.75)",
-                                       "Caramel Syrup (+₱0.75)", "Chocolate Syrup (+₱0.75)");
-        addOnsCombo.setValue("None");
-        addOnsCombo.setPrefWidth(200);
+        VBox addOnsBox = new VBox(8);
+        addOnsBox.setPadding(new Insets(10));
+        addOnsBox.setStyle("-fx-border-color: #ddd; -fx-border-radius: 5; -fx-background-radius: 5;");
+        
+        CheckBox extraShotCheck = new CheckBox("Extra Shot (+₱1.00)");
+        CheckBox whippedCreamCheck = new CheckBox("Whipped Cream (+₱0.50)");
+        CheckBox vanillaSyrupCheck = new CheckBox("Vanilla Syrup (+₱0.75)");
+        CheckBox caramelSyrupCheck = new CheckBox("Caramel Syrup (+₱0.75)");
+        CheckBox chocolateSyrupCheck = new CheckBox("Chocolate Syrup (+₱0.75)");
+        
+        addOnsBox.getChildren().addAll(extraShotCheck, whippedCreamCheck, vanillaSyrupCheck, 
+                                        caramelSyrupCheck, chocolateSyrupCheck);
 
         // Quantity
         HBox quantityBox = new HBox(10);
@@ -175,19 +181,39 @@ public class CustomerApp extends Application {
                 sugarCombo.getValue()
             );
 
-            String addOnsText = addOnsCombo.getValue().trim();
-            if (!addOnsText.isEmpty() && !addOnsText.equals("None")) {
-                item.setAddOns(addOnsText);
-                // Calculate add-on cost based on selection
-                if (addOnsText.contains("Extra Shot + Whipped Cream")) {
-                    item.setAddOnsCost(1.50);
-                } else if (addOnsText.contains("Extra Shot")) {
-                    item.setAddOnsCost(1.0);
-                } else if (addOnsText.contains("Whipped Cream")) {
-                    item.setAddOnsCost(0.5);
-                } else if (addOnsText.contains("Vanilla Syrup") || addOnsText.contains("Caramel Syrup") || addOnsText.contains("Chocolate Syrup")) {
-                    item.setAddOnsCost(0.75);
-                }
+            // Collect selected add-ons
+            StringBuilder addOnsText = new StringBuilder();
+            double addOnsCost = 0.0;
+            
+            if (extraShotCheck.isSelected()) {
+                if (addOnsText.length() > 0) addOnsText.append(", ");
+                addOnsText.append("Extra Shot");
+                addOnsCost += 1.0;
+            }
+            if (whippedCreamCheck.isSelected()) {
+                if (addOnsText.length() > 0) addOnsText.append(", ");
+                addOnsText.append("Whipped Cream");
+                addOnsCost += 0.5;
+            }
+            if (vanillaSyrupCheck.isSelected()) {
+                if (addOnsText.length() > 0) addOnsText.append(", ");
+                addOnsText.append("Vanilla Syrup");
+                addOnsCost += 0.75;
+            }
+            if (caramelSyrupCheck.isSelected()) {
+                if (addOnsText.length() > 0) addOnsText.append(", ");
+                addOnsText.append("Caramel Syrup");
+                addOnsCost += 0.75;
+            }
+            if (chocolateSyrupCheck.isSelected()) {
+                if (addOnsText.length() > 0) addOnsText.append(", ");
+                addOnsText.append("Chocolate Syrup");
+                addOnsCost += 0.75;
+            }
+            
+            if (addOnsText.length() > 0) {
+                item.setAddOns(addOnsText.toString());
+                item.setAddOnsCost(addOnsCost);
             }
 
             currentOrder.addItem(item);
@@ -201,7 +227,7 @@ public class CustomerApp extends Application {
         });
 
         card.getChildren().addAll(nameLabel, infoBox, new Separator(), 
-                                   customBox, addOnsLabel, addOnsCombo, 
+                                   customBox, addOnsLabel, addOnsBox,
                                    quantityBox, addButton);
 
         return card;
