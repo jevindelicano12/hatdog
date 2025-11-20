@@ -1,0 +1,12 @@
+Espresso|3.5|Hot|Regular|50
+Espresso|3.5|Hot|Regular|50
+Espresso|3.5|Hot|Regular|50
+Espresso|3.5|Hot|Regular|50
+Cappuccino|4.5|Hot|Regular|50
+Cappuccino|4.5|Hot|Regular|50
+Cappuccino|4.5|Hot|Regular|50
+Espresso|3.5|Hot|Regular|50
+Espresso|3.5|Hot|Regular|50
+Cappuccino|4.5|Hot|Regular|50
+Matcha Latte|5.0|Hot|Regular|50
+Cappuccino|4.5|Hot|Regular|50

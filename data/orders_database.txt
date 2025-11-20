@@ -1,0 +1,12 @@
+11a0c318|JIMS|2025-11-20 20:40:55|Espresso|Regular|Hot
+6aaabf4b|jevin|2025-11-20 20:41:03|Espresso|Regular|Hot
+1f043cb0|jims|2025-11-20 20:42:17|Espresso|Regular|Hot
+fddac1ba|Jims|2025-11-20 20:45:44|Espresso|Regular|Hot
+564e4384|jims|2025-11-20 20:49:17|Cappuccino|Regular|Hot
+564e4384|jims|2025-11-20 20:49:25|Cappuccino|Regular|Hot
+564e4384|jims|2025-11-20 20:50:01|Cappuccino|Regular|Hot
+7046d9a1|jims|2025-11-20 20:54:26|Espresso|Regular|Hot
+0b0f04ff|jevin|2025-11-20 21:01:32|Espresso|Regular|Hot
+0b0f04ff|jevin|2025-11-20 21:01:32|Cappuccino|Regular|Hot
+df34785e|joms|2025-11-20 21:19:43|Matcha Latte|Regular|Hot
+2ab194da|bowie|2025-11-20 21:26:45|Cappuccino|Regular|Hot
