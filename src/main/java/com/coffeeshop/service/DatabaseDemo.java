@@ -16,9 +16,9 @@ public class DatabaseDemo {
         
         // 1. Add sample items
         System.out.println("1. Adding sample items to database...");
-        TextDatabase.saveItem(new ItemRecord("Espresso", 3.50, "Hot", "Small", 50));
-        TextDatabase.saveItem(new ItemRecord("Iced Latte", 4.75, "Cold", "Medium", 75));
-        TextDatabase.saveItem(new ItemRecord("Cappuccino", 4.50, "Hot", "Large", 25));
+        TextDatabase.saveItem(new ItemRecord("Espresso", 80, "Hot", "Small", 50));
+        TextDatabase.saveItem(new ItemRecord("Iced Latte", 50, "Cold", "Medium", 75));
+        TextDatabase.saveItem(new ItemRecord("Cappuccino", 45, "Hot", "Large", 25));
         System.out.println("   Items added successfully!\n");
         
         // 2. Load and display all items

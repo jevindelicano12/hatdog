@@ -77,6 +77,9 @@ coffee-shop-system/
 
 ### IMPORTANT: Each role runs as a separate application
 
+### to run copy this first 
+"c:\Users\jevin\OneDrive\Desktop\GUI nila jevin"; mvn exec:java@customer
+
 ### Run Customer Interface
 ```bash
 mvn exec:java@customer

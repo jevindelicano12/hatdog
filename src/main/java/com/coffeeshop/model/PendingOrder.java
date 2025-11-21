@@ -12,6 +12,7 @@ public class PendingOrder {
     private List<OrderItemData> items;
     private double totalAmount;
     private String status; // "PENDING" or "COMPLETED"
+    private String orderType; // "Dine In" or "Take Away"
 
     public PendingOrder(String orderId, String customerName) {
         this.orderId = orderId;
@@ -20,6 +21,17 @@ public class PendingOrder {
         this.items = new ArrayList<>();
         this.totalAmount = 0.0;
         this.status = "PENDING";
+        this.orderType = "Dine In"; // default
+    }
+
+    public PendingOrder(String orderId, String customerName, String orderType) {
+        this.orderId = orderId;
+        this.customerName = customerName;
+        this.orderTime = LocalDateTime.now();
+        this.items = new ArrayList<>();
+        this.totalAmount = 0.0;
+        this.status = "PENDING";
+        this.orderType = orderType;
     }
 
     public void addItem(String productName, double price, int quantity, String temperature, int sugarLevel) {
@@ -42,6 +54,7 @@ public class PendingOrder {
         sb.append(orderTime.format(formatter)).append("|");
         sb.append(totalAmount).append("|");
         sb.append(status).append("|");
+        sb.append(orderType != null ? orderType : "Dine In").append("|");
         
         // Encode items as JSON-like string
         sb.append("[");
@@ -62,36 +75,59 @@ public class PendingOrder {
     }
 
     public static PendingOrder fromTextRecord(String line) {
-        String[] parts = line.split("\\|");
-        if (parts.length >= 6) {
-            PendingOrder order = new PendingOrder(parts[0], parts[1]);
-            
+        // Robust parsing: split metadata from items by locating the first '['
+        int itemsStart = line.indexOf('[');
+        String meta = line;
+        String itemsStr = "";
+        if (itemsStart >= 0) {
+            meta = line.substring(0, itemsStart);
+            itemsStr = line.substring(itemsStart);
+        }
+
+        String[] parts = meta.split("\\|");
+        if (parts.length >= 5) {
+            // Expected meta: orderId|customerName|orderTime|totalAmount|status|[orderType]
+            String orderType = parts.length >= 6 ? parts[5] : "Dine In";
+            PendingOrder order = new PendingOrder(parts[0], parts[1], orderType);
+
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            order.orderTime = LocalDateTime.parse(parts[2], formatter);
-            order.totalAmount = Double.parseDouble(parts[3]);
+            try {
+                order.orderTime = LocalDateTime.parse(parts[2], formatter);
+            } catch (Exception ex) {
+                // keep current time if parse fails
+            }
+
+            try {
+                order.totalAmount = Double.parseDouble(parts[3]);
+            } catch (Exception ex) {
+                order.totalAmount = 0.0;
+            }
+
             order.status = parts[4];
-            
-            // Parse items
-            String itemsStr = parts[5];
+
             if (itemsStr.startsWith("[") && itemsStr.endsWith("]")) {
-                itemsStr = itemsStr.substring(1, itemsStr.length() - 1);
-                if (!itemsStr.isEmpty()) {
-                    String[] itemsArray = itemsStr.split(",");
+                String inner = itemsStr.substring(1, itemsStr.length() - 1);
+                if (!inner.isEmpty()) {
+                    String[] itemsArray = inner.split(",");
                     for (String itemStr : itemsArray) {
                         String[] itemParts = itemStr.split("~");
                         if (itemParts.length >= 5) {
-                            order.addItem(
-                                itemParts[0], // productName
-                                Double.parseDouble(itemParts[1]), // price
-                                Integer.parseInt(itemParts[2]), // quantity
-                                itemParts[3], // temperature
-                                Integer.parseInt(itemParts[4]) // sugarLevel
-                            );
+                            try {
+                                order.addItem(
+                                    itemParts[0], // productName
+                                    Double.parseDouble(itemParts[1]), // price
+                                    Integer.parseInt(itemParts[2]), // quantity
+                                    itemParts[3], // temperature
+                                    Integer.parseInt(itemParts[4]) // sugarLevel
+                                );
+                            } catch (Exception ignore) {
+                                // skip malformed item
+                            }
                         }
                     }
                 }
             }
-            
+
             return order;
         }
         return null;
@@ -125,6 +161,16 @@ public class PendingOrder {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public String getOrderType() {
+        return orderType;
+    }
+
+    public void setOrderType(String orderType) {
+        this.orderType = orderType;
+    }
+
+    // paymentMethod removed in revert
 
     public boolean isPending() {
         return "PENDING".equals(status);

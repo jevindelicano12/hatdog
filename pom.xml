@@ -82,7 +82,8 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.coffeeshop/com.coffeeshop.CustomerApp</mainClass>
+                    <!-- mainClass should be the fully-qualified class name -->
+                    <mainClass>com.coffeeshop.CustomerApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>

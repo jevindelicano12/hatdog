@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AdminApp extends Application {
     private Store store;
@@ -39,7 +40,7 @@ public class AdminApp extends Application {
 
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: #f5f5f5;");
+        root.setStyle("-fx-background-color: #F4F1EA;");
 
         // Header
         VBox header = createHeader();
@@ -62,12 +63,12 @@ public class AdminApp extends Application {
         header.setPadding(new Insets(0, 0, 20, 0));
 
         Label title = new Label("⚙️ Coffee Shop - Admin Panel");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 28));
-        title.setTextFill(Color.web("#D32F2F"));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        title.setTextFill(Color.web("#3E2723"));
 
         Label subtitle = new Label("Manage products, inventory, and view refill alerts");
-        subtitle.setFont(Font.font("Arial", 14));
-        subtitle.setTextFill(Color.web("#666"));
+        subtitle.setFont(Font.font("Segoe UI", 14));
+        subtitle.setTextFill(Color.web("#795548"));
 
         header.getChildren().addAll(title, subtitle);
         return header;
@@ -97,8 +98,8 @@ public class AdminApp extends Application {
         panel.setPadding(new Insets(20));
         
         Label title = new Label("📊 Dashboard - Business Overview");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
-        title.setTextFill(Color.web("#1565C0"));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        title.setTextFill(Color.web("#3E2723"));
         
         // Statistics Cards Row
         HBox statsRow = new HBox(20);
@@ -106,45 +107,46 @@ public class AdminApp extends Application {
         
         // Create labels that will be updated
         netSalesLabel = new Label();
-        netSalesLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        netSalesLabel.setTextFill(Color.web("#2E7D32"));
+        netSalesLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        netSalesLabel.setTextFill(Color.web("#4CAF50"));
         
         pendingOrdersLabel = new Label();
-        pendingOrdersLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        pendingOrdersLabel.setTextFill(Color.web("#FF6B6B"));
+        pendingOrdersLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        pendingOrdersLabel.setTextFill(Color.web("#FF7043"));
         
         completedOrdersLabel = new Label();
-        completedOrdersLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        completedOrdersLabel.setTextFill(Color.web("#1565C0"));
+        completedOrdersLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        completedOrdersLabel.setTextFill(Color.web("#1976D2"));
         
         lowStockLabel = new Label();
-        lowStockLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        lowStockLabel.setTextFill(Color.web("#FFA726"));
+        lowStockLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        lowStockLabel.setTextFill(Color.web("#FFA000"));
         
         // Create stat cards using labels
-        VBox salesCard = createStatCard("💰 Net Sales (This Month)", netSalesLabel, "#2E7D32");
-        VBox pendingCard = createStatCard("⏳ Pending Orders", pendingOrdersLabel, "#FF6B6B");
-        VBox completedCard = createStatCard("✅ Completed Orders", completedOrdersLabel, "#1565C0");
-        VBox alertCard = createStatCard("⚠️ Low Stock Alerts", lowStockLabel, "#FFA726");
+        VBox salesCard = createStatCard("💰 Net Sales (This Month)", netSalesLabel, "#4CAF50");
+        VBox pendingCard = createStatCard("⏳ Pending Orders", pendingOrdersLabel, "#FF7043");
+        VBox completedCard = createStatCard("✅ Completed Orders", completedOrdersLabel, "#1976D2");
+        VBox alertCard = createStatCard("⚠️ Low Stock Alerts", lowStockLabel, "#FFA000");
         
         statsRow.getChildren().addAll(salesCard, pendingCard, completedCard, alertCard);
         
         // Refill Alerts Section
         VBox alertsSection = new VBox(10);
         alertsSection.setPadding(new Insets(20));
-        alertsSection.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8;");
+        alertsSection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
         
         Label alertsTitle = new Label("⚠️ Refill Alerts");
-        alertsTitle.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        alertsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        alertsTitle.setTextFill(Color.web("#3E2723"));
         
         dashboardAlertsArea = new TextArea();
         dashboardAlertsArea.setEditable(false);
         dashboardAlertsArea.setPrefHeight(200);
         dashboardAlertsArea.setWrapText(true);
-        dashboardAlertsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 12px;");
+        dashboardAlertsArea.setStyle("-fx-font-family: 'Consolas'; -fx-font-size: 12px; -fx-control-inner-background: #FAFAFA;");
         
         Button refreshBtn = new Button("🔄 Refresh Dashboard");
-        refreshBtn.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refreshBtn.setStyle("-fx-background-color: #6F4E37; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         refreshBtn.setOnAction(e -> refreshDashboard());
         
         alertsSection.getChildren().addAll(alertsTitle, dashboardAlertsArea, refreshBtn);
@@ -161,18 +163,18 @@ public class AdminApp extends Application {
         VBox card = new VBox(10);
         card.setPadding(new Insets(20));
         card.setAlignment(Pos.CENTER);
-        card.setStyle("-fx-background-color: white; -fx-border-color: " + color + "; -fx-border-width: 3; -fx-border-radius: 10; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
         card.setPrefWidth(250);
         card.setPrefHeight(120);
         
         Label titleLabel = new Label(label);
-        titleLabel.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 14));
-        titleLabel.setTextFill(Color.web("#666"));
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        titleLabel.setTextFill(Color.web("#795548"));
         titleLabel.setWrapText(true);
         titleLabel.setAlignment(Pos.CENTER);
         
         Label valueLabel = new Label(value);
-        valueLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
+        valueLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
         valueLabel.setTextFill(Color.web(color));
         
         card.getChildren().addAll(titleLabel, valueLabel);
@@ -183,13 +185,13 @@ public class AdminApp extends Application {
         VBox card = new VBox(10);
         card.setPadding(new Insets(20));
         card.setAlignment(Pos.CENTER);
-        card.setStyle("-fx-background-color: white; -fx-border-color: " + color + "; -fx-border-width: 3; -fx-border-radius: 10; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
         card.setPrefWidth(250);
         card.setPrefHeight(120);
         
         Label titleLabel = new Label(label);
-        titleLabel.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 14));
-        titleLabel.setTextFill(Color.web("#666"));
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        titleLabel.setTextFill(Color.web("#795548"));
         titleLabel.setWrapText(true);
         titleLabel.setAlignment(Pos.CENTER);
         
@@ -253,11 +255,13 @@ public class AdminApp extends Application {
         panel.setPadding(new Insets(20));
 
         Label title = new Label("📦 Product Management");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        title.setTextFill(Color.web("#3E2723"));
 
         // Product table
         productTable = new TableView<>();
         productTable.setPrefHeight(400);
+        productTable.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 8;");
 
         TableColumn<ProductRow, String> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -271,34 +275,32 @@ public class AdminApp extends Application {
         priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
         priceCol.setPrefWidth(100);
 
-        TableColumn<ProductRow, Integer> stockCol = new TableColumn<>("Stock");
-        stockCol.setCellValueFactory(new PropertyValueFactory<>("stock"));
-        stockCol.setPrefWidth(100);
+        // stock column removed from product management display (stock still tracked internally)
 
         TableColumn<ProductRow, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setPrefWidth(150);
 
-        productTable.getColumns().addAll(idCol, nameCol, priceCol, stockCol, statusCol);
+        productTable.getColumns().addAll(idCol, nameCol, priceCol, statusCol);
 
         // Controls
         HBox controls = new HBox(15);
         controls.setAlignment(Pos.CENTER_LEFT);
 
         Button refillButton = new Button("Refill Product");
-        refillButton.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refillButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         refillButton.setOnAction(e -> refillProduct());
 
         Button removeButton = new Button("Remove Product");
-        removeButton.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        removeButton.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         removeButton.setOnAction(e -> removeProduct());
 
         Button addButton = new Button("Add New Product");
-        addButton.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        addButton.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         addButton.setOnAction(e -> addNewProduct());
 
         Button refreshButton = new Button("Refresh");
-        refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refreshButton.setStyle("-fx-background-color: #FFA000; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         refreshButton.setOnAction(e -> refreshData());
 
         controls.getChildren().addAll(refillButton, removeButton, addButton, refreshButton);
@@ -312,11 +314,13 @@ public class AdminApp extends Application {
         panel.setPadding(new Insets(20));
 
         Label title = new Label("📊 Inventory Management");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        title.setTextFill(Color.web("#3E2723"));
 
         // Inventory table
         inventoryTable = new TableView<>();
         inventoryTable.setPrefHeight(400);
+        inventoryTable.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 8;");
 
         TableColumn<InventoryRow, String> nameCol = new TableColumn<>("Ingredient");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -337,15 +341,15 @@ public class AdminApp extends Application {
         controls.setAlignment(Pos.CENTER_LEFT);
 
         Button refillIngredientButton = new Button("Refill Ingredient");
-        refillIngredientButton.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refillIngredientButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         refillIngredientButton.setOnAction(e -> refillIngredient());
 
         Button addIngredientButton = new Button("Add Ingredient");
-        addIngredientButton.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        addIngredientButton.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         addIngredientButton.setOnAction(e -> addIngredient());
 
         Button refreshButton = new Button("Refresh");
-        refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refreshButton.setStyle("-fx-background-color: #FFA000; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         refreshButton.setOnAction(e -> refreshData());
 
         controls.getChildren().addAll(refillIngredientButton, addIngredientButton, refreshButton);
@@ -359,20 +363,23 @@ public class AdminApp extends Application {
         panel.setPadding(new Insets(20));
 
         Label title = new Label("⚠️ Refill Status & Alerts");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        title.setTextFill(Color.web("#3E2723"));
 
         Label infoLabel = new Label("Products needing refill (stock ≤ 5):");
-        infoLabel.setFont(Font.font("Arial", 14));
+        infoLabel.setFont(Font.font("Segoe UI", 14));
+        infoLabel.setTextFill(Color.web("#795548"));
 
         alertsArea = new TextArea();
         alertsArea.setEditable(false);
-        alertsArea.setFont(Font.font("Courier New", 12));
+        alertsArea.setFont(Font.font("Consolas", 12));
         alertsArea.setPrefHeight(500);
-        alertsArea.setStyle("-fx-control-inner-background: #fff3cd;");
+        alertsArea.setStyle("-fx-control-inner-background: #FFF3E0; -fx-background-color: #FFF3E0;");
 
         Button refreshButton = new Button("Refresh Alerts");
-        refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refreshButton.setStyle("-fx-background-color: #FFA000; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
         refreshButton.setOnAction(e -> refreshRefillAlerts());
+        
 
         panel.getChildren().addAll(title, infoLabel, alertsArea, refreshButton);
         return panel;
@@ -385,12 +392,12 @@ public class AdminApp extends Application {
             String status;
             if (p.getStock() == 0) {
                 status = "🔴 OUT OF STOCK";
-            } else if (p.getStock() <= 5) {
+            } else if (p.getStock() <= Store.REFILL_THRESHOLD) {
                 status = "🟡 LOW STOCK";
             } else {
                 status = "✓ OK";
             }
-            productTable.getItems().add(new ProductRow(p.getId(), p.getName(), p.getPrice(), p.getStock(), status));
+            productTable.getItems().add(new ProductRow(p.getId(), p.getName(), p.getPrice(), status));
         }
 
         // Refresh inventory table
@@ -406,10 +413,10 @@ public class AdminApp extends Application {
     private void refreshRefillAlerts() {
         if (store.hasProductsNeedingRefill()) {
             alertsArea.setText(store.getProductRefillAlerts());
-            alertsArea.setStyle("-fx-control-inner-background: #fff3cd;");
+            alertsArea.setStyle("-fx-control-inner-background: #FFF3E0;");
         } else {
             alertsArea.setText("\n\n✓ All products are sufficiently stocked!\n\nNo refill alerts at this time.");
-            alertsArea.setStyle("-fx-control-inner-background: #d4edda;");
+            alertsArea.setStyle("-fx-control-inner-background: #E8F5E9;");
         }
     }
 
@@ -419,11 +426,17 @@ public class AdminApp extends Application {
             showAlert("No Selection", "Please select a product to refill.", Alert.AlertType.WARNING);
             return;
         }
+        // fetch real product to get current stock
+        Product prod = store.getProductById(selected.getId());
+        if (prod == null) {
+            showAlert("Error", "Selected product not found.", Alert.AlertType.ERROR);
+            return;
+        }
 
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Refill Product");
         dialog.setHeaderText("Refill: " + selected.getName());
-        dialog.setContentText("Enter amount to add (max " + (Store.MAX_STOCK - selected.getStock()) + "):");
+        dialog.setContentText("Enter amount to add (max " + (Store.MAX_STOCK - prod.getStock()) + "):\n");
 
         dialog.showAndWait().ifPresent(amount -> {
             try {
@@ -526,9 +539,109 @@ public class AdminApp extends Application {
 
         dialog.showAndWait().ifPresent(product -> {
             if (product != null) {
-                store.addProduct(product);
-                showAlert("Success", "Product added successfully!", Alert.AlertType.INFORMATION);
-                refreshData();
+                // Ask for ingredients for the new product — show inventory checkboxes and allow custom entries
+                Dialog<Map<String, Double>> ingDialog = new Dialog<>();
+                ingDialog.setTitle("Product Ingredients");
+                ingDialog.setHeaderText("Define ingredients for: " + product.getName());
+
+                ButtonType okType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+                ingDialog.getDialogPane().getButtonTypes().addAll(okType, ButtonType.CANCEL);
+
+                // Content: list of existing inventory items with checkbox + amount field
+                VBox content = new VBox(8);
+                content.setPadding(new Insets(10));
+
+                Map<String, TextField> existingAmountFields = new HashMap<>();
+
+                Label existingLabel = new Label("Select existing inventory items and enter amount needed per serving:");
+                content.getChildren().add(existingLabel);
+
+                Map<String, InventoryItem> inv = store.getInventory();
+                if (inv.isEmpty()) {
+                    content.getChildren().add(new Label("(No inventory items yet)"));
+                } else {
+                    for (InventoryItem ii : inv.values()) {
+                        HBox row = new HBox(8);
+                        row.setAlignment(Pos.CENTER_LEFT);
+                        CheckBox cb = new CheckBox();
+                        Label nameLbl = new Label(ii.getName() + " (" + ii.getUnit() + ")");
+                        TextField amtField = new TextField();
+                        amtField.setPromptText("amount");
+                        amtField.setPrefWidth(100);
+                        amtField.setDisable(true);
+                        cb.selectedProperty().addListener((obs, oldV, newV) -> amtField.setDisable(!newV));
+                        row.getChildren().addAll(cb, nameLbl, amtField);
+                        content.getChildren().add(row);
+                        existingAmountFields.put(ii.getName(), amtField);
+                    }
+                }
+
+                // Section for custom ingredients (multiple)
+                Separator sep = new Separator();
+                Label customLabel = new Label("Add custom ingredients (one per line) in format name:amount[:unit] :");
+                TextArea customArea = new TextArea();
+                customArea.setPromptText("Sugar:10\nVanilla Syrup:15:ml");
+                customArea.setPrefRowCount(6);
+
+                content.getChildren().addAll(sep, customLabel, customArea);
+
+                ingDialog.getDialogPane().setContent(content);
+
+                ingDialog.setResultConverter(button -> {
+                    if (button == okType) {
+                        Map<String, Double> recipe = new HashMap<>();
+                        // collect existing selected
+                        for (Map.Entry<String, TextField> e : existingAmountFields.entrySet()) {
+                            TextField tf = e.getValue();
+                            if (!tf.isDisabled()) {
+                                String txt = tf.getText();
+                                try {
+                                    double amt = Double.parseDouble(txt);
+                                    if (amt > 0) recipe.put(e.getKey(), amt);
+                                } catch (NumberFormatException ex) {
+                                    // skip invalid
+                                }
+                            }
+                        }
+
+                        // parse customArea lines
+                        String custom = customArea.getText();
+                        if (custom != null && !custom.trim().isEmpty()) {
+                            String[] lines = custom.split("\\r?\\n");
+                            for (String line : lines) {
+                                String l = line.trim();
+                                if (l.isEmpty()) continue;
+                                String[] parts = l.split(":" );
+                                if (parts.length >= 2) {
+                                    String iname = parts[0].trim();
+                                    try {
+                                        double amt = Double.parseDouble(parts[1].trim());
+                                        recipe.put(iname, amt);
+                                        // ensure inventory has this ingredient; add with default large qty if missing
+                                        if (store.getInventoryItem(iname) == null) {
+                                            String unit = parts.length >= 3 ? parts[2].trim() : "unit";
+                                            store.addInventoryItem(new InventoryItem(iname, 1000.0, unit));
+                                        }
+                                    } catch (NumberFormatException ex) {
+                                        // skip invalid number
+                                    }
+                                }
+                            }
+                        }
+
+                        return recipe;
+                    }
+                    return null;
+                });
+
+                ingDialog.showAndWait().ifPresent(recipe -> {
+                    if (recipe != null) {
+                        product.setRecipe(recipe);
+                        store.addProduct(product);
+                        showAlert("Success", "Product added successfully!", Alert.AlertType.INFORMATION);
+                        refreshData();
+                    }
+                });
             } else {
                 showAlert("Error", "Invalid input. Please try again.", Alert.AlertType.ERROR);
             }
@@ -565,55 +678,58 @@ public class AdminApp extends Application {
     }
 
     private void addIngredient() {
-        Dialog<InventoryItem> dialog = new Dialog<>();
-        dialog.setTitle("Add Ingredient");
-        dialog.setHeaderText("Enter ingredient details:");
+        // Allow adding multiple ingredients at once (one per line)
+        Dialog<Boolean> dialog = new Dialog<>();
+        dialog.setTitle("Add Ingredients");
+        dialog.setHeaderText("Enter ingredients (one per line) in the format: name:quantity[:unit]");
 
         ButtonType addButtonType = new ButtonType("Add", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
 
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20));
+        VBox box = new VBox(8);
+        box.setPadding(new Insets(10));
+        TextArea area = new TextArea();
+        area.setPromptText("Sugar:100\nMilk:1000:ml\nVanilla Syrup:50:ml");
+        area.setPrefRowCount(8);
 
-        TextField nameField = new TextField();
-        nameField.setPromptText("Ingredient Name");
-        TextField quantityField = new TextField();
-        quantityField.setPromptText("1000");
-        TextField unitField = new TextField();
-        unitField.setPromptText("ml/g/pcs");
+        Label note = new Label("Format: name:quantity[:unit]. Unit is optional (default 'unit').");
+        box.getChildren().addAll(note, area);
+        dialog.getDialogPane().setContent(box);
 
-        grid.add(new Label("Name:"), 0, 0);
-        grid.add(nameField, 1, 0);
-        grid.add(new Label("Quantity:"), 0, 1);
-        grid.add(quantityField, 1, 1);
-        grid.add(new Label("Unit:"), 0, 2);
-        grid.add(unitField, 1, 2);
+        dialog.setResultConverter(btn -> btn == addButtonType);
 
-        dialog.getDialogPane().setContent(grid);
-
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == addButtonType) {
-                try {
-                    String name = nameField.getText();
-                    double quantity = Double.parseDouble(quantityField.getText());
-                    String unit = unitField.getText();
-                    return new InventoryItem(name, quantity, unit);
-                } catch (Exception e) {
-                    return null;
+        dialog.showAndWait().ifPresent(added -> {
+            if (Boolean.TRUE.equals(added)) {
+                String text = area.getText();
+                if (text == null || text.trim().isEmpty()) {
+                    showAlert("No Input", "Please enter at least one ingredient.", Alert.AlertType.WARNING);
+                    return;
                 }
-            }
-            return null;
-        });
-
-        dialog.showAndWait().ifPresent(item -> {
-            if (item != null) {
-                store.addInventoryItem(item);
-                showAlert("Success", "Ingredient added successfully!", Alert.AlertType.INFORMATION);
-                refreshData();
-            } else {
-                showAlert("Error", "Invalid input. Please try again.", Alert.AlertType.ERROR);
+                String[] lines = text.split("\\r?\\n");
+                int addedCount = 0;
+                for (String line : lines) {
+                    String l = line.trim();
+                    if (l.isEmpty()) continue;
+                    String[] parts = l.split(":" );
+                    if (parts.length >= 2) {
+                        String name = parts[0].trim();
+                        try {
+                            double qty = Double.parseDouble(parts[1].trim());
+                            String unit = parts.length >= 3 ? parts[2].trim() : "unit";
+                            InventoryItem item = new InventoryItem(name, qty, unit);
+                            store.addInventoryItem(item);
+                            addedCount++;
+                        } catch (NumberFormatException ex) {
+                            // skip invalid
+                        }
+                    }
+                }
+                if (addedCount > 0) {
+                    showAlert("Success", addedCount + " ingredient(s) added.", Alert.AlertType.INFORMATION);
+                    refreshData();
+                } else {
+                    showAlert("No Valid Items", "No valid ingredient lines found. Use format name:quantity[:unit].", Alert.AlertType.ERROR);
+                }
             }
         });
     }
@@ -631,21 +747,18 @@ public class AdminApp extends Application {
         private String id;
         private String name;
         private double price;
-        private int stock;
         private String status;
 
-        public ProductRow(String id, String name, double price, int stock, String status) {
+        public ProductRow(String id, String name, double price, String status) {
             this.id = id;
             this.name = name;
             this.price = price;
-            this.stock = stock;
             this.status = status;
         }
 
         public String getId() { return id; }
         public String getName() { return name; }
         public double getPrice() { return price; }
-        public int getStock() { return stock; }
         public String getStatus() { return status; }
     }
 
