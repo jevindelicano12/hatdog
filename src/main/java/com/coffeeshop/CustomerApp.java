@@ -35,7 +35,7 @@ public class CustomerApp extends Application {
     private Label footerTotalLabel;
     private Button footerViewCartBtn;
     private Button footerCheckoutBtn;
-    private String orderType = ""; // "Dine In" or "Take Away"
+    private String orderType = ""; // "Dine In" or "Take Out"
     private Timeline inactivityTimer;
     private int countdownSeconds = 30;
     private Label countdownLabel;
@@ -110,16 +110,16 @@ public class CustomerApp extends Application {
             showMenuScreen();
         });
 
-        // Take Away button
-        Label takeAwayIcon = new Label("🛍");
-        takeAwayIcon.setFont(Font.font("Segoe UI Emoji", 64));
-        VBox takeAwayBox = createOptionCard(takeAwayIcon, "Take Away", "Grab your coffee on the go");
-        takeAwayBox.setOnMouseClicked(e -> {
-            orderType = "Take Away";
+        // Take Out button
+        Label takeOutIcon = new Label("🛍");
+        takeOutIcon.setFont(Font.font("Segoe UI Emoji", 64));
+        VBox takeOutBox = createOptionCard(takeOutIcon, "Take Out", "Grab your coffee on the go");
+        takeOutBox.setOnMouseClicked(e -> {
+            orderType = "Take Out";
             showMenuScreen();
         });
 
-        optionsBox.getChildren().addAll(dineInBox, takeAwayBox);
+        optionsBox.getChildren().addAll(dineInBox, takeOutBox);
 
         welcomeBox.getChildren().addAll(titleBox, optionsBox);
         root.getChildren().add(welcomeBox);
@@ -1521,19 +1521,19 @@ public class CustomerApp extends Application {
         dineInBtn.setSelected(true);
         orderType = "Dine In";
         
-        RadioButton takeAwayBtn = new RadioButton("Take Away");
-        takeAwayBtn.setToggleGroup(orderTypeGroup);
-        takeAwayBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
+        RadioButton takeOutBtn = new RadioButton("Take Out");
+        takeOutBtn.setToggleGroup(orderTypeGroup);
+        takeOutBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
         
         orderTypeGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == dineInBtn) {
                 orderType = "Dine In";
-            } else if (newVal == takeAwayBtn) {
-                orderType = "Take Away";
+            } else if (newVal == takeOutBtn) {
+                orderType = "Take Out";
             }
         });
         
-        orderTypeButtons.getChildren().addAll(dineInBtn, takeAwayBtn);
+        orderTypeButtons.getChildren().addAll(dineInBtn, takeOutBtn);
         orderTypeSection.getChildren().addAll(orderTypeTitle, orderTypeButtons);
         
         // Order summary
