@@ -24,7 +24,7 @@
     "id": "P003",
     "name": "Latte",
     "price": 4.75,
-    "stock": 19,
+    "stock": 18,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
@@ -35,7 +35,7 @@
     "id": "P004",
     "name": "Matcha Latte",
     "price": 5.0,
-    "stock": 20,
+    "stock": 19,
     "recipe": {
       "Water": 50.0,
       "Matcha Powder": 5.0,

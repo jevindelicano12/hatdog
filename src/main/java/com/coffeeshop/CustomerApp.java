@@ -511,26 +511,43 @@ public class CustomerApp extends Application {
         HBox content = (HBox) btn.getGraphic();
         Label iconLabel = (Label) content.getChildren().get(0);
         Label textLabel = (Label) content.getChildren().get(1);
-        
+        // remove any previous selection classes
+        btn.getStyleClass().remove("category-selected");
+        iconLabel.getStyleClass().remove("category-icon-selected");
+        textLabel.getStyleClass().remove("category-text-selected");
+
         if (isSelected) {
-            btn.setStyle("-fx-background-color: #2C2C2C; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
+            // Apply selected classes (CSS handles colors); also set a slightly larger, semibold text
+            if (!btn.getStyleClass().contains("category-selected")) btn.getStyleClass().add("category-selected");
+            if (!iconLabel.getStyleClass().contains("category-icon-selected")) iconLabel.getStyleClass().add("category-icon-selected");
+            if (!textLabel.getStyleClass().contains("category-text-selected")) textLabel.getStyleClass().add("category-text-selected");
             iconLabel.setTextFill(Color.web("#FFFFFF"));
             textLabel.setTextFill(Color.web("#FFFFFF"));
+            textLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
+            // Ensure no inline hover style blocks selected appearance
+            btn.setOnMouseEntered(e -> {});
+            btn.setOnMouseExited(e -> {});
         } else {
+            // Non-selected: transparent background and normal weights
             btn.setStyle("-fx-background-color: transparent; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
             iconLabel.setTextFill(Color.web("#1A1A1A"));
             textLabel.setTextFill(Color.web("#1A1A1A"));
+            textLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+
+            // Hover effect only for non-selected buttons; when hovered, lighten background
+            btn.setOnMouseEntered(e -> {
+                if (!selectedCategory.equals(textLabel.getText())) {
+                    btn.setStyle("-fx-background-color: #F5F5F5; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
+                    iconLabel.setTextFill(Color.web("#1A1A1A"));
+                    textLabel.setTextFill(Color.web("#1A1A1A"));
+                }
+            });
+
+            btn.setOnMouseExited(e -> {
+                // Re-evaluate selection dynamically
+                updateCategoryButtonStyle(btn, selectedCategory.equals(textLabel.getText()));
+            });
         }
-        
-        btn.setOnMouseEntered(e -> {
-            if (!isSelected) {
-                btn.setStyle("-fx-background-color: #F5F5F5; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
-                iconLabel.setTextFill(Color.web("#1A1A1A"));
-                textLabel.setTextFill(Color.web("#1A1A1A"));
-            }
-        });
-        
-        btn.setOnMouseExited(e -> updateCategoryButtonStyle(btn, isSelected));
     }
     
     private void refreshProductGrid() {
@@ -755,7 +772,7 @@ public class CustomerApp extends Application {
     private VBox createCustomizationHeader(Product product) {
         VBox header = new VBox(15);
         header.setPadding(new Insets(30, 40, 20, 40));
-        header.setStyle("-fx-background-color: #1A1A1A; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 2);");
+        header.getStyleClass().add("custom-header");
         
         // Back button and title row
         HBox titleRow = new HBox();
@@ -764,9 +781,8 @@ public class CustomerApp extends Application {
         // Dynamic back button text and behavior based on whether we're editing or adding new
         String backText = customizingOrderItem != null ? "← Back to Cart" : "← Back to Menu";
         Button backBtn = new Button(backText);
-        backBtn.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;");
-        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #404040; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;"));
-        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;"));
+        backBtn.getStyleClass().add("primary-button");
+        backBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
         
         if (customizingOrderItem != null) {
             backBtn.setOnAction(e -> {
@@ -783,7 +799,6 @@ public class CustomerApp extends Application {
         String headerText = customizingOrderItem != null ? "Edit " + product.getName() : "Customize " + product.getName();
         Label titleLabel = new Label(headerText);
         titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
-        titleLabel.setTextFill(Color.WHITE);
         
         titleRow.getChildren().addAll(backBtn, spacer, titleLabel, new Region());
         
@@ -793,7 +808,7 @@ public class CustomerApp extends Application {
             "₱" + String.format("%.2f", product.getPrice()) + " • " + product.getStock() + " available";
         Label productInfo = new Label(infoText);
         productInfo.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
-        productInfo.setTextFill(Color.web("#BCAAA4"));
+        productInfo.getStyleClass().add("info");
         
         header.getChildren().addAll(titleRow, productInfo);
         return header;
@@ -801,7 +816,7 @@ public class CustomerApp extends Application {
     
     private ScrollPane createCustomizationContent(Product product) {
         ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setStyle("-fx-background: #FAFAFA; -fx-background-color: #FAFAFA;");
+        scrollPane.setStyle("-fx-background: -fx-dominant-bg; -fx-background-color: -fx-dominant-bg;");
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         
@@ -810,7 +825,7 @@ public class CustomerApp extends Application {
         
         // Product image and basic info
         VBox productSection = new VBox(12);
-        productSection.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);");
+        productSection.getStyleClass().add("card");
         productSection.setPadding(new Insets(18));
         productSection.setAlignment(Pos.CENTER_LEFT);
         productSection.setMaxWidth(Double.MAX_VALUE);
@@ -866,14 +881,13 @@ public class CustomerApp extends Application {
     
     private VBox createCustomizationOptions(Product product, javafx.beans.property.DoubleProperty suggestionsExtra, javafx.collections.ObservableList<Product> selectedSuggestions) {
         VBox customSection = new VBox(14);
-        customSection.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);");
+        customSection.getStyleClass().add("card");
         customSection.setPadding(new Insets(18));
         
         // Temperature selection
         VBox tempSection = new VBox(8);
         Label tempTitle = new Label("Temperature");
         tempTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        tempTitle.setTextFill(Color.web("#1A1A1A"));
         
         HBox tempButtons = new HBox(12);
         ToggleGroup tempGroup = new ToggleGroup();
@@ -906,7 +920,6 @@ public class CustomerApp extends Application {
         VBox sugarSection = new VBox(8);
         Label sugarTitle = new Label("Sugar Level");
         sugarTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        sugarTitle.setTextFill(Color.web("#1A1A1A"));
         
         HBox sugarButtons = new HBox(8);
         ToggleGroup sugarGroup = new ToggleGroup();
@@ -918,7 +931,6 @@ public class CustomerApp extends Application {
             sugarBtns[i] = new RadioButton(sugarLevels[i]);
             sugarBtns[i].setToggleGroup(sugarGroup);
             sugarBtns[i].setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
-            sugarBtns[i].setTextFill(Color.web("#2C2C2C"));
             sugarButtons.getChildren().add(sugarBtns[i]);
         }
         
@@ -941,7 +953,6 @@ public class CustomerApp extends Application {
         VBox addOnsSection = new VBox(8);
         Label addOnsTitle = new Label("Add-ons");
         addOnsTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        addOnsTitle.setTextFill(Color.web("#1A1A1A"));
         
         VBox addOnsList = new VBox(10);
 
@@ -950,10 +961,13 @@ public class CustomerApp extends Application {
         final int[] extraShotQty = {1};
         HBox extraRow = new HBox(8);
         extraRow.setAlignment(Pos.CENTER_LEFT);
-        Button extraMinus = new Button("−");
-        Button extraPlus = new Button("+");
         Label extraQtyLabel = new Label(String.valueOf(extraShotQty[0]));
+        extraQtyLabel.getStyleClass().add("qty-label");
+        Button extraMinus = new Button("−");
+        extraMinus.getStyleClass().add("qty-button");
         extraMinus.setOnAction(ev -> { if (extraShotQty[0] > 1) { extraShotQty[0]--; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); } });
+        Button extraPlus = new Button("+");
+        extraPlus.getStyleClass().add("qty-button");
         extraPlus.setOnAction(ev -> { extraShotQty[0]++; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); });
         extraRow.getChildren().addAll(extraShotCheck, extraMinus, extraQtyLabel, extraPlus);
 
@@ -962,8 +976,11 @@ public class CustomerApp extends Application {
         HBox whipRow = new HBox(8);
         whipRow.setAlignment(Pos.CENTER_LEFT);
         Button whipMinus = new Button("−");
+        whipMinus.getStyleClass().add("qty-button");
         Button whipPlus = new Button("+");
+        whipPlus.getStyleClass().add("qty-button");
         Label whipQtyLabel = new Label(String.valueOf(whippedQty[0]));
+        whipQtyLabel.getStyleClass().add("qty-label");
         whipMinus.setOnAction(ev -> { if (whippedQty[0] > 1) { whippedQty[0]--; whipQtyLabel.setText(String.valueOf(whippedQty[0])); } });
         whipPlus.setOnAction(ev -> { whippedQty[0]++; whipQtyLabel.setText(String.valueOf(whippedQty[0])); });
         whipRow.getChildren().addAll(whippedCreamCheck, whipMinus, whipQtyLabel, whipPlus);
@@ -973,7 +990,14 @@ public class CustomerApp extends Application {
         HBox vanillaRow = new HBox(8);
         vanillaRow.setAlignment(Pos.CENTER_LEFT);
         Button vanMinus = new Button("−");
+        vanMinus.getStyleClass().add("qty-button");
+        vanMinus.setOnMouseEntered(e -> vanMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        vanMinus.setOnMouseExited(e -> vanMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         Button vanPlus = new Button("+");
+        vanPlus.setPrefSize(30, 30);
+        vanPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        vanPlus.setOnMouseEntered(e -> vanPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        vanPlus.setOnMouseExited(e -> vanPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         Label vanQtyLabel = new Label(String.valueOf(vanillaQty[0]));
         vanMinus.setOnAction(ev -> { if (vanillaQty[0] > 1) { vanillaQty[0]--; vanQtyLabel.setText(String.valueOf(vanillaQty[0])); } });
         vanPlus.setOnAction(ev -> { vanillaQty[0]++; vanQtyLabel.setText(String.valueOf(vanillaQty[0])); });
@@ -984,7 +1008,15 @@ public class CustomerApp extends Application {
         HBox caramelRow = new HBox(8);
         caramelRow.setAlignment(Pos.CENTER_LEFT);
         Button carMinus = new Button("−");
+        carMinus.setPrefSize(30, 30);
+        carMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        carMinus.setOnMouseEntered(e -> carMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        carMinus.setOnMouseExited(e -> carMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         Button carPlus = new Button("+");
+        carPlus.setPrefSize(30, 30);
+        carPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        carPlus.setOnMouseEntered(e -> carPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        carPlus.setOnMouseExited(e -> carPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         Label carQtyLabel = new Label(String.valueOf(caramelQty[0]));
         carMinus.setOnAction(ev -> { if (caramelQty[0] > 1) { caramelQty[0]--; carQtyLabel.setText(String.valueOf(caramelQty[0])); } });
         carPlus.setOnAction(ev -> { caramelQty[0]++; carQtyLabel.setText(String.valueOf(caramelQty[0])); });
@@ -995,7 +1027,15 @@ public class CustomerApp extends Application {
         HBox chocRow = new HBox(8);
         chocRow.setAlignment(Pos.CENTER_LEFT);
         Button chocMinus = new Button("−");
+        chocMinus.setPrefSize(30, 30);
+        chocMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        chocMinus.setOnMouseEntered(e -> chocMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        chocMinus.setOnMouseExited(e -> chocMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         Button chocPlus = new Button("+");
+        chocPlus.setPrefSize(30, 30);
+        chocPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        chocPlus.setOnMouseEntered(e -> chocPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        chocPlus.setOnMouseExited(e -> chocPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         Label chocQtyLabel = new Label(String.valueOf(chocolateQty[0]));
         chocMinus.setOnAction(ev -> { if (chocolateQty[0] > 1) { chocolateQty[0]--; chocQtyLabel.setText(String.valueOf(chocolateQty[0])); } });
         chocPlus.setOnAction(ev -> { chocolateQty[0]++; chocQtyLabel.setText(String.valueOf(chocolateQty[0])); });
@@ -1021,7 +1061,8 @@ public class CustomerApp extends Application {
         // Quantity selector (compact)
         HBox qtySection = new HBox(6);
         qtySection.setAlignment(Pos.CENTER_LEFT);
-        qtySection.setStyle("-fx-background-color: #F6F6F6; -fx-padding: 6 8; -fx-border-radius: 6; -fx-background-radius: 6;");
+        // Remove background so the quantity selector is flush with the card
+        qtySection.setStyle("-fx-padding: 6 8;");
         
         Label qtyLabel = new Label("Quantity:");
         qtyLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
@@ -1029,9 +1070,9 @@ public class CustomerApp extends Application {
         
         Button minusBtn = new Button("−");
         minusBtn.setPrefSize(34, 34);
-        minusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;");
-        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: rgba(0,0,0,0.03); -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A;"));
-        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;"));
+        minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
         Label qtyValueLabel = new Label("1");
         qtyValueLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
@@ -1041,9 +1082,9 @@ public class CustomerApp extends Application {
         
         Button plusBtn = new Button("+");
         plusBtn.setPrefSize(34, 34);
-        plusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;");
-        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: rgba(0,0,0,0.03); -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A;"));
-        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;"));
+        plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
         final int[] quantity = {1};
         minusBtn.setOnAction(e -> {
@@ -1284,9 +1325,10 @@ public class CustomerApp extends Application {
     }
 
     private HBox createSuggestionRow(Product currentProduct, javafx.beans.property.DoubleProperty suggestionsExtra, javafx.collections.ObservableList<Product> selectedSuggestions) {
-        HBox row = new HBox(12);
-        row.setPadding(new Insets(8, 0, 8, 0));
-        row.setAlignment(Pos.TOP_LEFT);
+        // Build a vertical list of suggestion rows (one-per-line, full-width)
+        VBox container = new VBox(12);
+        container.setPadding(new Insets(8, 0, 8, 0));
+        container.setAlignment(Pos.TOP_LEFT);
 
         int added = 0;
         for (Product p : store.getProducts()) {
@@ -1294,38 +1336,97 @@ public class CustomerApp extends Application {
             if (p.getName().equals(currentProduct.getName())) continue;
             if (p.getStock() <= 0) continue;
 
-            VBox card = new VBox(8);
-            card.setPadding(new Insets(10));
-            card.setPrefWidth(320);
-            card.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 6, 0, 0, 1);");
+            HBox cardRow = new HBox(12);
+            cardRow.setPadding(new Insets(10));
+            cardRow.setAlignment(Pos.CENTER_LEFT);
+            cardRow.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 6, 0, 0, 1);");
+            cardRow.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(cardRow, Priority.ALWAYS);
 
+            // Image thumbnail
             StackPane img = new StackPane();
-            img.setPrefHeight(90);
+            img.setPrefSize(110, 90);
             String grad = p.getName().toLowerCase().contains("espresso") ? "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" : "linear-gradient(to bottom right, #505050, #2C2C2C)";
             img.setStyle("-fx-background-color: " + grad + "; -fx-background-radius: 0; -fx-border-radius: 0;");
             Label emoji = new Label("☕");
-            emoji.setFont(Font.font("Segoe UI Emoji", 36));
+            emoji.setFont(Font.font("Segoe UI Emoji", 28));
             emoji.setTextFill(Color.web("#F5EFE7"));
             img.getChildren().add(emoji);
 
+            // Middle: title and unit price
+            VBox mid = new VBox(6);
+            mid.setAlignment(Pos.CENTER_LEFT);
             Label name = new Label(p.getName());
             name.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
             name.setTextFill(Color.web("#1A1A1A"));
 
-            Label priceLabel = new Label(String.format("₱%.2f", p.getPrice()));
-            priceLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            priceLabel.setTextFill(Color.web("#757575"));
+            Label unitPrice = new Label(String.format("₱%.2f", p.getPrice()));
+            unitPrice.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            unitPrice.setTextFill(Color.web("#757575"));
 
-            HBox titleRow = new HBox(8, name, priceLabel);
-            titleRow.setAlignment(Pos.CENTER_LEFT);
+            mid.getChildren().addAll(name, unitPrice);
 
-            CheckBox addChk = new CheckBox("Add");
-            addChk.setFont(Font.font("Segoe UI", 12));
-            addChk.setPadding(new Insets(6, 8, 6, 8));
-            addChk.setStyle("-fx-cursor: hand; -fx-border-radius: 0; -fx-background-radius: 0;");
-            // when the checkbox toggles, update the shared suggestionsExtra property
+            // Spacer to push qty/total to the right
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            // Right: checkbox, quantity controls and total price (total under qty, centered vertically)
+            VBox rightBox = new VBox(6);
+            rightBox.setAlignment(Pos.CENTER);
+
+            CheckBox addChk = new CheckBox();
+            addChk.setTooltip(new javafx.scene.control.Tooltip("Add this suggestion"));
+            addChk.setStyle("-fx-cursor: hand;");
+
+            // Quantity controls
+            HBox qtyBox = new HBox(6);
+            qtyBox.setAlignment(Pos.CENTER);
+            // make qty controls transparent (no background)
+            qtyBox.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
+            Button minus = new Button("−");
+            minus.setPrefSize(30, 30);
+            minus.setStyle("-fx-cursor: hand; -fx-background-color: transparent;");
+            Button plus = new Button("+");
+            plus.setPrefSize(30, 30);
+            plus.setStyle("-fx-cursor: hand; -fx-background-color: transparent;");
+            final int[] qty = {1};
+            Label qtyLabel = new Label(String.valueOf(qty[0]));
+            qtyLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+            qtyLabel.setPrefWidth(28);
+            qtyLabel.setAlignment(Pos.CENTER);
+            
+            // Total price label (qty * unit price) - declare early so handlers can reference it
+            Label totalPriceLabel = new Label(String.format("₱%.2f", p.getPrice() * qty[0]));
+            totalPriceLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+            totalPriceLabel.setTextFill(Color.web("#1A1A1A"));
+
+            minus.setOnAction(ev -> {
+                if (qty[0] > 1) {
+                    qty[0]--;
+                    qtyLabel.setText(String.valueOf(qty[0]));
+                    if (addChk.isSelected()) {
+                        double delta = -p.getPrice();
+                        suggestionsExtra.set(suggestionsExtra.get() + delta);
+                    }
+                    totalPriceLabel.setText(String.format("₱%.2f", p.getPrice() * qty[0]));
+                }
+            });
+            plus.setOnAction(ev -> {
+                if (qty[0] < p.getStock()) {
+                    qty[0]++;
+                    qtyLabel.setText(String.valueOf(qty[0]));
+                    if (addChk.isSelected()) {
+                        double delta = p.getPrice();
+                        suggestionsExtra.set(suggestionsExtra.get() + delta);
+                    }
+                    totalPriceLabel.setText(String.format("₱%.2f", p.getPrice() * qty[0]));
+                }
+            });
+
+            qtyBox.getChildren().addAll(minus, qtyLabel, plus);
+            // When checkbox toggles, update suggestionsExtra and selectedSuggestions
             addChk.selectedProperty().addListener((obs, oldV, newV) -> {
-                double delta = newV ? p.getPrice() : -p.getPrice();
+                double delta = newV ? p.getPrice() * qty[0] : -p.getPrice() * qty[0];
                 suggestionsExtra.set(suggestionsExtra.get() + delta);
                 if (newV) {
                     if (!selectedSuggestions.contains(p)) selectedSuggestions.add(p);
@@ -1334,12 +1435,19 @@ public class CustomerApp extends Application {
                 }
             });
 
-            card.getChildren().addAll(img, name, addChk);
-            row.getChildren().add(card);
+            rightBox.getChildren().addAll(addChk, qtyBox, totalPriceLabel);
+
+            // Build the row
+            cardRow.getChildren().addAll(img, mid, spacer, rightBox);
+            container.getChildren().add(cardRow);
             added++;
         }
 
-        return row;
+        // Wrap into an HBox to keep method signature compatibility (caller expects a Node)
+        HBox wrapper = new HBox();
+        wrapper.setAlignment(Pos.TOP_LEFT);
+        wrapper.getChildren().add(container);
+        return wrapper;
     }
 
 
@@ -1529,13 +1637,14 @@ public class CustomerApp extends Application {
         // Quantity controls with minus and plus buttons
         HBox controls = new HBox(6);
         controls.setAlignment(Pos.CENTER_RIGHT);
-        controls.setStyle("-fx-background-color: #F8F8F8; -fx-background-radius: 0; -fx-padding: 4;");
+        // Remove background so quantity controls are flush and minimal
+        controls.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
 
         Button minusBtn = new Button("−");
         minusBtn.setPrefSize(32, 32);
-        minusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
-        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
-        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
+        minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
+        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
+        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
 
         Label qtyLabel = new Label(String.valueOf(totalQty));
         qtyLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
@@ -1545,9 +1654,9 @@ public class CustomerApp extends Application {
 
         Button plusBtn = new Button("+");
         plusBtn.setPrefSize(32, 32);
-        plusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
-        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
-        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
+        plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
+        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
+        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
 
         minusBtn.setOnAction(e -> {
             // Build a key that matches the grouping logic used when rendering the cart
@@ -1755,37 +1864,8 @@ public class CustomerApp extends Application {
         VBox content = new VBox(30);
         content.setPadding(new Insets(30, 40, 40, 40));
         
-        // Order type selection
-        VBox orderTypeSection = new VBox(15);
-        Label orderTypeTitle = new Label("Order Type");
-        orderTypeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
-        orderTypeTitle.setTextFill(Color.web("#1A1A1A"));
-        
-        HBox orderTypeButtons = new HBox(20);
-        orderTypeButtons.setAlignment(Pos.CENTER_LEFT);
-        
-        ToggleGroup orderTypeGroup = new ToggleGroup();
-        
-        RadioButton dineInBtn = new RadioButton("Dine In");
-        dineInBtn.setToggleGroup(orderTypeGroup);
-        dineInBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
-        dineInBtn.setSelected(true);
-        orderType = "Dine In";
-        
-        RadioButton takeAwayBtn = new RadioButton("Take Away");
-        takeAwayBtn.setToggleGroup(orderTypeGroup);
-        takeAwayBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
-        
-        orderTypeGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == dineInBtn) {
-                orderType = "Dine In";
-            } else if (newVal == takeAwayBtn) {
-                orderType = "Take Away";
-            }
-        });
-        
-        orderTypeButtons.getChildren().addAll(dineInBtn, takeAwayBtn);
-        orderTypeSection.getChildren().addAll(orderTypeTitle, orderTypeButtons);
+        // Order type is selected on the homepage; no radios shown here.
+        // (Homepage selection is stored in `orderType`.)
         
         // Order summary
         VBox summarySection = createOrderSummarySection();
@@ -1793,7 +1873,7 @@ public class CustomerApp extends Application {
         // Payment buttons
         VBox paymentSection = createPaymentSection();
         
-        content.getChildren().addAll(orderTypeSection, summarySection, paymentSection);
+        content.getChildren().addAll(summarySection, paymentSection);
         return content;
     }
     

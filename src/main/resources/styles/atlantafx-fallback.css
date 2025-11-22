@@ -5,36 +5,86 @@
     -fx-background: #FAFAFA;
 }
 
+/* 60 / 30 / 10 color rule: define palette vars on the JavaFX .root selector */
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-base: #FFFFFF;
+    -fx-background: #FAFAFA;
+
+    /* Dominant / background (60%) */
+    -fx-dominant-bg: #FAFAFA;
+    /* Secondary (30%) used for primary UI elements */
+    -fx-secondary: #1A1A1A;
+    /* Accent (10%) used sparingly for highlights */
+    -fx-accent: #E65100;
+    /* Muted text */
+    -fx-muted: #757575;
+    /* Surface (cards, headers) */
+    -fx-surface: #FFFFFF;
+}
+
 /* Header */
 .header-pane, .header {
-    -fx-background-color: #1A1A1A;
+    -fx-background-color: -fx-surface;
     -fx-padding: 20 30 20 30;
 }
 
 /* Card */
 .vbox.card, .card {
-    -fx-background-color: white;
+    -fx-background-color: -fx-surface;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);
     -fx-background-radius: 6;
 }
 
 /* Ensure category sidebar labels are always high contrast */
 .category-sidebar {
-    -fx-background-color: #FFFFFF;
+    -fx-background-color: -fx-dominant-bg;
 }
 .category-sidebar .label {
-    -fx-text-fill: #1A1A1A;
+    -fx-text-fill: -fx-secondary;
+    -fx-font-size: 14px;
+}
+
+/* Selected / highlighted sidebar button */
+.category-selected {
+    -fx-background-color: -fx-accent;
+    -fx-background-radius: 0;
+}
+.category-selected .label {
+    -fx-text-fill: white;
+}
+.category-selected .category-text-selected {
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+}
+.category-selected .category-icon-selected {
+    -fx-text-fill: white;
+}
+
+/* Hover state for sidebar buttons when not selected */
+.category-sidebar .button:hover {
+    -fx-background-color: #F5F5F5;
+}
+
+/* Ensure selected category keeps accent color on hover (override generic hover) */
+.category-sidebar .category-selected:hover {
+    -fx-background-color: -fx-accent;
+}
+.category-sidebar .category-selected:hover .label,
+.category-sidebar .category-selected:hover .category-text-selected,
+.category-sidebar .category-selected:hover .category-icon-selected {
+    -fx-text-fill: white;
 }
 
 /* Primary buttons */
 .primary-button {
-    -fx-background-color: #1A1A1A;
+    -fx-background-color: -fx-secondary;
     -fx-text-fill: white;
     -fx-padding: 8 14 8 14;
     -fx-background-radius: 0; /* keep square corners */
 }
 .primary-button:hover {
-    -fx-background-color: #2C2C2C;
+    -fx-background-color: derive(-fx-secondary, 12%);
     -fx-background-radius: 0; /* ensure radius doesn't change on hover */
     -fx-padding: 8 14 8 14; /* ensure padding remains stable on hover */
 }
@@ -44,7 +94,7 @@
     -fx-background-color: transparent;
     -fx-border-color: #E0E0E0;
     -fx-border-width: 1;
-    -fx-text-fill: #1A1A1A;
+    -fx-text-fill: -fx-secondary;
 }
 
 /* Cancel button (explicit) */
@@ -59,7 +109,7 @@
 
 /* Small controls */
 .label {
-    -fx-text-fill: #1A1A1A;
+    -fx-text-fill: -fx-secondary;
 }
 
 /* Inputs and controls */
@@ -70,6 +120,38 @@
 /* Suggestions cards */
 .hbox .card {
     -fx-background-radius: 4;
+}
+
+/* Customization header (dark band) */
+.custom-header {
+    -fx-background-color: -fx-secondary;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 2);
+    -fx-padding: 30 40 20 40;
+}
+.custom-header .label {
+    -fx-text-fill: white;
+}
+.custom-header .info {
+    -fx-text-fill: -fx-muted;
+}
+
+/* Quantity button used in customization and suggestions */
+.qty-button {
+    -fx-background-color: -fx-dominant-bg;
+    -fx-text-fill: -fx-secondary;
+    -fx-font-size: 14px;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-min-width: 30px;
+    -fx-min-height: 30px;
+}
+.qty-button:hover {
+    -fx-background-color: derive(-fx-dominant-bg, -6%);
+}
+
+.qty-label {
+    -fx-text-fill: -fx-secondary;
+    -fx-font-size: 14px;
 }
 
 /* Footer */

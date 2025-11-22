@@ -1,12 +1,12 @@
 {
   "Water": {
     "name": "Water",
-    "quantity": 19910.0,
+    "quantity": 19830.0,
     "unit": "ml"
   },
   "Matcha Powder": {
     "name": "Matcha Powder",
-    "quantity": 500.0,
+    "quantity": 495.0,
     "unit": "g"
   },
   "Vanilla Syrup": {
@@ -16,7 +16,7 @@
   },
   "Coffee Beans": {
     "name": "Coffee Beans",
-    "quantity": 4946.0,
+    "quantity": 4928.0,
     "unit": "g"
   },
   "Caramel Syrup": {
@@ -31,7 +31,7 @@
   },
   "Milk": {
     "name": "Milk",
-    "quantity": 9620.0,
+    "quantity": 9220.0,
     "unit": "ml"
   }
 }
