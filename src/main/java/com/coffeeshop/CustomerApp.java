@@ -104,7 +104,7 @@ public class CustomerApp extends Application {
             dineIconNode = iconLabel;
         }
 
-        VBox dineInBox = createOptionCard(dineIconNode, "Dine In", "Enjoy your meal in our cozy space");
+        VBox dineInBox = createOptionCard(dineIconNode, "Dine In", "Enjoy your coffee in our cozy space");
         dineInBox.setOnMouseClicked(e -> {
             orderType = "Dine In";
             showMenuScreen();
