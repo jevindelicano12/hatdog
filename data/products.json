@@ -3,7 +3,7 @@
     "id": "P001",
     "name": "Espresso",
     "price": 3.5,
-    "stock": 20,
+    "stock": 19,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0
@@ -24,7 +24,7 @@
     "id": "P003",
     "name": "Latte",
     "price": 4.75,
-    "stock": 20,
+    "stock": 19,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
@@ -46,7 +46,7 @@
     "id": "P005",
     "name": "Mocha",
     "price": 5.25,
-    "stock": 20,
+    "stock": 19,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,

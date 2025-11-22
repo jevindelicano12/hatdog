@@ -1,0 +1,79 @@
+/* Minimal Atlantafx-like fallback theme to provide a modern look */
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-base: #FFFFFF;
+    -fx-background: #FAFAFA;
+}
+
+/* Header */
+.header-pane, .header {
+    -fx-background-color: #1A1A1A;
+    -fx-padding: 20 30 20 30;
+}
+
+/* Card */
+.vbox.card, .card {
+    -fx-background-color: white;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);
+    -fx-background-radius: 6;
+}
+
+/* Ensure category sidebar labels are always high contrast */
+.category-sidebar {
+    -fx-background-color: #FFFFFF;
+}
+.category-sidebar .label {
+    -fx-text-fill: #1A1A1A;
+}
+
+/* Primary buttons */
+.primary-button {
+    -fx-background-color: #1A1A1A;
+    -fx-text-fill: white;
+    -fx-padding: 8 14 8 14;
+    -fx-background-radius: 0; /* keep square corners */
+}
+.primary-button:hover {
+    -fx-background-color: #2C2C2C;
+    -fx-background-radius: 0; /* ensure radius doesn't change on hover */
+    -fx-padding: 8 14 8 14; /* ensure padding remains stable on hover */
+}
+
+/* Secondary / ghost buttons */
+.secondary-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 1;
+    -fx-text-fill: #1A1A1A;
+}
+
+/* Cancel button (explicit) */
+.cancel-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #D32F2F;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+    -fx-text-fill: #D32F2F;
+    -fx-padding: 8 12 8 12;
+}
+
+/* Small controls */
+.label {
+    -fx-text-fill: #1A1A1A;
+}
+
+/* Inputs and controls */
+.radio-button, .check-box {
+    -fx-padding: 6 0 6 0;
+}
+
+/* Suggestions cards */
+.hbox .card {
+    -fx-background-radius: 4;
+}
+
+/* Footer */
+.footer {
+    -fx-background-color: white;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, -2);
+}

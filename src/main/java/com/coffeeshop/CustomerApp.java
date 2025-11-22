@@ -1,26 +1,38 @@
 package com.coffeeshop;
 
-import com.coffeeshop.model.*;
+import java.util.UUID;
+
+import com.coffeeshop.model.Order;
+import com.coffeeshop.model.OrderItem;
+import com.coffeeshop.model.Product;
 import com.coffeeshop.service.Store;
-import com.coffeeshop.service.TextDatabase;
-import javafx.application.Application;
-import javafx.application.Platform;
+
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.util.Duration;
-// removed TranslateTransition (overlay transitions reverted)
+import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-// Removed javafx.animation Timeline/KeyFrame usage; using ScheduledExecutorService
-
-import java.util.UUID;
+import javafx.util.Duration;
 
 public class CustomerApp extends Application {
     private Store store;
@@ -49,6 +61,38 @@ public class CustomerApp extends Application {
         showWelcomeScreen();
     }
 
+    // Attempt to apply Atlantafx theme stylesheet if available on classpath
+    private void applyAtlantafx(Scene scene) {
+        if (scene == null) return;
+        try {
+            String[] candidates = new String[] {
+                "/styles/atlantafx-fallback.css",
+                "/atlantafx.css",
+                "/atlantafx/atlantafx.css",
+                "/io/github/palexdev/atlantafx/atlantafx.css",
+                "/META-INF/atlantafx.css"
+            };
+
+            for (String p : candidates) {
+                java.net.URL u = getClass().getResource(p);
+                if (u != null) {
+                    scene.getStylesheets().add(u.toExternalForm());
+                    return;
+                }
+            }
+
+            // If CSS not found, check for Atlantafx classes (best-effort, non-failing)
+            try {
+                Class.forName("io.github.palexdev.atlantafx.AtlanTheme");
+                // If present but stylesheet path is unknown, don't crash — user can run mvn to resolve.
+            } catch (ClassNotFoundException ignored) {
+            }
+        } catch (Exception ex) {
+            // Do not block startup if theme loading fails
+            System.err.println("Atlantafx theme not applied: " + ex.getMessage());
+        }
+    }
+
     private void showWelcomeScreen() {
         StackPane root = new StackPane();
         root.setStyle("-fx-background-color: #FFFFFF;"); // Modern White Background
@@ -56,10 +100,10 @@ public class CustomerApp extends Application {
         VBox welcomeBox = new VBox(40);
         welcomeBox.setAlignment(Pos.CENTER);
         welcomeBox.setPadding(new Insets(60));
-        welcomeBox.setMaxWidth(800);
-        welcomeBox.setMaxHeight(600);
-        // Glassmorphism-like effect or clean card
-        welcomeBox.setStyle("-fx-background-color: white; -fx-background-radius: 24; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 10);");
+        welcomeBox.setMaxWidth(1200);
+        welcomeBox.setMaxHeight(800);
+        // Larger, flush card (no rounded corners)
+        welcomeBox.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 10);");
 
         // Welcome text
         VBox titleBox = new VBox(10);
@@ -98,18 +142,19 @@ public class CustomerApp extends Application {
         welcomeBox.getChildren().addAll(titleBox, optionsBox);
         root.getChildren().add(welcomeBox);
 
-        Scene scene = new Scene(root, 1400, 800);
+        Scene scene = new Scene(root, 1600, 900);
         primaryStage.setScene(scene);
         primaryStage.show();
+        applyAtlantafx(scene);
     }
 
     private VBox createOptionCard(String icon, String title, String desc) {
         VBox card = new VBox(15);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(40, 30, 40, 30));
-        card.setPrefWidth(320);
-        card.setPrefHeight(320);
-        card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 16; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 16; -fx-cursor: hand;");
+        card.setPrefWidth(380);
+        card.setPrefHeight(380);
+        card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand;");
         
         Label iconLabel = new Label(icon);
         iconLabel.setFont(Font.font("Segoe UI Emoji", 64));
@@ -128,19 +173,19 @@ public class CustomerApp extends Application {
         
         // Hover animation
         card.setOnMouseEntered(e -> {
-            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 16; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 16; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 12, 0, 0, 3);");
+            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 12, 0, 0, 3);");
             titleLabel.setTextFill(Color.web("#2C2C2C"));
         });
         
         card.setOnMouseExited(e -> {
-            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 16; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 16; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 8, 0, 0, 2);");
+            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 8, 0, 0, 2);");
             titleLabel.setTextFill(Color.web("#1A1A1A"));
         });
         
         return card;
     }
 
-    private String selectedCategory = "Beverages"; // Default category
+    private String selectedCategory = "All"; // Default category
     private boolean sidebarVisible = true; // Sidebar visibility state
     private VBox categorySidebarContainer; // Reference to sidebar for hiding/showing
     
@@ -161,13 +206,16 @@ public class CustomerApp extends Application {
         HBox mainContent = new HBox();
         mainContent.setStyle("-fx-background-color: #FFFFFF;");
         mainContent.setMinHeight(500); // Ensure main content has minimum height
+        mainContent.setAlignment(Pos.CENTER); // center children horizontally
         
         // Left sidebar - Categories (conditionally shown)
         if (sidebarVisible) {
             categorySidebarContainer = createCategorySidebar();
+            // make sidebar slightly shorter so center column appears taller
+            categorySidebarContainer.setMinHeight(600);
             mainContent.getChildren().add(categorySidebarContainer);
         }
-        
+
         // Right - Product Menu (3-column grid)
         ScrollPane menuScroll = createProductMenu();
         HBox.setHgrow(menuScroll, Priority.ALWAYS);
@@ -179,8 +227,10 @@ public class CustomerApp extends Application {
         footerContainer = createFooter();
         root.setBottom(footerContainer);
 
-        Scene scene = new Scene(root, 1400, 800);
+        Scene scene = new Scene(root, 1600, 900);
         primaryStage.setScene(scene);
+
+        applyAtlantafx(scene);
 
         // Update footer after scene is set
         updateFooter();
@@ -207,9 +257,10 @@ public class CustomerApp extends Application {
         cancelButton.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         cancelButton.setTextFill(Color.web("#D32F2F"));
         cancelButton.setPadding(new Insets(10, 20, 10, 20));
-        cancelButton.setStyle("-fx-background-color: transparent; -fx-border-color: #D32F2F; -fx-border-radius: 20; -fx-background-radius: 20; -fx-cursor: hand;");
-        cancelButton.setOnMouseEntered(e -> cancelButton.setStyle("-fx-background-color: #FFEBEE; -fx-border-color: #D32F2F; -fx-border-radius: 20; -fx-background-radius: 20; -fx-cursor: hand;"));
-        cancelButton.setOnMouseExited(e -> cancelButton.setStyle("-fx-background-color: transparent; -fx-border-color: #D32F2F; -fx-border-radius: 20; -fx-background-radius: 20; -fx-cursor: hand;"));
+        cancelButton.getStyleClass().add("cancel-button");
+        cancelButton.setStyle("-fx-cursor: hand;");
+        cancelButton.setOnMouseEntered(e -> cancelButton.setStyle("-fx-background-color: #FFEBEE; -fx-border-color: #D32F2F; -fx-border-radius: 0; -fx-background-radius: 0; -fx-cursor: hand;"));
+        cancelButton.setOnMouseExited(e -> cancelButton.setStyle("-fx-background-color: transparent; -fx-border-color: #D32F2F; -fx-border-radius: 0; -fx-background-radius: 0; -fx-cursor: hand;"));
         
         cancelButton.setOnAction(e -> {
             // Clear current order and reset state, then return to welcome screen
@@ -260,7 +311,7 @@ public class CustomerApp extends Application {
         orderTypeBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
         orderTypeBadge.setTextFill(Color.web("#E65100"));
         orderTypeBadge.setPadding(new Insets(8, 16, 8, 16));
-        orderTypeBadge.setStyle("-fx-background-color: #FFF3E0; -fx-background-radius: 20;");
+        orderTypeBadge.setStyle("-fx-background-color: #FFF3E0; -fx-background-radius: 0; -fx-border-radius: 0;");
         
         rightBox.getChildren().add(orderTypeBadge);
 
@@ -303,17 +354,19 @@ public class CustomerApp extends Application {
         footerViewCartBtn = new Button("View Cart");
         footerViewCartBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         footerViewCartBtn.setPadding(new Insets(12, 24, 12, 24));
-        footerViewCartBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 8; -fx-text-fill: #2C2C2C; -fx-cursor: hand;");
-        footerViewCartBtn.setOnMouseEntered(e -> footerViewCartBtn.setStyle("-fx-background-color: #F5F5F5; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 8; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
-        footerViewCartBtn.setOnMouseExited(e -> footerViewCartBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 8; -fx-text-fill: #2C2C2C; -fx-cursor: hand;"));
+        footerViewCartBtn.getStyleClass().add("secondary-button");
+        footerViewCartBtn.setStyle("-fx-padding: 12 24; -fx-cursor: hand;");
+        footerViewCartBtn.setOnMouseEntered(e -> footerViewCartBtn.setStyle("-fx-background-color: #F5F5F5; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
+        footerViewCartBtn.setOnMouseExited(e -> footerViewCartBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-text-fill: #2C2C2C; -fx-cursor: hand;"));
         footerViewCartBtn.setOnAction(e -> showCartDialog());
         
         footerCheckoutBtn = new Button("Proceed to Checkout");
         footerCheckoutBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         footerCheckoutBtn.setPadding(new Insets(12, 24, 12, 24));
-        footerCheckoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
-        footerCheckoutBtn.setOnMouseEntered(e -> footerCheckoutBtn.setStyle("-fx-background-color: #43A047; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"));
-        footerCheckoutBtn.setOnMouseExited(e -> footerCheckoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"));
+        footerCheckoutBtn.getStyleClass().add("primary-button");
+        footerCheckoutBtn.setStyle("-fx-cursor: hand;");
+        footerCheckoutBtn.setOnMouseEntered(e -> footerCheckoutBtn.setStyle("-fx-background-color: #43A047; -fx-text-fill: white; -fx-background-radius: 0; -fx-cursor: hand;"));
+        footerCheckoutBtn.setOnMouseExited(e -> footerCheckoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 0; -fx-cursor: hand;"));
         footerCheckoutBtn.setOnAction(e -> {
             if (currentOrder.getItems().isEmpty()) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -351,27 +404,28 @@ public class CustomerApp extends Application {
         if (footerViewCartBtn != null) {
             footerViewCartBtn.setDisable(!hasItems);
             if (hasItems) {
-                footerViewCartBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 8; -fx-text-fill: #2C2C2C; -fx-cursor: hand;");
+                footerViewCartBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-text-fill: #2C2C2C; -fx-cursor: hand;");
             } else {
-                footerViewCartBtn.setStyle("-fx-background-color: #F5F5F5; -fx-border-color: #E0E0E0; -fx-border-width: 2; -fx-border-radius: 8; -fx-text-fill: #BDBDBD;");
+                footerViewCartBtn.setStyle("-fx-background-color: #F5F5F5; -fx-border-color: #E0E0E0; -fx-border-width: 2; -fx-border-radius: 0; -fx-text-fill: #BDBDBD;");
             }
         }
         
         if (footerCheckoutBtn != null) {
             footerCheckoutBtn.setDisable(!hasItems);
             if (hasItems) {
-                footerCheckoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
+                footerCheckoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-background-radius: 0; -fx-cursor: hand;");
             } else {
-                footerCheckoutBtn.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #BDBDBD; -fx-background-radius: 8;");
+                footerCheckoutBtn.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #BDBDBD; -fx-background-radius: 0;");
             }
         }
     }
     
     private VBox createCategorySidebar() {
         VBox sidebar = new VBox(0);
-        sidebar.setPrefWidth(280);
-        sidebar.setMaxWidth(280);
-        sidebar.setMinWidth(280);
+        sidebar.getStyleClass().add("category-sidebar");
+        sidebar.setPrefWidth(340);
+        sidebar.setMaxWidth(340);
+        sidebar.setMinWidth(340);
         sidebar.setStyle("-fx-background-color: #FFFFFF; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 2, 0); -fx-border-color: #E0E0E0; -fx-border-width: 0 1 0 0;");
         
         // Sidebar header with back button - Clean white theme
@@ -386,9 +440,9 @@ public class CustomerApp extends Application {
         Button backButton = new Button("←");
         backButton.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
         backButton.setTextFill(Color.web("#1A1A1A"));
-        backButton.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 18; -fx-min-width: 32; -fx-min-height: 32; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 18;");
-        backButton.setOnMouseEntered(e -> backButton.setStyle("-fx-background-color: #F5F5F5; -fx-text-fill: #1A1A1A; -fx-background-radius: 18; -fx-min-width: 32; -fx-min-height: 32; -fx-cursor: hand; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-border-radius: 18;"));
-        backButton.setOnMouseExited(e -> backButton.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 18; -fx-min-width: 32; -fx-min-height: 32; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 18;"));
+        backButton.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 0; -fx-min-width: 32; -fx-min-height: 32; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0;");
+        backButton.setOnMouseEntered(e -> backButton.setStyle("-fx-background-color: #F5F5F5; -fx-text-fill: #1A1A1A; -fx-background-radius: 0; -fx-min-width: 32; -fx-min-height: 32; -fx-cursor: hand; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-border-radius: 0;"));
+        backButton.setOnMouseExited(e -> backButton.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 0; -fx-min-width: 32; -fx-min-height: 32; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0;"));
         backButton.setOnAction(e -> toggleSidebar());
         
         Label categoriesTitle = new Label("Categories");
@@ -409,8 +463,8 @@ public class CustomerApp extends Application {
         VBox categoryContainer = new VBox(2);
         categoryContainer.setPadding(new Insets(0));
         
-        String[] categories = {"Beverages", "Espresso", "Specialty", "Cold Drinks", "Snacks", "Pastries"};
-        String[] icons = {"☕", "☘", "✨", "🧊", "🍪", "🍰"};
+        String[] categories = {"All", "Beverages", "Espresso", "Specialty", "Cold Drinks", "Snacks", "Pastries"};
+        String[] icons = {"⭐", "☕", "☘", "✨", "🧊", "🍪", "🍰"};
         
         for (int i = 0; i < categories.length; i++) {
             Button categoryBtn = createCategoryButton(categories[i], icons[i]);
@@ -423,8 +477,8 @@ public class CustomerApp extends Application {
     
     private Button createCategoryButton(String category, String icon) {
         Button btn = new Button();
-        btn.setPrefWidth(280);
-        btn.setPrefHeight(48);
+        btn.setPrefWidth(340);
+        btn.setPrefHeight(56);
         btn.setAlignment(Pos.CENTER_LEFT);
         btn.setPadding(new Insets(0, 20, 0, 20));
         
@@ -459,18 +513,18 @@ public class CustomerApp extends Application {
         Label textLabel = (Label) content.getChildren().get(1);
         
         if (isSelected) {
-            btn.setStyle("-fx-background-color: #2C2C2C; -fx-background-radius: 8; -fx-border-width: 0;");
+            btn.setStyle("-fx-background-color: #2C2C2C; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
             iconLabel.setTextFill(Color.web("#FFFFFF"));
             textLabel.setTextFill(Color.web("#FFFFFF"));
         } else {
-            btn.setStyle("-fx-background-color: transparent; -fx-background-radius: 8; -fx-border-width: 0;");
+            btn.setStyle("-fx-background-color: transparent; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
             iconLabel.setTextFill(Color.web("#1A1A1A"));
             textLabel.setTextFill(Color.web("#1A1A1A"));
         }
         
         btn.setOnMouseEntered(e -> {
             if (!isSelected) {
-                btn.setStyle("-fx-background-color: #F5F5F5; -fx-background-radius: 8; -fx-border-width: 0;");
+                btn.setStyle("-fx-background-color: #F5F5F5; -fx-background-radius: 0; -fx-border-width: 0; -fx-border-radius: 0;");
                 iconLabel.setTextFill(Color.web("#1A1A1A"));
                 textLabel.setTextFill(Color.web("#1A1A1A"));
             }
@@ -492,7 +546,8 @@ public class CustomerApp extends Application {
         VBox menuContainer = new VBox(25);
         menuContainer.setPadding(new Insets(30, 30, 30, 30));
         menuContainer.setStyle("-fx-background-color: #FFFFFF;");
-        menuContainer.setMinHeight(600); // Ensure container fills available space
+        menuContainer.setMinHeight(820); // make center column taller so it's visually bigger than the sidebar
+        menuContainer.setMaxWidth(1000); // constrain width so it's centered nicely
         
         // Header row with show sidebar button and category title
         HBox menuHeader = new HBox(15);
@@ -501,9 +556,9 @@ public class CustomerApp extends Application {
         if (!sidebarVisible) {
             Button showSidebarBtn = new Button("☰ Categories");
             showSidebarBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
-            showSidebarBtn.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 8; -fx-padding: 10 16; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 8;");
-            showSidebarBtn.setOnMouseEntered(e -> showSidebarBtn.setStyle("-fx-background-color: #F5F5F5; -fx-text-fill: #1A1A1A; -fx-background-radius: 8; -fx-padding: 10 16; -fx-cursor: hand; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-border-radius: 8;"));
-            showSidebarBtn.setOnMouseExited(e -> showSidebarBtn.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 8; -fx-padding: 10 16; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 8;"));
+            showSidebarBtn.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 0; -fx-padding: 10 16; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0;");
+            showSidebarBtn.setOnMouseEntered(e -> showSidebarBtn.setStyle("-fx-background-color: #F5F5F5; -fx-text-fill: #1A1A1A; -fx-background-radius: 0; -fx-padding: 10 16; -fx-cursor: hand; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-border-radius: 0;"));
+            showSidebarBtn.setOnMouseExited(e -> showSidebarBtn.setStyle("-fx-background-color: #FFFFFF; -fx-text-fill: #1A1A1A; -fx-background-radius: 0; -fx-padding: 10 16; -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0;"));
             showSidebarBtn.setOnAction(e -> toggleSidebar());
             menuHeader.getChildren().add(showSidebarBtn);
         }
@@ -539,9 +594,15 @@ public class CustomerApp extends Application {
         
         menuContainer.getChildren().addAll(menuHeader, productGrid);
         
-        ScrollPane scrollPane = new ScrollPane(menuContainer);
+        // Wrap the menuContainer in an outer VBox to center it horizontally inside the ScrollPane
+        VBox outer = new VBox();
+        outer.setAlignment(Pos.TOP_CENTER);
+        outer.getChildren().add(menuContainer);
+
+        ScrollPane scrollPane = new ScrollPane(outer);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
+        scrollPane.setStyle("-fx-background-color: transparent;");
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scrollPane.setStyle("-fx-background: #FFFFFF; -fx-background-color: #FFFFFF; -fx-background-insets: 0;");
@@ -565,6 +626,8 @@ public class CustomerApp extends Application {
     private boolean productMatchesCategory(Product product, String category) {
         String name = product.getName().toLowerCase();
         switch (category) {
+            case "All":
+                return true;
             case "Beverages":
                 return name.contains("coffee") || name.contains("tea");
             case "Espresso":
@@ -584,18 +647,18 @@ public class CustomerApp extends Application {
 
     private VBox createProductCard(Product product) {
         VBox card = new VBox(0);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-cursor: hand;");
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-cursor: hand;");
         
-        // Responsive sizing based on sidebar visibility
-        int cardWidth = sidebarVisible ? 220 : 280;
-        int cardHeight = sidebarVisible ? 280 : 320;
+        // Responsive sizing based on sidebar visibility (expanded)
+        int cardWidth = sidebarVisible ? 260 : 360;
+        int cardHeight = sidebarVisible ? 320 : 380;
         
         card.setPrefWidth(cardWidth);
         card.setPrefHeight(cardHeight);
 
         // Product image placeholder with gradient (responsive height)
         StackPane imagePane = new StackPane();
-        int imageHeight = sidebarVisible ? 160 : 200;
+        int imageHeight = sidebarVisible ? 180 : 240;
         imagePane.setPrefHeight(imageHeight);
         imagePane.setMaxHeight(imageHeight);
         String gradient = product.getName().toLowerCase().contains("espresso") ? 
@@ -603,17 +666,17 @@ public class CustomerApp extends Application {
             product.getName().toLowerCase().contains("cappuccino") ?
             "linear-gradient(to bottom right, #404040, #2C2C2C)" :
             "linear-gradient(to bottom right, #505050, #2C2C2C)";
-        imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 16 16 0 0;");
+        imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0;");
         
         Label imagePlaceholder = new Label("☕");
-        int emojiSize = sidebarVisible ? 56 : 72;
+        int emojiSize = sidebarVisible ? 64 : 88;
         imagePlaceholder.setFont(Font.font("Segoe UI Emoji", emojiSize));
         imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
         imagePane.getChildren().add(imagePlaceholder);
 
         // Content area - simplified (responsive padding)
-        VBox contentBox = new VBox(sidebarVisible ? 10 : 15);
-        contentBox.setPadding(new Insets(sidebarVisible ? 15 : 20));
+        VBox contentBox = new VBox(sidebarVisible ? 12 : 18);
+        contentBox.setPadding(new Insets(sidebarVisible ? 18 : 24));
         contentBox.setAlignment(Pos.CENTER);
 
         // Product name (responsive font size)
@@ -637,7 +700,7 @@ public class CustomerApp extends Application {
             stockLabel.setText("Out of Stock");
             stockLabel.setTextFill(Color.web("#D32F2F"));
             stockLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
-            card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-opacity: 0.7;");
+            card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-opacity: 0.7;");
         } else {
             stockLabel.setText("In Stock: " + product.getStock());
             stockLabel.setTextFill(Color.web("#4CAF50"));
@@ -658,13 +721,13 @@ public class CustomerApp extends Application {
         // Hover effects
         card.setOnMouseEntered(e -> {
             if (product.getStock() > 0) {
-                card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5); -fx-cursor: hand;");
+                card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5); -fx-cursor: hand;");
             }
         });
         
         card.setOnMouseExited(e -> {
             if (product.getStock() > 0) {
-                card.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-cursor: hand;");
+                card.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-cursor: hand;");
             }
         });
 
@@ -683,9 +746,10 @@ public class CustomerApp extends Application {
         ScrollPane content = createCustomizationContent(product);
         customizationLayout.setCenter(content);
         
-        Scene customScene = new Scene(customizationLayout, 1024, 768);
+        Scene customScene = new Scene(customizationLayout, 1280, 900);
         primaryStage.setScene(customScene);
         primaryStage.setTitle("Customize " + product.getName() + " - Coffee Shop Kiosk");
+        applyAtlantafx(customScene);
     }
     
     private VBox createCustomizationHeader(Product product) {
@@ -700,9 +764,9 @@ public class CustomerApp extends Application {
         // Dynamic back button text and behavior based on whether we're editing or adding new
         String backText = customizingOrderItem != null ? "← Back to Cart" : "← Back to Menu";
         Button backBtn = new Button(backText);
-        backBtn.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 8; -fx-cursor: hand;");
-        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #404040; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 8; -fx-cursor: hand;"));
-        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 8; -fx-cursor: hand;"));
+        backBtn.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;");
+        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #404040; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;"));
+        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;"));
         
         if (customizingOrderItem != null) {
             backBtn.setOnAction(e -> {
@@ -742,47 +806,67 @@ public class CustomerApp extends Application {
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         
         VBox content = new VBox(16);
-        content.setPadding(new Insets(16, 20, 20, 20));
+        content.setPadding(new Insets(20, 30, 30, 30));
         
         // Product image and basic info
         VBox productSection = new VBox(12);
-        productSection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);");
-        productSection.setPadding(new Insets(16));
-        productSection.setAlignment(Pos.CENTER);
-        
-        // Large product image
+        productSection.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);");
+        productSection.setPadding(new Insets(18));
+        productSection.setAlignment(Pos.CENTER_LEFT);
+        productSection.setMaxWidth(Double.MAX_VALUE);
+
+        // Large product banner (wider, taller and centered content)
         StackPane imagePane = new StackPane();
-        imagePane.setPrefSize(120, 120);
+        imagePane.setPrefHeight(220);
+        imagePane.setMaxWidth(Double.MAX_VALUE);
         String gradient = product.getName().toLowerCase().contains("espresso") ? 
             "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" :
             product.getName().toLowerCase().contains("cappuccino") ?
             "linear-gradient(to bottom right, #404040, #2C2C2C)" :
             "linear-gradient(to bottom right, #505050, #2C2C2C)";
-        imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 12;");
-        
+        imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 24 24 24 24;");
+
         Label imagePlaceholder = new Label("☕");
-        imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 60));
+        imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 84));
         imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
         imagePane.getChildren().add(imagePlaceholder);
-        
+
         Label productName = new Label(product.getName());
-        productName.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
+        productName.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 18));
         productName.setTextFill(Color.web("#1A1A1A"));
-        
+        productName.setPadding(new Insets(12, 0, 0, 0));
+
         productSection.getChildren().addAll(imagePane, productName);
         
-        // Customization options
-        VBox customizationSection = createCustomizationOptions(product);
-        
-        content.getChildren().addAll(productSection, customizationSection);
+        // Customization options (main form) and suggestions
+        // Shared property to allow suggestion checkboxes to contribute to the visible total
+        javafx.beans.property.DoubleProperty suggestionsExtra = new javafx.beans.property.SimpleDoubleProperty(0.0);
+        javafx.collections.ObservableList<Product> selectedSuggestions = javafx.collections.FXCollections.observableArrayList();
+        VBox customizationSection = createCustomizationOptions(product, suggestionsExtra, selectedSuggestions);
+        HBox mainRow = new HBox(28);
+        mainRow.setAlignment(Pos.TOP_LEFT);
+        mainRow.setMaxWidth(Double.MAX_VALUE);
+
+        // Left: form (takes most of the space)
+        VBox leftCol = customizationSection;
+        HBox.setHgrow(leftCol, Priority.ALWAYS);
+
+        // Right: suggestions
+        VBox rightCol = new VBox(12);
+        rightCol.setPrefWidth(360);
+        rightCol.getChildren().addAll(new Label("You may also like"), createSuggestionRow(product, suggestionsExtra, selectedSuggestions));
+
+        mainRow.getChildren().addAll(leftCol, rightCol);
+
+        content.getChildren().addAll(productSection, mainRow);
         scrollPane.setContent(content);
         
         return scrollPane;
     }
     
-    private VBox createCustomizationOptions(Product product) {
+    private VBox createCustomizationOptions(Product product, javafx.beans.property.DoubleProperty suggestionsExtra, javafx.collections.ObservableList<Product> selectedSuggestions) {
         VBox customSection = new VBox(14);
-        customSection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);");
+        customSection.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 1);");
         customSection.setPadding(new Insets(18));
         
         // Temperature selection
@@ -859,13 +943,64 @@ public class CustomerApp extends Application {
         addOnsTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
         addOnsTitle.setTextFill(Color.web("#1A1A1A"));
         
-        VBox addOnsList = new VBox(6);
+        VBox addOnsList = new VBox(10);
+
+        // Add-on rows: checkbox + quantity controls
         CheckBox extraShotCheck = createStyledCheckBox("Extra Shot (+₱1.00)");
+        final int[] extraShotQty = {1};
+        HBox extraRow = new HBox(8);
+        extraRow.setAlignment(Pos.CENTER_LEFT);
+        Button extraMinus = new Button("−");
+        Button extraPlus = new Button("+");
+        Label extraQtyLabel = new Label(String.valueOf(extraShotQty[0]));
+        extraMinus.setOnAction(ev -> { if (extraShotQty[0] > 1) { extraShotQty[0]--; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); } });
+        extraPlus.setOnAction(ev -> { extraShotQty[0]++; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); });
+        extraRow.getChildren().addAll(extraShotCheck, extraMinus, extraQtyLabel, extraPlus);
+
         CheckBox whippedCreamCheck = createStyledCheckBox("Whipped Cream (+₱0.50)");
+        final int[] whippedQty = {1};
+        HBox whipRow = new HBox(8);
+        whipRow.setAlignment(Pos.CENTER_LEFT);
+        Button whipMinus = new Button("−");
+        Button whipPlus = new Button("+");
+        Label whipQtyLabel = new Label(String.valueOf(whippedQty[0]));
+        whipMinus.setOnAction(ev -> { if (whippedQty[0] > 1) { whippedQty[0]--; whipQtyLabel.setText(String.valueOf(whippedQty[0])); } });
+        whipPlus.setOnAction(ev -> { whippedQty[0]++; whipQtyLabel.setText(String.valueOf(whippedQty[0])); });
+        whipRow.getChildren().addAll(whippedCreamCheck, whipMinus, whipQtyLabel, whipPlus);
+
         CheckBox vanillaSyrupCheck = createStyledCheckBox("Vanilla Syrup (+₱0.75)");
+        final int[] vanillaQty = {1};
+        HBox vanillaRow = new HBox(8);
+        vanillaRow.setAlignment(Pos.CENTER_LEFT);
+        Button vanMinus = new Button("−");
+        Button vanPlus = new Button("+");
+        Label vanQtyLabel = new Label(String.valueOf(vanillaQty[0]));
+        vanMinus.setOnAction(ev -> { if (vanillaQty[0] > 1) { vanillaQty[0]--; vanQtyLabel.setText(String.valueOf(vanillaQty[0])); } });
+        vanPlus.setOnAction(ev -> { vanillaQty[0]++; vanQtyLabel.setText(String.valueOf(vanillaQty[0])); });
+        vanillaRow.getChildren().addAll(vanillaSyrupCheck, vanMinus, vanQtyLabel, vanPlus);
+
         CheckBox caramelSyrupCheck = createStyledCheckBox("Caramel Syrup (+₱0.75)");
+        final int[] caramelQty = {1};
+        HBox caramelRow = new HBox(8);
+        caramelRow.setAlignment(Pos.CENTER_LEFT);
+        Button carMinus = new Button("−");
+        Button carPlus = new Button("+");
+        Label carQtyLabel = new Label(String.valueOf(caramelQty[0]));
+        carMinus.setOnAction(ev -> { if (caramelQty[0] > 1) { caramelQty[0]--; carQtyLabel.setText(String.valueOf(caramelQty[0])); } });
+        carPlus.setOnAction(ev -> { caramelQty[0]++; carQtyLabel.setText(String.valueOf(caramelQty[0])); });
+        caramelRow.getChildren().addAll(caramelSyrupCheck, carMinus, carQtyLabel, carPlus);
+
         CheckBox chocolateSyrupCheck = createStyledCheckBox("Chocolate Syrup (+₱0.75)");
-        
+        final int[] chocolateQty = {1};
+        HBox chocRow = new HBox(8);
+        chocRow.setAlignment(Pos.CENTER_LEFT);
+        Button chocMinus = new Button("−");
+        Button chocPlus = new Button("+");
+        Label chocQtyLabel = new Label(String.valueOf(chocolateQty[0]));
+        chocMinus.setOnAction(ev -> { if (chocolateQty[0] > 1) { chocolateQty[0]--; chocQtyLabel.setText(String.valueOf(chocolateQty[0])); } });
+        chocPlus.setOnAction(ev -> { chocolateQty[0]++; chocQtyLabel.setText(String.valueOf(chocolateQty[0])); });
+        chocRow.getChildren().addAll(chocolateSyrupCheck, chocMinus, chocQtyLabel, chocPlus);
+
         // Pre-select add-ons if editing existing item
         if (customizingOrderItem != null && customizingOrderItem.getAddOns() != null) {
             String addOns = customizingOrderItem.getAddOns();
@@ -875,38 +1010,40 @@ public class CustomerApp extends Application {
             caramelSyrupCheck.setSelected(addOns.contains("Caramel Syrup"));
             chocolateSyrupCheck.setSelected(addOns.contains("Chocolate Syrup"));
         }
-        
-        addOnsList.getChildren().addAll(extraShotCheck, whippedCreamCheck, vanillaSyrupCheck, 
-                                       caramelSyrupCheck, chocolateSyrupCheck);
+
+        addOnsList.getChildren().addAll(extraRow, whipRow, vanillaRow, caramelRow, chocRow);
         
         addOnsSection.getChildren().addAll(addOnsTitle, addOnsList);
         
         // Quantity and Add button
         VBox bottomSection = new VBox(12);
         
-        // Quantity selector
-        HBox qtySection = new HBox(10);
+        // Quantity selector (compact)
+        HBox qtySection = new HBox(6);
         qtySection.setAlignment(Pos.CENTER_LEFT);
+        qtySection.setStyle("-fx-background-color: #F6F6F6; -fx-padding: 6 8; -fx-border-radius: 6; -fx-background-radius: 6;");
         
         Label qtyLabel = new Label("Quantity:");
-        qtyLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        qtyLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
         qtyLabel.setTextFill(Color.web("#1A1A1A"));
         
         Button minusBtn = new Button("−");
-        minusBtn.setStyle("-fx-background-color: #F8F8F8; -fx-border-color: #E0E0E0; -fx-border-radius: 16; -fx-background-radius: 16; -fx-min-width: 28; -fx-min-height: 28; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #757575;");
-        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: #D0D0D0; -fx-border-radius: 16; -fx-background-radius: 16; -fx-min-width: 28; -fx-min-height: 28; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A;"));
-        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: #F8F8F8; -fx-border-color: #E0E0E0; -fx-border-radius: 16; -fx-background-radius: 16; -fx-min-width: 28; -fx-min-height: 28; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #757575;"));
+        minusBtn.setPrefSize(34, 34);
+        minusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;");
+        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: rgba(0,0,0,0.03); -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A;"));
+        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;"));
         
         Label qtyValueLabel = new Label("1");
-        qtyValueLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        qtyValueLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
         qtyValueLabel.setTextFill(Color.web("#1A1A1A"));
-        qtyValueLabel.setMinWidth(24);
+        qtyValueLabel.setPrefWidth(36);
         qtyValueLabel.setAlignment(Pos.CENTER);
         
         Button plusBtn = new Button("+");
-        plusBtn.setStyle("-fx-background-color: #F8F8F8; -fx-border-color: #E0E0E0; -fx-border-radius: 16; -fx-background-radius: 16; -fx-min-width: 28; -fx-min-height: 28; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #757575;");
-        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: #D0D0D0; -fx-border-radius: 16; -fx-background-radius: 16; -fx-min-width: 28; -fx-min-height: 28; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A;"));
-        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: #F8F8F8; -fx-border-color: #E0E0E0; -fx-border-radius: 16; -fx-background-radius: 16; -fx-min-width: 28; -fx-min-height: 28; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #757575;"));
+        plusBtn.setPrefSize(34, 34);
+        plusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;");
+        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: rgba(0,0,0,0.03); -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A;"));
+        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333;"));
         
         final int[] quantity = {1};
         minusBtn.setOnAction(e -> {
@@ -927,11 +1064,59 @@ public class CustomerApp extends Application {
         // Add to cart button (text changes based on whether we're editing or adding new)
         String buttonText = customizingOrderItem != null ? "Update Item" : "Add to Order";
         Button addButton = new Button(buttonText);
-        addButton.setPrefSize(240, 44);
-        addButton.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 12; -fx-cursor: hand;");
-        addButton.setOnMouseEntered(e -> addButton.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 12; -fx-cursor: hand;"));
-        addButton.setOnMouseExited(e -> addButton.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 12; -fx-cursor: hand;"));
+        addButton.setPrefSize(280, 48);
+        addButton.getStyleClass().add("primary-button");
+        addButton.setOnMouseEntered(e -> addButton.setStyle("-fx-background-color: #2C2C2C; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 0; -fx-cursor: hand;"));
+        addButton.setOnMouseExited(e -> addButton.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 0; -fx-cursor: hand;"));
         
+        // Label to show live total on the right of the Add button
+        Label liveTotal = new Label("₱0.00");
+        liveTotal.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        liveTotal.setTextFill(Color.web("#1A1A1A"));
+
+        // Helper to recompute totals (reads current UI state)
+        Runnable recompute = () -> {
+            double addOnsCost = 0.0;
+            if (extraShotCheck.isSelected()) addOnsCost += 1.00 * extraShotQty[0];
+            if (whippedCreamCheck.isSelected()) addOnsCost += 0.50 * whippedQty[0];
+            if (vanillaSyrupCheck.isSelected()) addOnsCost += 0.75 * vanillaQty[0];
+            if (caramelSyrupCheck.isSelected()) addOnsCost += 0.75 * caramelQty[0];
+            if (chocolateSyrupCheck.isSelected()) addOnsCost += 0.75 * chocolateQty[0];
+
+            double suggestions = suggestionsExtra.get();
+            double base = product.getPrice();
+            double subtotal = (base + addOnsCost) * quantity[0] + suggestions;
+            javafx.application.Platform.runLater(() -> liveTotal.setText(String.format("₱%.2f", subtotal)));
+        };
+
+        // attach recompute listeners to controls that affect price
+        extraShotCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        whippedCreamCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        vanillaSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        caramelSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        chocolateSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+
+        // quantity changes should also recompute
+        plusBtn.setOnAction(e -> {
+            if (quantity[0] < product.getStock()) {
+                quantity[0]++;
+                qtyValueLabel.setText(String.valueOf(quantity[0]));
+                recompute.run();
+            }
+        });
+        minusBtn.setOnAction(e -> {
+            if (quantity[0] > 1) {
+                quantity[0]--;
+                qtyValueLabel.setText(String.valueOf(quantity[0]));
+                recompute.run();
+            }
+        });
+
+        // Observe suggestionsExtra so recompute updates when suggestion checkboxes change
+        suggestionsExtra.addListener((obs, o, n) -> recompute.run());
+        // initialize displayed total
+        recompute.run();
+
         addButton.setOnAction(e -> {
             try {
                 // Get selections
@@ -944,33 +1129,38 @@ public class CustomerApp extends Application {
                     }
                 }
                 
-                // Calculate add-ons
+                // Calculate add-ons (recompute same values used by live total)
                 StringBuilder addOnsText = new StringBuilder();
                 double addOnsCost = 0.0;
-                
+
                 if (extraShotCheck.isSelected()) {
                     addOnsText.append("Extra Shot");
-                    addOnsCost += 1.00;
+                    addOnsCost += 1.00 * extraShotQty[0];
+                    if (extraShotQty[0] > 1) addOnsText.append(" x").append(extraShotQty[0]);
                 }
                 if (whippedCreamCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Whipped Cream");
-                    addOnsCost += 0.50;
+                    addOnsCost += 0.50 * whippedQty[0];
+                    if (whippedQty[0] > 1) addOnsText.append(" x").append(whippedQty[0]);
                 }
                 if (vanillaSyrupCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Vanilla Syrup");
-                    addOnsCost += 0.75;
+                    addOnsCost += 0.75 * vanillaQty[0];
+                    if (vanillaQty[0] > 1) addOnsText.append(" x").append(vanillaQty[0]);
                 }
                 if (caramelSyrupCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Caramel Syrup");
-                    addOnsCost += 0.75;
+                    addOnsCost += 0.75 * caramelQty[0];
+                    if (caramelQty[0] > 1) addOnsText.append(" x").append(caramelQty[0]);
                 }
                 if (chocolateSyrupCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Chocolate Syrup");
-                    addOnsCost += 0.75;
+                    addOnsCost += 0.75 * chocolateQty[0];
+                    if (chocolateQty[0] > 1) addOnsText.append(" x").append(chocolateQty[0]);
                 }
                 
                 if (customizingOrderItem != null) {
@@ -989,6 +1179,17 @@ public class CustomerApp extends Application {
                     
                     // Add updated item back to order
                     currentOrder.addItem(updatedItem);
+                    // If any suggested products were selected, add them as separate items
+                    if (selectedSuggestions != null && !selectedSuggestions.isEmpty()) {
+                        for (Product sp : selectedSuggestions) {
+                            OrderItem sitem = new OrderItem(sp, 1, "Hot", 50);
+                            sitem.setAddOnsCost(0.0);
+                            currentOrder.addItem(sitem);
+                        }
+                        // clear selection cost tracker
+                        suggestionsExtra.set(0.0);
+                        selectedSuggestions.clear();
+                    }
                     
                     // Clear the customizing reference
                     customizingOrderItem = null;
@@ -1022,6 +1223,16 @@ public class CustomerApp extends Application {
                         currentOrder = new Order(UUID.randomUUID().toString().substring(0, 8));
                     }
                     currentOrder.addItem(item);
+                    // Add any selected suggestions to the order as separate items
+                    if (selectedSuggestions != null && !selectedSuggestions.isEmpty()) {
+                        for (Product sp : selectedSuggestions) {
+                            OrderItem sitem = new OrderItem(sp, 1, "Hot", 50);
+                            sitem.setAddOnsCost(0.0);
+                            currentOrder.addItem(sitem);
+                        }
+                        suggestionsExtra.set(0.0);
+                        selectedSuggestions.clear();
+                    }
                     System.out.println("Debug: Item added successfully. Total items now: " + currentOrder.getItems().size());
                     System.out.println("Debug: Order ID: " + currentOrder.getOrderId());
                     
@@ -1039,8 +1250,9 @@ public class CustomerApp extends Application {
                 }
             } catch (Exception ex) {
                 System.err.println("Error processing item: " + ex.getMessage());
-                ex.printStackTrace();
-                
+                // Log minimal stack info without using printStackTrace()
+                System.err.println(java.util.Arrays.toString(ex.getStackTrace()).replaceAll("\n", " "));
+
                 Alert errorAlert = new Alert(Alert.AlertType.ERROR);
                 errorAlert.setTitle("Error");
                 errorAlert.setHeaderText("Failed to process item");
@@ -1049,8 +1261,14 @@ public class CustomerApp extends Application {
             }
         });
         
-        bottomSection.getChildren().addAll(qtySection, addButton);
-        bottomSection.setAlignment(Pos.CENTER);
+        // Layout: compact quantity on left, add button then live total on right
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox totalBox = new HBox(12, addButton, liveTotal);
+        totalBox.setAlignment(Pos.CENTER_RIGHT);
+        totalBox.setPadding(new Insets(0, 0, 0, 8));
+        bottomSection.getChildren().addAll(qtySection, spacer, totalBox);
+        bottomSection.setAlignment(Pos.CENTER_LEFT);
         
         customSection.getChildren().addAll(tempSection, sugarSection, addOnsSection, bottomSection);
         
@@ -1063,6 +1281,65 @@ public class CustomerApp extends Application {
         cb.setOnMouseEntered(e -> cb.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 11px; -fx-text-fill: #1A1A1A; -fx-font-weight: normal;"));
         cb.setOnMouseExited(e -> cb.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 11px; -fx-text-fill: #2C2C2C; -fx-font-weight: normal;"));
         return cb;
+    }
+
+    private HBox createSuggestionRow(Product currentProduct, javafx.beans.property.DoubleProperty suggestionsExtra, javafx.collections.ObservableList<Product> selectedSuggestions) {
+        HBox row = new HBox(12);
+        row.setPadding(new Insets(8, 0, 8, 0));
+        row.setAlignment(Pos.TOP_LEFT);
+
+        int added = 0;
+        for (Product p : store.getProducts()) {
+            if (added >= 3) break;
+            if (p.getName().equals(currentProduct.getName())) continue;
+            if (p.getStock() <= 0) continue;
+
+            VBox card = new VBox(8);
+            card.setPadding(new Insets(10));
+            card.setPrefWidth(320);
+            card.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 6, 0, 0, 1);");
+
+            StackPane img = new StackPane();
+            img.setPrefHeight(90);
+            String grad = p.getName().toLowerCase().contains("espresso") ? "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" : "linear-gradient(to bottom right, #505050, #2C2C2C)";
+            img.setStyle("-fx-background-color: " + grad + "; -fx-background-radius: 0; -fx-border-radius: 0;");
+            Label emoji = new Label("☕");
+            emoji.setFont(Font.font("Segoe UI Emoji", 36));
+            emoji.setTextFill(Color.web("#F5EFE7"));
+            img.getChildren().add(emoji);
+
+            Label name = new Label(p.getName());
+            name.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+            name.setTextFill(Color.web("#1A1A1A"));
+
+            Label priceLabel = new Label(String.format("₱%.2f", p.getPrice()));
+            priceLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            priceLabel.setTextFill(Color.web("#757575"));
+
+            HBox titleRow = new HBox(8, name, priceLabel);
+            titleRow.setAlignment(Pos.CENTER_LEFT);
+
+            CheckBox addChk = new CheckBox("Add");
+            addChk.setFont(Font.font("Segoe UI", 12));
+            addChk.setPadding(new Insets(6, 8, 6, 8));
+            addChk.setStyle("-fx-cursor: hand; -fx-border-radius: 0; -fx-background-radius: 0;");
+            // when the checkbox toggles, update the shared suggestionsExtra property
+            addChk.selectedProperty().addListener((obs, oldV, newV) -> {
+                double delta = newV ? p.getPrice() : -p.getPrice();
+                suggestionsExtra.set(suggestionsExtra.get() + delta);
+                if (newV) {
+                    if (!selectedSuggestions.contains(p)) selectedSuggestions.add(p);
+                } else {
+                    selectedSuggestions.remove(p);
+                }
+            });
+
+            card.getChildren().addAll(img, name, addChk);
+            row.getChildren().add(card);
+            added++;
+        }
+
+        return row;
     }
 
 
@@ -1121,9 +1398,10 @@ public class CustomerApp extends Application {
         VBox cartFooter = createCartFooter();
         cartLayout.setBottom(cartFooter);
         
-        Scene cartScene = new Scene(cartLayout, 1024, 768);
+        Scene cartScene = new Scene(cartLayout, 1280, 900);
         primaryStage.setScene(cartScene);
         primaryStage.setTitle("Your Cart - Coffee Shop Kiosk");
+        applyAtlantafx(cartScene);
     }
     
     private VBox createCartHeader() {
@@ -1136,9 +1414,9 @@ public class CustomerApp extends Application {
         titleRow.setAlignment(Pos.CENTER_LEFT);
         
         Button backBtn = new Button("← Back to Menu");
-        backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;");
-        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #5D4037; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"));
-        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"));
+        backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
+        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #5D4037; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
+        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         backBtn.setOnAction(e -> showMainMenu());
         
         Region spacer = new Region();
@@ -1213,7 +1491,7 @@ public class CustomerApp extends Application {
         
         VBox itemCard = new VBox(10);
         itemCard.setPadding(new Insets(20));
-        itemCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 2);");
+        itemCard.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 2);");
         itemCard.setMaxWidth(Double.MAX_VALUE); // Allow full width
         itemCard.setMinHeight(80);  // Set minimum height
         
@@ -1251,13 +1529,13 @@ public class CustomerApp extends Application {
         // Quantity controls with minus and plus buttons
         HBox controls = new HBox(6);
         controls.setAlignment(Pos.CENTER_RIGHT);
-        controls.setStyle("-fx-background-color: #F8F8F8; -fx-background-radius: 20; -fx-padding: 4;");
+        controls.setStyle("-fx-background-color: #F8F8F8; -fx-background-radius: 0; -fx-padding: 4;");
 
         Button minusBtn = new Button("−");
         minusBtn.setPrefSize(32, 32);
-        minusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 16; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
-        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: transparent; -fx-background-radius: 16; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
-        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 16; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
+        minusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
+        minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
+        minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
 
         Label qtyLabel = new Label(String.valueOf(totalQty));
         qtyLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
@@ -1267,9 +1545,9 @@ public class CustomerApp extends Application {
 
         Button plusBtn = new Button("+");
         plusBtn.setPrefSize(32, 32);
-        plusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 16; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
-        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: transparent; -fx-background-radius: 16; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
-        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 16; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
+        plusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
+        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #E0E0E0; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
+        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: transparent; -fx-border-color: transparent; -fx-background-radius: 0; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;"));
 
         minusBtn.setOnAction(e -> {
             // Build a key that matches the grouping logic used when rendering the cart
@@ -1336,9 +1614,9 @@ public class CustomerApp extends Application {
         
         Button customizeBtn = new Button("✏ Customize");
         customizeBtn.setPrefSize(120, 32);
-        customizeBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 16; -fx-background-radius: 16; -fx-font-size: 13px; -fx-text-fill: #757575; -fx-cursor: hand;");
-        customizeBtn.setOnMouseEntered(e -> customizeBtn.setStyle("-fx-background-color: #F0F0F0; -fx-border-color: #D0D0D0; -fx-border-width: 1; -fx-border-radius: 16; -fx-background-radius: 16; -fx-font-size: 13px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
-        customizeBtn.setOnMouseExited(e -> customizeBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 16; -fx-background-radius: 16; -fx-font-size: 13px; -fx-text-fill: #757575; -fx-cursor: hand;"));
+        customizeBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-background-radius: 0; -fx-font-size: 13px; -fx-text-fill: #757575; -fx-cursor: hand;");
+        customizeBtn.setOnMouseEntered(e -> customizeBtn.setStyle("-fx-background-color: #F0F0F0; -fx-border-color: #D0D0D0; -fx-border-width: 1; -fx-border-radius: 0; -fx-background-radius: 0; -fx-font-size: 13px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
+        customizeBtn.setOnMouseExited(e -> customizeBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-background-radius: 0; -fx-font-size: 13px; -fx-text-fill: #757575; -fx-cursor: hand;"));
 
         customizeBtn.setOnAction(e -> {
             // Find the matching item and navigate to customization page
@@ -1397,16 +1675,16 @@ public class CustomerApp extends Application {
         
         Button continueShoppingBtn = new Button("Continue Shopping");
         continueShoppingBtn.setPrefSize(200, 60);
-        continueShoppingBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
-        continueShoppingBtn.setOnMouseEntered(e -> continueShoppingBtn.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: normal; -fx-background-radius: 12; -fx-cursor: hand;"));
-        continueShoppingBtn.setOnMouseExited(e -> continueShoppingBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
+        continueShoppingBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
+        continueShoppingBtn.setOnMouseEntered(e -> continueShoppingBtn.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: normal; -fx-background-radius: 0; -fx-cursor: hand;"));
+        continueShoppingBtn.setOnMouseExited(e -> continueShoppingBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         continueShoppingBtn.setOnAction(e -> showMenuScreen());
         
         Button checkoutBtn = new Button("Proceed to Checkout");
         checkoutBtn.setPrefSize(250, 60);
-        checkoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
-        checkoutBtn.setOnMouseEntered(e -> checkoutBtn.setStyle("-fx-background-color: #45a049; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
-        checkoutBtn.setOnMouseExited(e -> checkoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
+        checkoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
+        checkoutBtn.setOnMouseEntered(e -> checkoutBtn.setStyle("-fx-background-color: #45a049; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
+        checkoutBtn.setOnMouseExited(e -> checkoutBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         checkoutBtn.setOnAction(e -> showCheckoutPage());
         
         buttonSection.getChildren().addAll(continueShoppingBtn, checkoutBtn);
@@ -1434,9 +1712,10 @@ public class CustomerApp extends Application {
         scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         checkoutLayout.setCenter(scrollPane);
         
-        Scene checkoutScene = new Scene(checkoutLayout, 1024, 768);
+        Scene checkoutScene = new Scene(checkoutLayout, 1280, 900);
         primaryStage.setScene(checkoutScene);
         primaryStage.setTitle("Checkout - Coffee Shop Kiosk");
+        applyAtlantafx(checkoutScene);
     }
     
     private VBox createCheckoutHeader() {
@@ -1449,9 +1728,9 @@ public class CustomerApp extends Application {
         titleRow.setAlignment(Pos.CENTER_LEFT);
         
         Button backBtn = new Button("← Back to Cart");
-        backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;");
-        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #5D4037; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"));
-        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"));
+        backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
+        backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #5D4037; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
+        backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: #795548; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         backBtn.setOnAction(e -> showCartPage());
         
         Region spacer = new Region();
@@ -1520,7 +1799,7 @@ public class CustomerApp extends Application {
     
     private VBox createOrderSummarySection() {
         VBox summarySection = new VBox(15);
-        summarySection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 2);");
+        summarySection.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 2);");
         summarySection.setPadding(new Insets(25));
         
         Label summaryTitle = new Label("Order Summary");
@@ -1612,16 +1891,16 @@ public class CustomerApp extends Application {
         
         Button cashBtn = new Button("💵 Pay with Cash");
         cashBtn.setPrefSize(200, 60);
-        cashBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
-        cashBtn.setOnMouseEntered(e -> cashBtn.setStyle("-fx-background-color: #45a049; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
-        cashBtn.setOnMouseExited(e -> cashBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
+        cashBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
+        cashBtn.setOnMouseEntered(e -> cashBtn.setStyle("-fx-background-color: #45a049; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
+        cashBtn.setOnMouseExited(e -> cashBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         cashBtn.setOnAction(e -> completeOrder("Cash"));
         
         Button cardBtn = new Button("💳 Pay with Card");
         cardBtn.setPrefSize(200, 60);
-        cardBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;");
-        cardBtn.setOnMouseEntered(e -> cardBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
-        cardBtn.setOnMouseExited(e -> cardBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-cursor: hand;"));
+        cardBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
+        cardBtn.setOnMouseEntered(e -> cardBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
+        cardBtn.setOnMouseExited(e -> cardBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         cardBtn.setOnAction(e -> completeOrder("Card"));
         
         paymentButtons.getChildren().addAll(cashBtn, cardBtn);
