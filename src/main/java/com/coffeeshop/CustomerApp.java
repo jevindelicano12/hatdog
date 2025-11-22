@@ -12,7 +12,10 @@ import javafx.util.Duration;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -79,15 +82,38 @@ public class CustomerApp extends Application {
         HBox optionsBox = new HBox(30);
         optionsBox.setAlignment(Pos.CENTER);
 
-        // Dine In button
-        VBox dineInBox = createOptionCard("🍽", "Dine In", "Enjoy your meal in our cozy space");
+        // Dine In button (load custom image resource if available)
+        Node dineIconNode;
+        try {
+            java.io.InputStream is = CustomerApp.class.getResourceAsStream("/images/dine_in.png");
+            if (is != null) {
+                Image dineImg = new Image(is);
+                ImageView dineView = new ImageView(dineImg);
+                dineView.setFitWidth(96);
+                dineView.setFitHeight(96);
+                dineView.setPreserveRatio(true);
+                dineIconNode = dineView;
+            } else {
+                Label iconLabel = new Label("🍽");
+                iconLabel.setFont(Font.font("Segoe UI Emoji", 64));
+                dineIconNode = iconLabel;
+            }
+        } catch (Exception ex) {
+            Label iconLabel = new Label("🍽");
+            iconLabel.setFont(Font.font("Segoe UI Emoji", 64));
+            dineIconNode = iconLabel;
+        }
+
+        VBox dineInBox = createOptionCard(dineIconNode, "Dine In", "Enjoy your meal in our cozy space");
         dineInBox.setOnMouseClicked(e -> {
             orderType = "Dine In";
             showMenuScreen();
         });
 
         // Take Away button
-        VBox takeAwayBox = createOptionCard("🛍", "Take Away", "Grab your coffee on the go");
+        Label takeAwayIcon = new Label("🛍");
+        takeAwayIcon.setFont(Font.font("Segoe UI Emoji", 64));
+        VBox takeAwayBox = createOptionCard(takeAwayIcon, "Take Away", "Grab your coffee on the go");
         takeAwayBox.setOnMouseClicked(e -> {
             orderType = "Take Away";
             showMenuScreen();
@@ -103,7 +129,7 @@ public class CustomerApp extends Application {
         primaryStage.show();
     }
 
-    private VBox createOptionCard(String icon, String title, String desc) {
+    private VBox createOptionCard(Node iconNode, String title, String desc) {
         VBox card = new VBox(15);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(40, 30, 40, 30));
@@ -111,8 +137,10 @@ public class CustomerApp extends Application {
         card.setPrefHeight(320);
         card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 16; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 16; -fx-cursor: hand;");
         
-        Label iconLabel = new Label(icon);
-        iconLabel.setFont(Font.font("Segoe UI Emoji", 64));
+        // iconNode can be an ImageView or a Label (emoji)
+        if (iconNode instanceof Label) {
+            ((Label) iconNode).setFont(Font.font("Segoe UI Emoji", 64));
+        }
         
         Label titleLabel = new Label(title);
         titleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 22));
@@ -124,7 +152,7 @@ public class CustomerApp extends Application {
         descLabel.setAlignment(Pos.CENTER);
         descLabel.setWrapText(true);
         
-        card.getChildren().addAll(iconLabel, titleLabel, descLabel);
+        card.getChildren().addAll(iconNode, titleLabel, descLabel);
         
         // Hover animation
         card.setOnMouseEntered(e -> {
