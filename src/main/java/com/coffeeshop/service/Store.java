@@ -11,6 +11,7 @@ public class Store {
 
     private List<Product> products;
     private Map<String, InventoryItem> inventory;
+    private java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
     private static Store instance;
 
     private Store() {
@@ -27,6 +28,13 @@ public class Store {
     private void loadData() {
         products = PersistenceManager.loadProducts();
         inventory = PersistenceManager.loadInventory();
+        // initialize categories from products
+        categories.clear();
+        for (Product p : products) {
+            try {
+                if (p.getCategory() != null && !p.getCategory().trim().isEmpty()) categories.add(p.getCategory());
+            } catch (Exception ignored) {}
+        }
     }
 
     public void saveData() {
@@ -47,6 +55,10 @@ public class Store {
 
     public void addProduct(Product product) {
         products.add(product);
+        // Add the product's category to the categories set
+        if (product.getCategory() != null && !product.getCategory().trim().isEmpty()) {
+            categories.add(product.getCategory().trim());
+        }
         saveData();
     }
 
@@ -93,6 +105,36 @@ public class Store {
 
     public void addInventoryItem(InventoryItem item) {
         inventory.put(item.getName(), item);
+        saveData();
+    }
+
+    // Category management (backwards-compat helpers for AdminApp)
+    public void addCategory(String category) {
+        if (category == null || category.trim().isEmpty()) return;
+        categories.add(category.trim());
+        saveData();
+    }
+
+    public java.util.List<String> getCategories() {
+        return new java.util.ArrayList<>(categories);
+    }
+
+    public void renameCategory(String oldName, String newName) {
+        if (oldName == null || newName == null) return;
+        if (!categories.remove(oldName)) return;
+        categories.add(newName);
+        // update products that referenced the old category
+        for (Product p : products) {
+            try {
+                if (oldName.equals(p.getCategory())) p.setCategory(newName);
+            } catch (Exception ignored) {}
+        }
+        saveData();
+    }
+
+    public void removeCategory(String name) {
+        if (name == null) return;
+        categories.remove(name);
         saveData();
     }
 

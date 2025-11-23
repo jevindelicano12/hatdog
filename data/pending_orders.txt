@@ -1,0 +1,4 @@
+0bc54631|jims|2025-11-23 13:57:16|8.0|COMPLETED|Dine In|[Espresso~3.5~1~Hot~50,Cappuccino~4.5~1~Hot~50]
+d5116966|sd|2025-11-23 13:58:53|3.5|COMPLETED|Dine In|[Espresso~3.5~1~Hot~50]
+550c716b|asd|2025-11-23 13:59:04|4.5|COMPLETED|Dine In|[Cappuccino~4.5~1~Hot~50]
+e10b8209|jerwon|2025-11-23 14:21:21|8.0|PREPARING|Dine In|[Espresso~3.5~1~Hot~50,Cappuccino~4.5~1~Hot~50]

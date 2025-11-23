@@ -3,11 +3,12 @@
     "id": "P001",
     "name": "Espresso",
     "price": 3.5,
-    "stock": 18,
+    "stock": 17,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0
-    }
+    },
+    "category": "Coffee"
   },
   {
     "id": "P002",
@@ -18,7 +19,8 @@
       "Water": 30.0,
       "Coffee Beans": 18.0,
       "Milk": 120.0
-    }
+    },
+    "category": "Coffee"
   },
   {
     "id": "P003",
@@ -29,7 +31,8 @@
       "Water": 30.0,
       "Coffee Beans": 18.0,
       "Milk": 200.0
-    }
+    },
+    "category": "Coffee"
   },
   {
     "id": "P004",
@@ -40,7 +43,8 @@
       "Water": 50.0,
       "Matcha Powder": 5.0,
       "Milk": 200.0
-    }
+    },
+    "category": "Milk Tea"
   },
   {
     "id": "P005",
@@ -52,6 +56,116 @@
       "Coffee Beans": 18.0,
       "Chocolate Syrup": 30.0,
       "Milk": 180.0
-    }
+    },
+    "category": "Coffee"
+  },
+  {
+    "id": "P006",
+    "name": "Iced Frappe",
+    "price": 4.5,
+    "stock": 20,
+    "recipe": {
+      "Milk": 200.0,
+      "Coffee Beans": 15.0,
+      "Ice": 100.0
+    },
+    "category": "Frappe"
+  },
+  {
+    "id": "P007",
+    "name": "Mango Frappe",
+    "price": 5.0,
+    "stock": 20,
+    "recipe": {
+      "Milk": 200.0,
+      "Mango Puree": 50.0,
+      "Ice": 100.0
+    },
+    "category": "Frappe"
+  },
+  {
+    "id": "P008",
+    "name": "Strawberry Tea",
+    "price": 4.0,
+    "stock": 20,
+    "recipe": {
+      "Water": 100.0,
+      "Strawberry Puree": 30.0,
+      "Tea Leaves": 5.0
+    },
+    "category": "Fruit Tea"
+  },
+  {
+    "id": "P009",
+    "name": "Mango Tea",
+    "price": 4.0,
+    "stock": 20,
+    "recipe": {
+      "Water": 100.0,
+      "Mango Puree": 30.0,
+      "Tea Leaves": 5.0
+    },
+    "category": "Fruit Tea"
+  },
+  {
+    "id": "P010",
+    "name": "Croissant",
+    "price": 3.5,
+    "stock": 25,
+    "recipe": {
+      "Croissant Dough": 100.0
+    },
+    "category": "Pastries"
+  },
+  {
+    "id": "P011",
+    "name": "Blueberry Muffin",
+    "price": 3.0,
+    "stock": 25,
+    "recipe": {
+      "Muffin Mix": 150.0,
+      "Blueberries": 50.0
+    },
+    "category": "Pastries"
+  },
+  {
+    "id": "P012",
+    "name": "Taro",
+    "price": 50.0,
+    "stock": 20,
+    "recipe": {},
+    "category": "Milk Tea"
+  },
+  {
+    "id": "P013",
+    "name": "gleni",
+    "price": 10000.0,
+    "stock": 20,
+    "recipe": {},
+    "category": "Milk Tea"
+  },
+  {
+    "id": "P014",
+    "name": "daigods",
+    "price": 1.0,
+    "stock": 20,
+    "recipe": {},
+    "category": "Milk Tea"
+  },
+  {
+    "id": "P015",
+    "name": "ID",
+    "price": 1.0,
+    "stock": 20,
+    "recipe": {},
+    "category": "Milk Tea"
+  },
+  {
+    "id": "P016",
+    "name": "hadog",
+    "price": 100.0,
+    "stock": 20,
+    "recipe": {},
+    "category": "Frappe"
   }
 ]

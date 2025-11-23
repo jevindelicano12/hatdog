@@ -182,9 +182,9 @@ public class CustomerApp extends Application {
         VBox titleBox = new VBox(10);
         titleBox.setAlignment(Pos.CENTER);
         // Add big logo above the title if available
-        ImageView bigLogo = createLogoView(140);
-        if (bigLogo != null) {
-            titleBox.getChildren().add(bigLogo);
+        javafx.scene.layout.StackPane logoContainer = createCircularLogoContainer(140);
+        if (logoContainer != null) {
+            titleBox.getChildren().add(logoContainer);
         }
 
         Label welcomeTitle = new Label("Welcome to Brewise");
@@ -201,8 +201,8 @@ public class CustomerApp extends Application {
         HBox optionsBox = new HBox(30);
         optionsBox.setAlignment(Pos.CENTER);
 
-        // Dine In button (use image if available)
-        VBox dineInBox = createOptionCardWithImage("DINEIN.jpg", "Dine In", "Enjoy your meal in our cozy space");
+        // Dine In button (use coffee cup icon)
+        VBox dineInBox = createOptionCard("☕", "Dine In", "Enjoy your meal in our cozy space");
         dineInBox.setOnMouseClicked(e -> {
             orderType = "Dine In";
             showMenuScreen();
@@ -272,13 +272,37 @@ public class CustomerApp extends Application {
         return null;
     }
 
+    // Wrap logo in circular container without cutting
+    private javafx.scene.layout.StackPane createCircularLogoContainer(double size) {
+        ImageView logo = createLogoView(size);
+        if (logo == null) return null;
+
+        javafx.scene.layout.StackPane container = new javafx.scene.layout.StackPane();
+        container.setPrefSize(size, size);
+        container.setMaxSize(size, size);
+        container.setMinSize(size, size);
+        
+        // Create circular background
+        javafx.scene.shape.Circle background = new javafx.scene.shape.Circle(size / 2);
+        background.setFill(Color.WHITE);
+        background.setStroke(Color.web("#E0E0E0"));
+        background.setStrokeWidth(0.5);
+        
+        // Create circular clip for the image
+        javafx.scene.shape.Circle imageClip = new javafx.scene.shape.Circle(size / 2.2);
+        logo.setClip(imageClip);
+        
+        container.getChildren().addAll(background, logo);
+        return container;
+    }
+
     private VBox createOptionCard(String icon, String title, String desc) {
         VBox card = new VBox(15);
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(40, 30, 40, 30));
         card.setPrefWidth(380);
         card.setPrefHeight(380);
-        card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand;");
+        card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-width: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 15, 0, 0, 3);");
         
         Label iconLabel = new Label(icon);
         iconLabel.setFont(Font.font("Segoe UI Emoji", 64));
@@ -297,12 +321,12 @@ public class CustomerApp extends Application {
         
         // Hover animation
         card.setOnMouseEntered(e -> {
-            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 12, 0, 0, 3);");
+            card.setStyle("-fx-background-color: #F8F9FA; -fx-background-radius: 0; -fx-border-width: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 20, 0, 0, 5);");
             titleLabel.setTextFill(Color.web("#2C2C2C"));
         });
         
         card.setOnMouseExited(e -> {
-            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 8, 0, 0, 2);");
+            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-width: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 15, 0, 0, 3);");
             titleLabel.setTextFill(Color.web("#1A1A1A"));
         });
         
@@ -316,7 +340,7 @@ public class CustomerApp extends Application {
         card.setPadding(new Insets(40, 30, 40, 30));
         card.setPrefWidth(380);
         card.setPrefHeight(380);
-        card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand;");
+        card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-width: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 15, 0, 0, 3);");
 
         ImageView iv = null;
         // try classpath
@@ -368,12 +392,12 @@ public class CustomerApp extends Application {
 
         // Hover animation (similar to createOptionCard)
         card.setOnMouseEntered(e -> {
-            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 12, 0, 0, 3);");
+            card.setStyle("-fx-background-color: #F8F9FA; -fx-background-radius: 0; -fx-border-width: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 20, 0, 0, 5);");
             titleLabel.setTextFill(Color.web("#2C2C2C"));
         });
 
         card.setOnMouseExited(e -> {
-            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 8, 0, 0, 2);");
+            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-width: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.05), 15, 0, 0, 3);");
             titleLabel.setTextFill(Color.web("#1A1A1A"));
         });
 
@@ -398,21 +422,22 @@ public class CustomerApp extends Application {
         root.setTop(header);
 
         // Main content with sidebar and product grid
-        HBox mainContent = new HBox();
+        HBox mainContent = new HBox(0);
         mainContent.setStyle("-fx-background-color: #FFFFFF;");
-        mainContent.setMinHeight(500); // Ensure main content has minimum height
-        mainContent.setAlignment(Pos.CENTER); // center children horizontally
+        mainContent.setMinHeight(500);
+        mainContent.setAlignment(Pos.TOP_LEFT);
+        mainContent.setFillHeight(true);
         
         // Left sidebar - Categories (conditionally shown)
         if (sidebarVisible) {
             categorySidebarContainer = createCategorySidebar();
-            // make sidebar slightly shorter so center column appears taller
             categorySidebarContainer.setMinHeight(600);
             mainContent.getChildren().add(categorySidebarContainer);
         }
 
         // Right - Product Menu (3-column grid)
         ScrollPane menuScroll = createProductMenu();
+        menuScroll.setMinHeight(600);
         HBox.setHgrow(menuScroll, Priority.ALWAYS);
         mainContent.getChildren().add(menuScroll);
         
@@ -665,11 +690,24 @@ public class CustomerApp extends Application {
         VBox categoryContainer = new VBox(2);
         categoryContainer.setPadding(new Insets(0));
         
-        String[] categories = {"All", "Beverages", "Espresso", "Specialty", "Cold Drinks", "Snacks", "Pastries"};
-        String[] icons = {"⭐", "☕", "☘", "✨", "🧊", "🍪", "🍰"};
+        // Load categories dynamically from Store
+        java.util.List<String> storeCategories = store.getCategories();
+        java.util.List<String> categories = new java.util.ArrayList<>();
+        categories.add("All"); // Always add "All" first
+        categories.addAll(storeCategories); // Add store categories
         
-        for (int i = 0; i < categories.length; i++) {
-            Button categoryBtn = createCategoryButton(categories[i], icons[i]);
+        // Icon mapping for categories
+        java.util.Map<String, String> categoryIcons = new java.util.HashMap<>();
+        categoryIcons.put("All", "⭐");
+        categoryIcons.put("Coffee", "☕");
+        categoryIcons.put("Milk Tea", "✨");
+        categoryIcons.put("Frappe", "🧊");
+        categoryIcons.put("Fruit Tea", "🍓");
+        categoryIcons.put("Pastries", "🍰");
+        
+        for (String category : categories) {
+            String icon = categoryIcons.getOrDefault(category, "📦"); // Default icon if not in map
+            Button categoryBtn = createCategoryButton(category, icon);
             categoryContainer.getChildren().add(categoryBtn);
         }
         
@@ -763,9 +801,9 @@ public class CustomerApp extends Application {
 
     private ScrollPane createProductMenu() {
         VBox menuContainer = new VBox(25);
-        menuContainer.setPadding(new Insets(30, 30, 30, 30));
+        menuContainer.setPadding(new Insets(30, 30, 80, 30));
         menuContainer.setStyle("-fx-background-color: #FFFFFF;");
-        menuContainer.setMinHeight(820); // make center column taller so it's visually bigger than the sidebar
+        menuContainer.setMinHeight(1600); // increased height to fit all product cards without cutting off
         menuContainer.setMaxWidth(1000); // constrain width so it's centered nicely
         
         // Header row with show sidebar button and category title
@@ -843,25 +881,16 @@ public class CustomerApp extends Application {
     }
     
     private boolean productMatchesCategory(Product product, String category) {
-        String name = product.getName().toLowerCase();
-        switch (category) {
-            case "All":
-                return true;
-            case "Beverages":
-                return name.contains("coffee") || name.contains("tea");
-            case "Espresso":
-                return name.contains("espresso") || name.contains("americano");
-            case "Specialty":
-                return name.contains("latte") || name.contains("mocha") || name.contains("macchiato");
-            case "Cold Drinks":
-                return name.contains("iced") || name.contains("cold") || name.contains("frappe");
-            case "Snacks":
-                return name.contains("muffin") || name.contains("cookie") || name.contains("sandwich");
-            case "Pastries":
-                return name.contains("cake") || name.contains("croissant") || name.contains("pastry");
-            default:
-                return true;
+        if ("All".equals(category)) {
+            return true;
         }
+        
+        String productCategory = product.getCategory();
+        if (productCategory == null) {
+            return false;
+        }
+        
+        return productCategory.equalsIgnoreCase(category);
     }
 
     private VBox createProductCard(Product product) {
@@ -875,23 +904,35 @@ public class CustomerApp extends Application {
         card.setPrefWidth(cardWidth);
         card.setPrefHeight(cardHeight);
 
-        // Product image placeholder with gradient (responsive height)
+        // Product image with real image support
         StackPane imagePane = new StackPane();
         int imageHeight = sidebarVisible ? 180 : 240;
         imagePane.setPrefHeight(imageHeight);
         imagePane.setMaxHeight(imageHeight);
-        String gradient = product.getName().toLowerCase().contains("espresso") ? 
-            "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" :
-            product.getName().toLowerCase().contains("cappuccino") ?
-            "linear-gradient(to bottom right, #404040, #2C2C2C)" :
-            "linear-gradient(to bottom right, #505050, #2C2C2C)";
-        imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0;");
+        imagePane.setStyle("-fx-background-color: #f0f0f0; -fx-background-radius: 0; -fx-border-radius: 0;");
         
-        Label imagePlaceholder = new Label("☕");
-        int emojiSize = sidebarVisible ? 64 : 88;
-        imagePlaceholder.setFont(Font.font("Segoe UI Emoji", emojiSize));
-        imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
-        imagePane.getChildren().add(imagePlaceholder);
+        // Try to load product image
+        javafx.scene.image.ImageView productImage = loadProductImage(product.getId());
+        if (productImage != null) {
+            productImage.setFitHeight(imageHeight);
+            productImage.setFitWidth(cardWidth);
+            productImage.setPreserveRatio(false);
+            imagePane.getChildren().add(productImage);
+        } else {
+            // Fallback to emoji if no image
+            String gradient = product.getName().toLowerCase().contains("espresso") ? 
+                "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" :
+                product.getName().toLowerCase().contains("cappuccino") ?
+                "linear-gradient(to bottom right, #404040, #2C2C2C)" :
+                "linear-gradient(to bottom right, #505050, #2C2C2C)";
+            imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0;");
+            
+            Label imagePlaceholder = new Label("☕");
+            int emojiSize = sidebarVisible ? 64 : 88;
+            imagePlaceholder.setFont(Font.font("Segoe UI Emoji", emojiSize));
+            imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
+            imagePane.getChildren().add(imagePlaceholder);
+        }
 
         // Content area - simplified (responsive padding)
         VBox contentBox = new VBox(sidebarVisible ? 12 : 18);
@@ -921,7 +962,7 @@ public class CustomerApp extends Application {
             stockLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
             card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-opacity: 0.7;");
         } else {
-            stockLabel.setText("In Stock: " + product.getStock());
+            stockLabel.setText(product.getStock() + " Available");
             stockLabel.setTextFill(Color.web("#4CAF50"));
             stockLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
         }
@@ -2083,6 +2124,8 @@ public class CustomerApp extends Application {
         VBox summarySection = new VBox(15);
         summarySection.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 8, 0, 0, 2);");
         summarySection.setPadding(new Insets(25));
+        summarySection.setAlignment(Pos.CENTER);
+        summarySection.setMaxWidth(500);
         
         Label summaryTitle = new Label("Order Summary");
         summaryTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
@@ -2178,14 +2221,7 @@ public class CustomerApp extends Application {
         cashBtn.setOnMouseExited(e -> cashBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
         cashBtn.setOnAction(e -> completeOrder("Cash"));
         
-        Button cardBtn = new Button("💳 Pay with Card");
-        cardBtn.setPrefSize(200, 60);
-        cardBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;");
-        cardBtn.setOnMouseEntered(e -> cardBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
-        cardBtn.setOnMouseExited(e -> cardBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-family: 'Segoe UI'; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-radius: 0; -fx-cursor: hand;"));
-        cardBtn.setOnAction(e -> completeOrder("Card"));
-        
-        paymentButtons.getChildren().addAll(cashBtn, cardBtn);
+        paymentButtons.getChildren().add(cashBtn);
         paymentSection.getChildren().addAll(paymentTitle, paymentButtons);
         
         return paymentSection;
@@ -2249,7 +2285,36 @@ public class CustomerApp extends Application {
         }
     }
 
-
+    // Load product image from data/images folder
+    private javafx.scene.image.ImageView loadProductImage(String productId) {
+        try {
+            java.io.File imagesDir = new java.io.File("data/images");
+            if (!imagesDir.exists()) {
+                return null;
+            }
+            
+            // Search for image file matching the product ID
+            java.io.File[] files = imagesDir.listFiles();
+            if (files != null) {
+                for (java.io.File file : files) {
+                    if (file.isFile() && !file.getName().startsWith(".")) {
+                        // Match by product ID prefix (e.g., P001.jpg, P001.png)
+                        if (file.getName().startsWith(productId + ".")) {
+                            try {
+                                javafx.scene.image.Image image = new javafx.scene.image.Image(file.toURI().toString());
+                                if (!image.isError()) {
+                                    javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView(image);
+                                    return imageView;
+                                }
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        
+        return null;
+    }
 
     // ==================== INACTIVITY TIMER ====================
     

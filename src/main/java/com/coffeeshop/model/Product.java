@@ -9,6 +9,7 @@ public class Product {
     private double price;
     private int stock;
     private Map<String, Double> recipe; // ingredient name -> quantity needed per serving
+    private String category;
 
     public Product(String id, String name, double price, int stock) {
         this.id = id;
@@ -16,6 +17,7 @@ public class Product {
         this.price = price;
         this.stock = stock;
         this.recipe = new HashMap<>();
+        this.category = "Uncategorized";
     }
 
     public Product(String id, String name, double price, int stock, Map<String, Double> recipe) {
@@ -24,6 +26,16 @@ public class Product {
         this.price = price;
         this.stock = stock;
         this.recipe = recipe;
+        this.category = "Uncategorized";
+    }
+
+    public Product(String id, String name, double price, int stock, Map<String, Double> recipe, String category) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+        this.stock = stock;
+        this.recipe = recipe != null ? recipe : new HashMap<>();
+        this.category = category != null ? category : "Uncategorized";
     }
 
     // Getters and setters
@@ -65,6 +77,14 @@ public class Product {
 
     public void setRecipe(Map<String, Double> recipe) {
         this.recipe = recipe;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public void addIngredient(String ingredientName, double quantity) {

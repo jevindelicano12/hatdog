@@ -1,0 +1,2 @@
+Espresso|3.5|Hot|Regular|50
+Cappuccino|4.5|Hot|Regular|50
