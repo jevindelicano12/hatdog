@@ -28,11 +28,20 @@ import com.coffeeshop.service.SalesAnalytics;
 
 public class CashierApp extends Application {
     private Store store;
-    private TextField customerNameInput;
+    // currently logged-in cashier id (e.g., "cashier1")
+    private String currentCashierId;
+    // Removed customer search input to simplify UI and enlarge order queue
     
-    // Order queue management
-    private ObservableList<Order> orderQueue = FXCollections.observableArrayList();
-    private TableView<Order> orderQueueTable;
+    // Order queue management (use PendingOrder so we preserve status lifecycle)
+    private javafx.collections.ObservableList<com.coffeeshop.model.PendingOrder> orderQueue = FXCollections.observableArrayList();
+    private TableView<com.coffeeshop.model.PendingOrder> orderQueueTable;
+    // Per-stage lists & tables
+    private ObservableList<com.coffeeshop.model.PendingOrder> pendingList = FXCollections.observableArrayList();
+    private ObservableList<com.coffeeshop.model.PendingOrder> preparingList = FXCollections.observableArrayList();
+    private ObservableList<com.coffeeshop.model.PendingOrder> completedList = FXCollections.observableArrayList();
+    private TableView<com.coffeeshop.model.PendingOrder> pendingTable;
+    private TableView<com.coffeeshop.model.PendingOrder> preparingTable;
+    private TableView<com.coffeeshop.model.PendingOrder> completedTable;
     private java.util.HashMap<String, String> orderCustomerNames = new java.util.HashMap<>();
     private java.util.HashMap<String, String> orderTypes = new java.util.HashMap<>(); // orderId -> orderType
     
@@ -46,6 +55,15 @@ public class CashierApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        // Require login before initializing the UI
+        currentCashierId = null;
+        boolean ok = showLoginDialog(primaryStage);
+        if (!ok) {
+            // user cancelled or failed to login; exit
+            javafx.application.Platform.exit();
+            return;
+        }
+
         store = Store.getInstance();
         loadReceiptHistory();
         loadPendingOrdersFromFile();
@@ -133,12 +151,80 @@ public class CashierApp extends Application {
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         title.setTextFill(Color.web("#3E2723"));
 
-        Label subtitle = new Label("Process customer orders and payments");
+        String sub = "Process customer orders and payments";
+        if (currentCashierId != null && !currentCashierId.isEmpty()) {
+            sub += " — Logged in: " + currentCashierId;
+        }
+        Label subtitle = new Label(sub);
         subtitle.setFont(Font.font("Segoe UI", 14));
         subtitle.setTextFill(Color.web("#795548"));
 
         header.getChildren().addAll(title, subtitle);
         return header;
+    }
+
+    /**
+     * Show a simple modal login dialog for cashier users.
+     * Accepts two accounts: cashier1/cashier1 and cashier2/cashier2.
+     * Returns true if login succeeded and sets `currentCashierId`.
+     */
+    private boolean showLoginDialog(Stage owner) {
+        final Stage dialog = new Stage();
+        dialog.initOwner(owner);
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialog.setTitle("Cashier Login");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        Label userLbl = new Label("Username:");
+        TextField userField = new TextField();
+        userField.setPromptText("cashier1 or cashier2");
+
+        Label passLbl = new Label("Password:");
+        PasswordField passField = new PasswordField();
+        passField.setPromptText("password");
+
+        Label msg = new Label();
+        msg.setTextFill(javafx.scene.paint.Color.web("#D32F2F"));
+
+        Button loginBtn = new Button("Login");
+        Button cancelBtn = new Button("Cancel");
+
+        HBox actions = new HBox(8, loginBtn, cancelBtn);
+
+        grid.add(userLbl, 0, 0);
+        grid.add(userField, 1, 0);
+        grid.add(passLbl, 0, 1);
+        grid.add(passField, 1, 1);
+        grid.add(msg, 0, 2, 2, 1);
+        grid.add(actions, 1, 3);
+
+        // Quick login when Enter pressed in password
+        passField.setOnAction(e -> loginBtn.fire());
+
+        loginBtn.setOnAction(e -> {
+            String user = userField.getText() == null ? "" : userField.getText().trim();
+            String pass = passField.getText() == null ? "" : passField.getText();
+            if (("cashier1".equals(user) && "cashier1".equals(pass)) || ("cashier2".equals(user) && "cashier2".equals(pass))) {
+                currentCashierId = user;
+                dialog.close();
+            } else {
+                msg.setText("Invalid username or password.");
+            }
+        });
+
+        cancelBtn.setOnAction(e -> {
+            dialog.close();
+        });
+
+        Scene scene = new Scene(grid, 360, 180);
+        dialog.setScene(scene);
+        dialog.showAndWait();
+
+        return currentCashierId != null;
     }
 
     // ====================  DATABASE HELPERS ====================
@@ -242,51 +328,22 @@ public class CashierApp extends Application {
                 List<Receipt> receipts = TextDatabase.loadAllReceipts();
                 List<PendingOrder> pendingOrders = TextDatabase.loadPendingOrders();
 
-                // Prepare converted orders and maps
-                java.util.List<Order> newOrders = new java.util.ArrayList<>();
+                // Prepare maps
                 java.util.Map<String, String> newCustomerNames = new java.util.HashMap<>();
                 java.util.Map<String, String> newOrderTypes = new java.util.HashMap<>();
-
-                for (PendingOrder pendingOrder : pendingOrders) {
-                    Order order = new Order(pendingOrder.getOrderId());
-                    newCustomerNames.put(pendingOrder.getOrderId(), pendingOrder.getCustomerName());
-                    newOrderTypes.put(pendingOrder.getOrderId(), pendingOrder.getOrderType());
-
-                    for (PendingOrder.OrderItemData itemData : pendingOrder.getItems()) {
-                        Product product = store.getProducts().stream()
-                                .filter(p -> p.getName().equals(itemData.productName))
-                                .findFirst()
-                                .orElse(null);
-                        if (product != null) {
-                            OrderItem orderItem = new OrderItem(
-                                    product,
-                                    itemData.quantity,
-                                    itemData.temperature,
-                                    itemData.sugarLevel
-                            );
-                            order.addItem(orderItem);
-                        }
-                    }
-                    newOrders.add(order);
+                for (PendingOrder po : pendingOrders) {
+                    newCustomerNames.put(po.getOrderId(), po.getCustomerName());
+                    newOrderTypes.put(po.getOrderId(), po.getOrderType());
                 }
 
                 // Update UI data on FX thread
                 javafx.application.Platform.runLater(() -> {
                     try {
                         receiptHistory.setAll(receipts);
+                        // reload all pending orders and populate stage lists
+                        loadPendingOrdersFromFile();
 
-                        orderQueue.setAll(newOrders);
-
-                        orderCustomerNames.clear();
-                        orderCustomerNames.putAll(newCustomerNames);
-
-                        orderTypes.clear();
-                        orderTypes.putAll(newOrderTypes);
-
-                        // If dashboard exists, trigger its refresh by firing the refresh button logic
                         if (dashboardPanel != null) {
-                            // rebuild dashboard by recreating panel content
-                            // simplest approach: replace children with a fresh dashboard
                             VBox parent = dashboardPanel;
                             parent.getChildren().clear();
                             parent.getChildren().addAll(createDashboardPanel().getChildren());
@@ -315,36 +372,142 @@ public class CashierApp extends Application {
     }
     
     private void loadPendingOrdersFromFile() {
-        List<PendingOrder> pendingOrders = TextDatabase.loadPendingOrders();
-        
-        for (PendingOrder pendingOrder : pendingOrders) {
-            // Convert PendingOrder to Order
-            Order order = new Order(pendingOrder.getOrderId());
-            
-            // Store customer name and order type for this order
+        List<PendingOrder> allOrders = TextDatabase.loadAllPendingOrders();
+
+        orderQueue.clear();
+        pendingList.clear();
+        preparingList.clear();
+        completedList.clear();
+
+        for (PendingOrder pendingOrder : allOrders) {
             orderCustomerNames.put(pendingOrder.getOrderId(), pendingOrder.getCustomerName());
             orderTypes.put(pendingOrder.getOrderId(), pendingOrder.getOrderType());
-            
-            for (PendingOrder.OrderItemData itemData : pendingOrder.getItems()) {
-                // Find the product in store
-                Product product = store.getProducts().stream()
-                    .filter(p -> p.getName().equals(itemData.productName))
-                    .findFirst()
-                    .orElse(null);
-                
-                if (product != null) {
-                    OrderItem orderItem = new OrderItem(
-                        product,
-                        itemData.quantity,
-                        itemData.temperature,
-                        itemData.sugarLevel
-                    );
-                    order.addItem(orderItem);
-                }
+            orderQueue.add(pendingOrder);
+
+            String st = pendingOrder.getStatus();
+            // Map: show unpaid (PENDING) and paid orders in the left table so cashier can pay or start preparing
+            if (PendingOrder.STATUS_PENDING.equals(st) || PendingOrder.STATUS_PAID.equals(st)) {
+                pendingList.add(pendingOrder);
+            } else if (PendingOrder.STATUS_PREPARING.equals(st)) {
+                preparingList.add(pendingOrder);
+            } else if (PendingOrder.STATUS_COMPLETED.equals(st)) {
+                completedList.add(pendingOrder);
             }
-            
-            orderQueue.add(order);
         }
+    }
+
+    // Map internal status codes to friendly labels
+    private String mapStatusToLabel(String status) {
+        if (PendingOrder.STATUS_PENDING.equals(status)) return "Pending (Unpaid)";
+        if (PendingOrder.STATUS_PAID.equals(status)) return "Paid";
+        if (PendingOrder.STATUS_PREPARING.equals(status)) return "Preparing";
+        if (PendingOrder.STATUS_COMPLETED.equals(status)) return "Completed";
+        return status != null ? status : "—";
+    }
+
+    // Primary action handler for lifecycle transitions
+    private void handlePrimaryAction(PendingOrder po) {
+        if (po == null) return;
+        String status = po.getStatus();
+        try {
+            if (PendingOrder.STATUS_PENDING.equals(status)) {
+                payAndQueue(po);
+            } else if (PendingOrder.STATUS_PAID.equals(status)) {
+                startMaking(po);
+            } else if (PendingOrder.STATUS_PREPARING.equals(status)) {
+                // finish the order
+                completePickup(po);
+            }
+        } catch (Exception ex) {
+            showAlert("Action Error", "Failed to perform action: " + ex.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+    private void payAndQueue(PendingOrder po) {
+        // Build an Order object from PendingOrder to run checkout logic
+        Order order = new Order(po.getOrderId());
+        if (po.getOrderTime() != null) order.setOrderTime(po.getOrderTime());
+        for (PendingOrder.OrderItemData item : po.getItems()) {
+            Product product = store.getProducts().stream().filter(p -> p.getName().equals(item.productName)).findFirst().orElse(null);
+            if (product != null) {
+                OrderItem oi = new OrderItem(product, item.quantity, item.temperature, item.sugarLevel);
+                order.addItem(oi);
+            }
+        }
+
+        // Confirm customer name
+        String customerName = orderCustomerNames.getOrDefault(po.getOrderId(), null);
+        if (customerName == null) {
+            TextInputDialog nameDialog = new TextInputDialog();
+            nameDialog.setTitle("Customer Name");
+            nameDialog.setHeaderText("Enter Customer Name");
+            nameDialog.setContentText("Name:");
+            customerName = nameDialog.showAndWait().orElse("Guest");
+        }
+
+        // Validate stock and process checkout
+        if (!store.isStockSufficient(order)) {
+            showAlert("Stock Error", "Insufficient stock for some items.", Alert.AlertType.ERROR);
+            return;
+        }
+        if (!store.isInventorySufficient(order)) {
+            showAlert("Ingredient Error", "Insufficient ingredients for some items.", Alert.AlertType.ERROR);
+            return;
+        }
+
+        store.checkoutBasket(order);
+
+        // Generate and save receipt
+        String orderType = orderTypes.getOrDefault(po.getOrderId(), "Dine In");
+        String receiptContent = generateReceiptWithOrderType(order, customerName, orderType);
+        String receiptId = "RCP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        Receipt receipt = new Receipt(receiptId, order.getOrderId(), customerName, order.getTotalAmount(), order.getTotalAmount(), 0.0);
+        receipt.setReceiptContent(receiptContent);
+        TextDatabase.saveReceipt(receipt);
+        receiptHistory.add(0, receipt);
+
+        // Save order items to order/item DBs
+        saveOrderToDatabase(order, customerName);
+
+        // Update pending order status to PAID and persist
+        po.setStatus(PendingOrder.STATUS_PAID);
+        TextDatabase.savePendingOrder(po);
+        // refresh UI
+        loadPendingOrdersFromFile();
+        showAlert("Payment Successful", "Order paid and added to production queue.", Alert.AlertType.INFORMATION);
+    }
+
+    private void startMaking(PendingOrder po) {
+        po.setStatus(PendingOrder.STATUS_PREPARING);
+        TextDatabase.savePendingOrder(po);
+        loadPendingOrdersFromFile();
+    }
+
+    // Pay the pending order and immediately mark it as preparing (ready for production)
+    private void payAndStartPreparing(PendingOrder po) {
+        if (po == null) return;
+        // Process payment (deduct stock, create receipt, mark as PAID)
+        payAndQueue(po);
+        // Then move to preparing state
+        startMaking(po);
+    }
+
+    private void markReady(PendingOrder po) {
+        // Legacy method repurposed: mark as completed
+        po.setStatus(PendingOrder.STATUS_COMPLETED);
+        TextDatabase.savePendingOrder(po);
+        loadPendingOrdersFromFile();
+    }
+
+    private void completePickup(PendingOrder po) {
+        po.setStatus(PendingOrder.STATUS_COMPLETED);
+        TextDatabase.savePendingOrder(po);
+        // Also mark completed in helper (keeps behavior consistent)
+        TextDatabase.markOrderCompleted(po.getOrderId());
+        orderQueue.remove(po);
+        orderCustomerNames.remove(po.getOrderId());
+        orderTypes.remove(po.getOrderId());
+        showAlert("Completed", "Order marked as completed (picked up).", Alert.AlertType.INFORMATION);
     }
 
     private VBox createDashboardPanel() {
@@ -401,7 +564,7 @@ public class CashierApp extends Application {
     
     // ==================== ORDER QUEUE PANEL ====================
     
-    private VBox createOrderQueuePanel() {
+    private javafx.scene.control.ScrollPane createOrderQueuePanel() {
         VBox panel = new VBox(20);
         panel.setPadding(new Insets(30));
         
@@ -413,136 +576,230 @@ public class CashierApp extends Application {
         subtitle.setFont(Font.font("Segoe UI", 14));
         subtitle.setTextFill(Color.web("#795548"));
         
-        // Search section
-        HBox searchBox = new HBox(15);
-        searchBox.setPadding(new Insets(20));
-        searchBox.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
-        searchBox.setAlignment(Pos.CENTER_LEFT);
+        // Removed search box to simplify UI; order queue expanded instead
         
-        Label searchLabel = new Label("Search:");
-        searchLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        
-        customerNameInput = new TextField();
-        customerNameInput.setPromptText("Customer Name...");
-        customerNameInput.setPrefWidth(300);
-        customerNameInput.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-padding: 8;");
-        
-        Button searchBtn = new Button("Search");
-        searchBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 6; -fx-cursor: hand;");
-        searchBtn.setOnAction(e -> searchOrders());
-        
-        Button clearBtn = new Button("Show All");
-        clearBtn.setStyle("-fx-background-color: #757575; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 6; -fx-cursor: hand;");
-        clearBtn.setOnAction(e -> showAllOrders());
-        
-        searchBox.getChildren().addAll(searchLabel, customerNameInput, searchBtn, clearBtn);
-        
-        // Orders table
-        orderQueueTable = new TableView<>();
-        orderQueueTable.setItems(orderQueue);
-        orderQueueTable.setPrefHeight(500);
-        orderQueueTable.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 8;");
-        
-        TableColumn<Order, String> idCol = new TableColumn<>("Order #");
-        idCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
-        idCol.setPrefWidth(100);
-        
-        TableColumn<Order, String> customerCol = new TableColumn<>("Customer");
-        customerCol.setCellValueFactory(data -> {
-            String customerName = orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—");
-            return new javafx.beans.property.SimpleStringProperty(customerName);
-        });
-        customerCol.setPrefWidth(150);
-        
-        TableColumn<Order, String> timeCol = new TableColumn<>("Time");
-        timeCol.setCellValueFactory(data -> {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-            return new javafx.beans.property.SimpleStringProperty(
-                data.getValue().getOrderTime().format(formatter));
-        });
-        timeCol.setPrefWidth(100);
-        
-        TableColumn<Order, Integer> itemsCol = new TableColumn<>("Items");
-        itemsCol.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
+        // Build three tables for the 3 steps: Paid, Preparing, Completed (use class-level lists)
+        // paidList, preparingList, completedList are class fields
+        pendingTable = new TableView<>(pendingList);
+        preparingTable = new TableView<>(preparingList);
+        completedTable = new TableView<>(completedList);
+
+        // Create separate column instances for each table (TableColumn cannot be shared between TableViews)
+        // Pending table columns
+        TableColumn<PendingOrder, String> idColP = new TableColumn<>("Order #");
+        idColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
+        idColP.setPrefWidth(100);
+
+        TableColumn<PendingOrder, String> customerColP = new TableColumn<>("Customer");
+        customerColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—")));
+        customerColP.setPrefWidth(140);
+
+        TableColumn<PendingOrder, String> timeColP = new TableColumn<>("Time");
+        timeColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            data.getValue().getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
+        timeColP.setPrefWidth(100);
+
+        TableColumn<PendingOrder, Integer> itemsColP = new TableColumn<>("Items");
+        itemsColP.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
             data.getValue().getItems().size()).asObject());
-        itemsCol.setPrefWidth(80);
-        
-        TableColumn<Order, String> totalCol = new TableColumn<>("Total");
-        totalCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+        itemsColP.setPrefWidth(70);
+
+        TableColumn<PendingOrder, String> totalColP = new TableColumn<>("Total");
+        totalColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
             "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
-        totalCol.setPrefWidth(100);
-        
-        TableColumn<Order, String> statusCol = new TableColumn<>("Status");
-        statusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            data.getValue().isPaid() ? "Paid" : "Pending"));
-        statusCol.setPrefWidth(100);
-        
-        TableColumn<Order, Void> actionCol = new TableColumn<>("Actions");
-        actionCol.setPrefWidth(220);
-        actionCol.setCellFactory(col -> new TableCell<Order, Void>() {
-            private final Button completeBtn = new Button("Complete");
+        totalColP.setPrefWidth(90);
+
+        // Preparing table columns
+        TableColumn<PendingOrder, String> idColM = new TableColumn<>("Order #");
+        idColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
+        idColM.setPrefWidth(100);
+
+        TableColumn<PendingOrder, String> customerColM = new TableColumn<>("Customer");
+        customerColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—")));
+        customerColM.setPrefWidth(140);
+
+        TableColumn<PendingOrder, String> timeColM = new TableColumn<>("Time");
+        timeColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            data.getValue().getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
+        timeColM.setPrefWidth(100);
+
+        TableColumn<PendingOrder, Integer> itemsColM = new TableColumn<>("Items");
+        itemsColM.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
+            data.getValue().getItems().size()).asObject());
+        itemsColM.setPrefWidth(70);
+
+        TableColumn<PendingOrder, String> totalColM = new TableColumn<>("Total");
+        totalColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
+        totalColM.setPrefWidth(90);
+
+        // Completed table columns
+        TableColumn<PendingOrder, String> idColD = new TableColumn<>("Order #");
+        idColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
+        idColD.setPrefWidth(100);
+
+        TableColumn<PendingOrder, String> customerColD = new TableColumn<>("Customer");
+        customerColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—")));
+        customerColD.setPrefWidth(140);
+
+        TableColumn<PendingOrder, String> timeColD = new TableColumn<>("Time");
+        timeColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            data.getValue().getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
+        timeColD.setPrefWidth(100);
+
+        TableColumn<PendingOrder, Integer> itemsColD = new TableColumn<>("Items");
+        itemsColD.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
+            data.getValue().getItems().size()).asObject());
+        itemsColD.setPrefWidth(70);
+
+        TableColumn<PendingOrder, String> totalColD = new TableColumn<>("Total");
+        totalColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
+        totalColD.setPrefWidth(90);
+
+        // Pending table action: Pay (cashier will mark paid and ready for preparing)
+        TableColumn<PendingOrder, Void> pendingAction = new TableColumn<>("Actions");
+        pendingAction.setPrefWidth(160);
+        pendingAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
+            private final Button actionBtn = new Button();
             private final Button removeBtn = new Button("✕");
-            
             {
-                completeBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
-                removeBtn.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-font-weight: bold; -fx-background-radius: 4; -fx-cursor: hand;");
-                
-                completeBtn.setOnAction(e -> {
-                    Order order = getTableView().getItems().get(getIndex());
-                    if (order.getItems().isEmpty()) {
-                        showAlert("No Items", "This order has no items. Please add items first or remove the order.", Alert.AlertType.WARNING);
-                        return;
-                    }
-                    completeOrderDirectly(order);
+                actionBtn.setStyle("-fx-font-weight: bold; -fx-cursor: hand;");
+                removeBtn.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-font-weight: bold;");
+                actionBtn.setOnAction(e -> {
+                    PendingOrder p = getTableView().getItems().get(getIndex());
+                    // Pay and immediately mark as ready for preparing
+                    payAndStartPreparing(p);
                 });
-                
                 removeBtn.setOnAction(e -> {
-                    Order order = getTableView().getItems().get(getIndex());
-                    // Remove from main queue
-                    orderQueue.remove(order);
-                    orderCustomerNames.remove(order.getOrderId());
-                    // Also remove from current table view if it's a filtered list
-                    getTableView().getItems().remove(order);
+                    PendingOrder p = getTableView().getItems().get(getIndex());
+                    TextDatabase.deletePendingOrder(p.getOrderId());
+                    loadPendingOrdersFromFile();
                 });
             }
-            
+
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
+                if (empty) { setGraphic(null); return; }
+                PendingOrder p = getTableView().getItems().get(getIndex());
+                if (p == null) { setGraphic(null); return; }
+                String st = p.getStatus();
+                // Paid table should only contain PAID orders, so show Start Preparing action
+                if (PendingOrder.STATUS_PENDING.equals(st)) {
+                    actionBtn.setText("Pay");
+                    actionBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold;");
+                    setGraphic(new HBox(8, actionBtn, removeBtn));
                 } else {
-                    HBox buttons = new HBox(8, completeBtn, removeBtn);
-                    buttons.setAlignment(Pos.CENTER_LEFT);
-                    setGraphic(buttons);
+                    setGraphic(null);
                 }
             }
         });
+
+        // Preparing table action: Complete
+        TableColumn<PendingOrder, Void> prepAction = new TableColumn<>("Actions");
+        prepAction.setPrefWidth(120);
+        prepAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
+            private final Button completeBtn = new Button("Complete");
+            {
+                completeBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
+                completeBtn.setOnAction(e -> {
+                    PendingOrder p = getTableView().getItems().get(getIndex());
+                    completePickup(p);
+                    loadPendingOrdersFromFile();
+                });
+            }
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) { setGraphic(null); return; }
+                setGraphic(completeBtn);
+            }
+        });
+
+        // Completed table has no actions
+        TableColumn<PendingOrder, Void> doneAction = new TableColumn<>("Actions");
+        doneAction.setPrefWidth(80);
+        doneAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
+            @Override protected void updateItem(Void item, boolean empty) { super.updateItem(item, empty); setGraphic(null); }
+        });
+
+        // Assemble columns for each table
+        pendingTable.getColumns().addAll(idColP, customerColP, timeColP, itemsColP, totalColP, pendingAction);
+        preparingTable.getColumns().addAll(idColM, customerColM, timeColM, itemsColM, totalColM, prepAction);
+        completedTable.getColumns().addAll(idColD, customerColD, timeColD, itemsColD, totalColD, doneAction);
+
+        // Make tables taller and let columns resize to avoid horizontal scrolling
+        pendingTable.setPrefHeight(600);
+        preparingTable.setPrefHeight(600);
+        completedTable.setPrefHeight(600);
+        pendingTable.setMinHeight(300);
+        preparingTable.setMinHeight(300);
+        completedTable.setMinHeight(300);
+        pendingTable.setMaxHeight(Double.MAX_VALUE);
+        preparingTable.setMaxHeight(Double.MAX_VALUE);
+        completedTable.setMaxHeight(Double.MAX_VALUE);
+
+        // Ensure tables expand horizontally and columns fill available width
+        pendingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        preparingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        completedTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        pendingTable.setMaxWidth(Double.MAX_VALUE);
+        preparingTable.setMaxWidth(Double.MAX_VALUE);
+        completedTable.setMaxWidth(Double.MAX_VALUE);
+
+        VBox pendingBox = new VBox(6, new Label("Pending Orders"), pendingTable);
+        VBox preparingBox = new VBox(6, new Label("Preparing"), preparingTable);
+        VBox completedBox = new VBox(6, new Label("Completed"), completedTable);
+
+        // Allow the boxes to grow vertically so tables can expand
+        VBox.setVgrow(pendingTable, Priority.ALWAYS);
+        VBox.setVgrow(preparingTable, Priority.ALWAYS);
+        VBox.setVgrow(completedTable, Priority.ALWAYS);
+        VBox.setVgrow(pendingBox, Priority.ALWAYS);
+        VBox.setVgrow(preparingBox, Priority.ALWAYS);
+        VBox.setVgrow(completedBox, Priority.ALWAYS);
+
+        HBox tablesRow = new HBox(12, pendingBox, preparingBox, completedBox);
+        tablesRow.setPrefWidth(Double.MAX_VALUE);
+        HBox.setHgrow(pendingBox, Priority.ALWAYS);
+        HBox.setHgrow(preparingBox, Priority.ALWAYS);
+        HBox.setHgrow(completedBox, Priority.ALWAYS);
+
+        // Replace old single-table UI: we will populate these lists from file loader
+        panel.getChildren().addAll(title, subtitle, new Separator(), tablesRow, new Separator());
         
-        orderQueueTable.getColumns().addAll(idCol, customerCol, timeCol, itemsCol, totalCol, statusCol, actionCol);
-        
-        // Order details panel
-        VBox detailsPanel = new VBox(10);
-        detailsPanel.setPadding(new Insets(20));
+        // Order details panel (larger and more readable)
+        VBox detailsPanel = new VBox(12);
+        detailsPanel.setPadding(new Insets(22));
         detailsPanel.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
-        detailsPanel.setPrefHeight(200);
-        
+        detailsPanel.setPrefHeight(380);
+        detailsPanel.setMinHeight(300);
+
         Label detailsTitle = new Label("Order Details");
-        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         detailsTitle.setTextFill(Color.web("#3E2723"));
-        
+
         TextArea orderDetailsArea = new TextArea();
         orderDetailsArea.setEditable(false);
         orderDetailsArea.setWrapText(true);
-        orderDetailsArea.setFont(Font.font("Consolas", 12));
+        // Use larger monospace font for alignment and readability
+        orderDetailsArea.setFont(Font.font("Consolas", 14));
         orderDetailsArea.setText("Select an order to view details...");
-        orderDetailsArea.setPrefHeight(150);
-        orderDetailsArea.setStyle("-fx-control-inner-background: #FAFAFA; -fx-background-color: #FAFAFA;");
-        
+        orderDetailsArea.setPrefHeight(320);
+        orderDetailsArea.setMaxHeight(Double.MAX_VALUE);
+        orderDetailsArea.setPrefWidth(Double.MAX_VALUE);
+        orderDetailsArea.setStyle("-fx-control-inner-background: #FAFAFA; -fx-background-color: #FAFAFA; -fx-font-size: 14px;");
+        VBox.setVgrow(orderDetailsArea, Priority.ALWAYS);
+
         detailsPanel.getChildren().addAll(detailsTitle, orderDetailsArea);
         
-        // Add selection listener to show order details
-        orderQueueTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+        // Add selection listeners to each table to show order details (for PendingOrder)
+        javafx.beans.value.ChangeListener<PendingOrder> detailsListener = (obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 String customerName = orderCustomerNames.getOrDefault(newSelection.getOrderId(), "Unknown");
                 StringBuilder details = new StringBuilder();
@@ -551,20 +808,21 @@ public class CashierApp extends Application {
                 details.append(String.format("Order #:    %s\n", newSelection.getOrderId()));
                 details.append(String.format("Customer:   %s\n", customerName));
                 details.append(String.format("Time:       %s\n", 
-                    newSelection.getOrderTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"))));
-                details.append(String.format("Status:     %s\n\n", newSelection.isPaid() ? "Paid" : "Pending"));
+                    newSelection.getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
+                details.append(String.format("Status:     %s\n\n", mapStatusToLabel(newSelection.getStatus())));
                 details.append("ITEMS\n");
                 details.append("-------------------------------------------\n");
-                
+
                 if (newSelection.getItems().isEmpty()) {
                     details.append("No items.\n");
                 } else {
                     java.util.Map<String, Integer> qtyMap = new java.util.LinkedHashMap<>();
                     java.util.Map<String, Double> priceMap = new java.util.HashMap<>();
-                    for (OrderItem item : newSelection.getItems()) {
-                        String name = item.getProduct().getName();
-                        qtyMap.put(name, qtyMap.getOrDefault(name, 0) + item.getQuantity());
-                        priceMap.put(name, item.getProduct().getPrice());
+                    for (PendingOrder.OrderItemData item : newSelection.getItems()) {
+                        String name = item.productName;
+                        qtyMap.put(name, qtyMap.getOrDefault(name, 0) + item.quantity);
+                        Product product = store.getProducts().stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
+                        priceMap.put(name, product != null ? product.getPrice() : item.price);
                     }
 
                     for (java.util.Map.Entry<String, Integer> e : qtyMap.entrySet()) {
@@ -575,145 +833,50 @@ public class CashierApp extends Application {
                         details.append(String.format("%-20s x%d   ₱%.2f\n", name, qty, subtotal));
                     }
                 }
-                
+
                 details.append("-------------------------------------------\n");
                 details.append(String.format("TOTAL:      ₱%.2f\n", newSelection.getTotalAmount()));
-                
+
                 orderDetailsArea.setText(details.toString());
             } else {
                 orderDetailsArea.setText("Select an order to view details...");
             }
-        });
+        };
+
+        pendingTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
+        preparingTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
+        completedTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
         
         Label queueCount = new Label("Total Orders in Queue: 0");
         queueCount.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         queueCount.setTextFill(Color.web("#795548"));
-        orderQueue.addListener((javafx.collections.ListChangeListener.Change<? extends Order> c) -> {
-            queueCount.setText("Total Orders in Queue: " + orderQueue.size());
-        });
+        // update count based on all three lists
+        javafx.collections.ListChangeListener<PendingOrder> updateCount = c -> queueCount.setText("Total Orders in Queue: " + (pendingList.size() + preparingList.size() + completedList.size()));
+        pendingList.addListener(updateCount);
+        preparingList.addListener(updateCount);
+        completedList.addListener(updateCount);
         
-        panel.getChildren().addAll(title, subtitle, new Separator(), searchBox, 
-                                   orderQueueTable, queueCount, new Separator(), detailsPanel);
-        
-        return panel;
+        panel.getChildren().addAll(queueCount, new Separator(), detailsPanel);
+
+        // Wrap the panel in a ScrollPane so the entire Order Queue area can scroll vertically
+        ScrollPane outerScroll = new ScrollPane(panel);
+        outerScroll.setFitToWidth(true);
+        // Allow the content to be taller than the viewport (so tables can be tall and scroll vertically)
+        outerScroll.setFitToHeight(false);
+        outerScroll.setPrefViewportHeight(820);
+        outerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        outerScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        outerScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+
+        // Prefer a taller panel so the tables have room before scrolling
+        panel.setPrefHeight(1200);
+
+        return outerScroll;
     }
     
-    private void searchOrders() {
-        String searchText = customerNameInput.getText().trim().toLowerCase();
-        if (searchText.isEmpty()) {
-            showAlert("Input Required", "Please enter a customer name to search.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // Filter orders by customer name
-        ObservableList<Order> filteredOrders = FXCollections.observableArrayList();
-        for (Order order : orderQueue) {
-            String customerName = orderCustomerNames.getOrDefault(order.getOrderId(), "");
-            if (customerName.toLowerCase().contains(searchText)) {
-                filteredOrders.add(order);
-            }
-        }
-        
-        orderQueueTable.setItems(filteredOrders);
-        
-        if (filteredOrders.isEmpty()) {
-            showAlert("No Results", "No orders found for customer: " + searchText, Alert.AlertType.INFORMATION);
-        }
-    }
+    // Search functionality removed — orders are visible in the main queue and updated in real-time.
     
-    private void showAllOrders() {
-        orderQueueTable.setItems(orderQueue);
-        customerNameInput.clear();
-    }
     
-    private void completeOrderDirectly(Order order) {
-        // Validate stock and inventory
-        if (!store.isStockSufficient(order)) {
-            showAlert("Stock Error", "Insufficient stock for some items.", Alert.AlertType.ERROR);
-            return;
-        }
-
-        if (!store.isInventorySufficient(order)) {
-            showAlert("Ingredient Error", "Insufficient ingredients for some items.", Alert.AlertType.ERROR);
-            return;
-        }
-
-        try {
-            // Get customer name from stored map, or prompt if not found
-            String customerName = orderCustomerNames.getOrDefault(order.getOrderId(), null);
-            if (customerName == null) {
-                TextInputDialog nameDialog = new TextInputDialog();
-                nameDialog.setTitle("Customer Name");
-                nameDialog.setHeaderText("Enter Customer Name");
-                nameDialog.setContentText("Name:");
-                customerName = nameDialog.showAndWait().orElse("Guest");
-            }
-            
-            // Process checkout
-            store.checkoutBasket(order);
-            order.setPaid(true);
-
-            // Get order type
-            String orderType = orderTypes.getOrDefault(order.getOrderId(), "Dine In");
-
-            // Generate receipt with order type
-            String receiptContent = generateReceiptWithOrderType(order, customerName, orderType);
-            String receiptId = "RCP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-            
-            // Save receipt to database
-            Receipt receipt = new Receipt(
-                receiptId,
-                order.getOrderId(),
-                customerName,
-                order.getTotalAmount(),
-                order.getTotalAmount(), // paid amount same as total
-                0.0 // no change
-            );
-            receipt.setReceiptContent(receiptContent);
-            TextDatabase.saveReceipt(receipt);
-            
-            // Add to receipt history
-            receiptHistory.add(0, receipt);
-
-            // Save order items to text database
-            saveOrderToDatabase(order, customerName);
-            
-            // Mark order as completed in pending orders file
-            TextDatabase.markOrderCompleted(order.getOrderId());
-
-            // Check for refill alerts
-            if (store.hasProductsNeedingRefill()) {
-                String alerts = store.getProductRefillAlerts();
-                Alert refillAlert = new Alert(Alert.AlertType.WARNING);
-                refillAlert.setTitle("⚠ Refill Alert");
-                refillAlert.setHeaderText("Low Stock Detected");
-                refillAlert.setContentText("Please notify admin:\n\n" + alerts);
-                refillAlert.showAndWait();
-            }
-
-            // Show success confirmation and wait for user to click OK
-            Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
-            successAlert.setTitle("Success");
-            successAlert.setHeaderText("Order Completed Successfully!");
-            successAlert.setContentText("Order ID: " + order.getOrderId() + 
-                     "\nReceipt ID: " + receiptId + "\n\nOrder marked as COMPLETED in system.");
-            
-            successAlert.showAndWait().ifPresent(response -> {
-                if (response == ButtonType.OK) {
-                    // Only remove from queue if user clicked OK
-                    orderQueue.remove(order);
-                    orderCustomerNames.remove(order.getOrderId());
-                    orderTypes.remove(order.getOrderId());
-                    // Also remove from current table view if it's a filtered list
-                    orderQueueTable.getItems().remove(order);
-                }
-            });
-
-        } catch (Exception e) {
-            showAlert("Checkout Error", "Failed to complete checkout: " + e.getMessage(), 
-                     Alert.AlertType.ERROR);
-        }
-    }
     
     // ==================== RECEIPT HISTORY PANEL ====================
     

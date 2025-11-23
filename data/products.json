@@ -3,7 +3,7 @@
     "id": "P001",
     "name": "Espresso",
     "price": 3.5,
-    "stock": 17,
+    "stock": 10,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0
@@ -14,7 +14,7 @@
     "id": "P002",
     "name": "Cappuccino",
     "price": 4.5,
-    "stock": 19,
+    "stock": 15,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
@@ -26,7 +26,7 @@
     "id": "P003",
     "name": "Latte",
     "price": 4.75,
-    "stock": 18,
+    "stock": 9,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
@@ -38,7 +38,7 @@
     "id": "P004",
     "name": "Matcha Latte",
     "price": 5.0,
-    "stock": 19,
+    "stock": 17,
     "recipe": {
       "Water": 50.0,
       "Matcha Powder": 5.0,
@@ -120,7 +120,7 @@
   {
     "id": "P011",
     "name": "Blueberry Muffin",
-    "price": 3.0,
+    "price": 50.0,
     "stock": 25,
     "recipe": {
       "Muffin Mix": 150.0,
@@ -156,7 +156,7 @@
     "id": "P015",
     "name": "ID",
     "price": 1.0,
-    "stock": 20,
+    "stock": 18,
     "recipe": {},
     "category": "Milk Tea"
   },

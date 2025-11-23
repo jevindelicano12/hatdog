@@ -6,6 +6,9 @@ import com.coffeeshop.model.Order;
 import com.coffeeshop.model.OrderItem;
 import com.coffeeshop.model.Product;
 import com.coffeeshop.service.Store;
+import com.coffeeshop.service.TextDatabase;
+import com.coffeeshop.model.PendingOrder;
+import com.coffeeshop.model.Receipt;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -55,6 +58,10 @@ public class CustomerApp extends Application {
     // Persistent container to avoid swapping entire Scene (prevents window flicker/minimize)
     private StackPane persistentRoot;
     private Scene persistentScene;
+    // Simple in-memory cache for product images to avoid repeated disk I/O and decoding
+    private java.util.Map<String, javafx.scene.image.Image> imageCache = new java.util.HashMap<>();
+    // Simple index for quick lookup of image files by product id (built once)
+    private java.util.Map<String, java.io.File> imageFileIndex = null;
 
 
     @Override
@@ -175,24 +182,24 @@ public class CustomerApp extends Application {
         welcomeBox.setPadding(new Insets(60));
         welcomeBox.setMaxWidth(1200);
         welcomeBox.setMaxHeight(800);
-        // Larger, flush card (no rounded corners)
-        welcomeBox.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 10);");
+        // Larger, flush card (no rounded corners) - transparent background
+        welcomeBox.setStyle("-fx-background-color: transparent; -fx-background-radius: 0; -fx-border-color: transparent; -fx-border-width: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 10);");
 
         // Welcome text
-        VBox titleBox = new VBox(10);
+        VBox titleBox = new VBox(15);
         titleBox.setAlignment(Pos.CENTER);
-        // Add big logo above the title if available
-        javafx.scene.layout.StackPane logoContainer = createCircularLogoContainer(140);
+        // Add large logo above the title - now more prominent
+        javafx.scene.layout.StackPane logoContainer = createBREWISELogo(180);
         if (logoContainer != null) {
             titleBox.getChildren().add(logoContainer);
         }
 
         Label welcomeTitle = new Label("Welcome to Brewise");
-        welcomeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 42));
+        welcomeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 48));
         welcomeTitle.setTextFill(Color.web("#1A1A1A"));
 
-        Label welcomeSubtitle = new Label("Freshly brewed coffee, just for you.");
-        welcomeSubtitle.setFont(Font.font("Segoe UI", 18));
+        Label welcomeSubtitle = new Label("Premium Coffee Experience");
+        welcomeSubtitle.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 20));
         welcomeSubtitle.setTextFill(Color.web("#795548"));
         
         titleBox.getChildren().addAll(welcomeTitle, welcomeSubtitle);
@@ -229,7 +236,7 @@ public class CustomerApp extends Application {
     private ImageView createLogoView(double size) {
         // Try classpath resource first (recommended for packaged app)
         try {
-            java.net.URL u = getClass().getResource("/images/NEWLOGO.png");
+            java.net.URL u = getClass().getResource("/images/LOGO3.png");
             if (u != null) {
                 Image img = new Image(u.toExternalForm(), size, size, true, true);
                 ImageView iv = new ImageView(img);
@@ -242,8 +249,8 @@ public class CustomerApp extends Application {
 
         // Try file path (development workspace)
         try {
-            String filePath = "file:data/images/NEWLOGO.png";
-            java.io.File f = new java.io.File("data/images/NEWLOGO.png");
+            String filePath = "file:data/images/LOGO3.png";
+            java.io.File f = new java.io.File("data/images/LOGO3.png");
             if (f.exists()) {
                 Image img = new Image(filePath, size, size, true, true);
                 ImageView iv = new ImageView(img);
@@ -254,10 +261,10 @@ public class CustomerApp extends Application {
             }
         } catch (Exception ignored) {}
 
-        // Fallback to legacy LOGO.jpg in data/images
+        // Fallback to LOGO3.png in data/images
         try {
-            String legacy = "file:data/images/LOGO.jpg";
-            java.io.File lf = new java.io.File("data/images/LOGO.jpg");
+            String legacy = "file:data/images/LOGO3.png";
+            java.io.File lf = new java.io.File("data/images/LOGO3.png");
             if (lf.exists()) {
                 Image img = new Image(legacy, size, size, true, true);
                 ImageView iv = new ImageView(img);
@@ -288,11 +295,149 @@ public class CustomerApp extends Application {
         background.setStroke(Color.web("#E0E0E0"));
         background.setStrokeWidth(0.5);
         
-        // Create circular clip for the image
-        javafx.scene.shape.Circle imageClip = new javafx.scene.shape.Circle(size / 2.2);
+        // Create circular clip for the image and center it correctly
+        javafx.scene.shape.Circle imageClip = new javafx.scene.shape.Circle();
+        imageClip.setCenterX(size / 2.0);
+        imageClip.setCenterY(size / 2.0);
+        imageClip.setRadius(Math.max(0, size / 2.0 - 4));
         logo.setClip(imageClip);
         
         container.getChildren().addAll(background, logo);
+        return container;
+    }
+
+    // Create BREWISE circular logo with LOGO.jpg image for welcome screen
+    private javafx.scene.layout.StackPane createBREWISELogo(double size) {
+        javafx.scene.layout.StackPane container = new javafx.scene.layout.StackPane();
+        container.setPrefSize(size, size);
+        container.setMaxSize(size, size);
+        container.setMinSize(size, size);
+        container.setAlignment(Pos.CENTER);
+        container.setStyle("-fx-background-color: transparent;");
+        
+        // Try to load LOGO3.png image
+        ImageView logoImage = null;
+        try {
+            // Try classpath resource first
+            java.net.URL u = getClass().getResource("/images/LOGO3.png");
+            if (u != null) {
+                Image img = new Image(u.toExternalForm(), size, size, true, true);
+                logoImage = new ImageView(img);
+                logoImage.setFitWidth(size);
+                logoImage.setFitHeight(size);
+                logoImage.setPreserveRatio(true);
+                logoImage.setSmooth(true);
+            }
+        } catch (Exception ignored) {}
+        
+        // If not found in classpath, try file system
+        if (logoImage == null) {
+            try {
+                java.io.File f = new java.io.File("data/images/LOGO3.png");
+                if (f.exists()) {
+                    Image img = new Image("file:data/images/LOGO3.png", size, size, true, true);
+                    logoImage = new ImageView(img);
+                    logoImage.setFitWidth(size);
+                    logoImage.setFitHeight(size);
+                    logoImage.setPreserveRatio(true);
+                    logoImage.setSmooth(true);
+                }
+            } catch (Exception ignored) {}
+        }
+        
+        if (logoImage != null) {
+            // Display logo with circular background and circular clip
+            javafx.scene.shape.Circle background = new javafx.scene.shape.Circle(size / 2);
+            background.setFill(Color.WHITE);
+            background.setStroke(Color.web("#E0E0E0"));
+            background.setStrokeWidth(0.5);
+
+            // Clip the image to a slightly smaller circle so the background border shows
+            javafx.scene.shape.Circle imageClip = new javafx.scene.shape.Circle();
+            imageClip.setCenterX(size / 2.0);
+            imageClip.setCenterY(size / 2.0);
+            imageClip.setRadius(Math.max(0, size / 2.0 - 4));
+            logoImage.setClip(imageClip);
+
+            container.getChildren().addAll(background, logoImage);
+        } else {
+            // Fallback if image not found
+            javafx.scene.shape.Circle middleCircle = new javafx.scene.shape.Circle(size / 2 - 8);
+            middleCircle.setFill(Color.WHITE);
+            Label cupIcon = new Label("☕");
+            cupIcon.setFont(Font.font("Segoe UI Emoji", size * 0.35));
+            cupIcon.setTextFill(Color.web("#1A1A1A"));
+            container.getChildren().addAll(middleCircle, cupIcon);
+        }
+        
+        return container;
+    }
+
+    // Create compact BREWISE logo for header (smaller version)
+    private javafx.scene.layout.StackPane createCompactBREWISELogo(double size) {
+        javafx.scene.layout.StackPane container = new javafx.scene.layout.StackPane();
+        container.setPrefSize(size, size);
+        container.setMaxSize(size, size);
+        container.setMinSize(size, size);
+        container.setAlignment(Pos.CENTER);
+        container.setStyle("-fx-background-color: transparent;");
+        
+        // Try to load LOGO3.png image
+        ImageView logoImage = null;
+        try {
+            // Try classpath resource first
+            java.net.URL u = getClass().getResource("/images/LOGO3.png");
+            if (u != null) {
+                Image img = new Image(u.toExternalForm(), size, size, true, true);
+                logoImage = new ImageView(img);
+                logoImage.setFitWidth(size);
+                logoImage.setFitHeight(size);
+                logoImage.setPreserveRatio(true);
+                logoImage.setSmooth(true);
+            }
+        } catch (Exception ignored) {}
+        
+        // If not found in classpath, try file system
+        if (logoImage == null) {
+            try {
+                java.io.File f = new java.io.File("data/images/LOGO3.png");
+                if (f.exists()) {
+                    Image img = new Image("file:data/images/LOGO3.png", size, size, true, true);
+                    logoImage = new ImageView(img);
+                    logoImage.setFitWidth(size);
+                    logoImage.setFitHeight(size);
+                    logoImage.setPreserveRatio(true);
+                    logoImage.setSmooth(true);
+                }
+            } catch (Exception ignored) {}
+        }
+        
+        if (logoImage != null) {
+            // Display logo with circular background and circular clip
+            javafx.scene.shape.Circle background = new javafx.scene.shape.Circle(size / 2);
+            background.setFill(Color.WHITE);
+            background.setStroke(Color.web("#E0E0E0"));
+            background.setStrokeWidth(0.5);
+
+            javafx.scene.shape.Circle imageClip = new javafx.scene.shape.Circle();
+            imageClip.setCenterX(size / 2.0);
+            imageClip.setCenterY(size / 2.0);
+            imageClip.setRadius(Math.max(0, size / 2.0 - 4));
+            logoImage.setClip(imageClip);
+
+            container.getChildren().addAll(background, logoImage);
+        } else {
+            // Fallback with coffee cup
+            javafx.scene.shape.Circle middleCircle = new javafx.scene.shape.Circle(size / 2 - 3);
+            middleCircle.setFill(Color.web("#8D6E63"));
+            
+            Label cupIcon = new Label("☕");
+            cupIcon.setFont(Font.font("Segoe UI Emoji", size * 0.6));
+            cupIcon.setTextFill(Color.WHITE);
+            
+            container.getChildren().addAll(middleCircle, cupIcon);
+        }
+        
         return container;
     }
 
@@ -503,24 +648,27 @@ public class CustomerApp extends Application {
         countdownLabel.setManaged(false);
         leftBox.getChildren().add(cancelButton);
 
-        // Center content
-        VBox centerBox = new VBox(2);
+        // Center content - Now with BREWISE logo
+        VBox centerBox = new VBox(8);
         centerBox.setAlignment(Pos.CENTER);
 
-        // Logo and title
-        HBox logoBox = new HBox(10);
+        // Logo and title with BREWISE circular logo
+        HBox logoBox = new HBox(12);
         logoBox.setAlignment(Pos.CENTER);
-        ImageView logo = createLogoView(40);
-        // fallback to emoji label if image not available
-        if (logo == null) {
+        
+        // Add circular logo to header
+        javafx.scene.layout.StackPane headerLogo = createCompactBREWISELogo(50);
+        if (headerLogo != null) {
+            logoBox.getChildren().add(headerLogo);
+        } else {
+            // Fallback
             Label fallbackLogo = new Label("☕");
             fallbackLogo.setFont(Font.font("Segoe UI Emoji", 24));
             logoBox.getChildren().add(fallbackLogo);
-        } else {
-            logoBox.getChildren().add(logo);
         }
+        
         Label brandName = new Label("BREWISE");
-        brandName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        brandName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         brandName.setTextFill(Color.web("#1A1A1A"));
         logoBox.getChildren().add(brandName);
 
@@ -954,20 +1102,7 @@ public class CustomerApp extends Application {
         priceLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, priceSize));
         priceLabel.setTextFill(Color.web("#1A1A1A"));
 
-        // Stock indicator
-        Label stockLabel = new Label();
-        if (product.getStock() == 0) {
-            stockLabel.setText("Out of Stock");
-            stockLabel.setTextFill(Color.web("#D32F2F"));
-            stockLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
-            card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-opacity: 0.7;");
-        } else {
-            stockLabel.setText(product.getStock() + " Available");
-            stockLabel.setTextFill(Color.web("#4CAF50"));
-            stockLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-        }
-
-        contentBox.getChildren().addAll(nameLabel, priceLabel, stockLabel);
+        contentBox.getChildren().addAll(nameLabel, priceLabel);
         card.getChildren().addAll(imagePane, contentBox);
 
         // Click handler - navigate to customization page
@@ -1084,10 +1219,19 @@ public class CustomerApp extends Application {
             "linear-gradient(to bottom right, #505050, #2C2C2C)";
         imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 24 24 24 24;");
 
-        Label imagePlaceholder = new Label("☕");
-        imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 84));
-        imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
-        imagePane.getChildren().add(imagePlaceholder);
+        // Try to load actual product image
+        javafx.scene.image.ImageView productImage = loadProductImage(product.getId());
+        if (productImage != null) {
+            productImage.setFitHeight(220);
+            productImage.setPreserveRatio(true);
+            imagePane.getChildren().add(productImage);
+        } else {
+            // Fallback to emoji if no image
+            Label imagePlaceholder = new Label("☕");
+            imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 84));
+            imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
+            imagePane.getChildren().add(imagePlaceholder);
+        }
 
         Label productName = new Label(product.getName());
         productName.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 18));
@@ -2272,6 +2416,32 @@ public class CustomerApp extends Application {
                 ));
             successAlert.showAndWait();
             
+            // Persist a pending order so the cashier can pick it up
+            try {
+                // Build PendingOrder from currentOrder
+                PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In");
+                for (OrderItem oi : currentOrder.getItems()) {
+                    double price = oi.getProduct().getPrice() + oi.getAddOnsCost();
+                    p.addItem(oi.getProduct().getName(), price, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel());
+                }
+                TextDatabase.savePendingOrder(p);
+            } catch (Exception ex) {
+                System.err.println("Error saving pending order: " + ex.getMessage());
+            }
+
+            // Also save a receipt record for bookkeeping
+            try {
+                String rid = UUID.randomUUID().toString().substring(0, 8);
+                Receipt receipt = new Receipt(rid, currentOrder.getOrderId(), "Guest", currentOrder.getTotalAmount(), currentOrder.getTotalAmount(), 0.0);
+                // Include printable content for convenience
+                try {
+                    receipt.setReceiptContent(currentOrder.printReceipt());
+                } catch (Exception ign) {}
+                TextDatabase.saveReceipt(receipt);
+            } catch (Exception ex) {
+                System.err.println("Error saving receipt: " + ex.getMessage());
+            }
+
             // Reset for new order and go back to main menu
             currentOrder = new Order(UUID.randomUUID().toString().substring(0, 8));
             showMainMenu();
@@ -2288,31 +2458,50 @@ public class CustomerApp extends Application {
     // Load product image from data/images folder
     private javafx.scene.image.ImageView loadProductImage(String productId) {
         try {
-            java.io.File imagesDir = new java.io.File("data/images");
-            if (!imagesDir.exists()) {
-                return null;
+            // Check cache first
+            if (imageCache.containsKey(productId)) {
+                javafx.scene.image.Image cached = imageCache.get(productId);
+                if (cached != null) {
+                    javafx.scene.image.ImageView iv = new javafx.scene.image.ImageView(cached);
+                    iv.setPreserveRatio(true);
+                    return iv;
+                }
             }
-            
-            // Search for image file matching the product ID
-            java.io.File[] files = imagesDir.listFiles();
-            if (files != null) {
-                for (java.io.File file : files) {
-                    if (file.isFile() && !file.getName().startsWith(".")) {
-                        // Match by product ID prefix (e.g., P001.jpg, P001.png)
-                        if (file.getName().startsWith(productId + ".")) {
-                            try {
-                                javafx.scene.image.Image image = new javafx.scene.image.Image(file.toURI().toString());
-                                if (!image.isError()) {
-                                    javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView(image);
-                                    return imageView;
-                                }
-                            } catch (Exception ignored) {}
+
+            java.io.File imagesDir = new java.io.File("data/images");
+            if (!imagesDir.exists()) return null;
+
+            // Build index once for faster subsequent lookups
+            if (imageFileIndex == null) {
+                imageFileIndex = new java.util.HashMap<>();
+                java.io.File[] files = imagesDir.listFiles();
+                if (files != null) {
+                    for (java.io.File file : files) {
+                        if (file.isFile() && !file.getName().startsWith(".")) {
+                            String name = file.getName();
+                            int dot = name.indexOf('.');
+                            if (dot > 0) {
+                                String id = name.substring(0, dot);
+                                imageFileIndex.put(id, file);
+                            }
                         }
                     }
                 }
             }
+
+            // Lookup by product id in the index
+            java.io.File match = imageFileIndex.get(productId);
+            if (match != null && match.exists()) {
+                try {
+                    javafx.scene.image.Image image = new javafx.scene.image.Image(match.toURI().toString(), true);
+                    imageCache.put(productId, image);
+                    javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView(image);
+                    imageView.setPreserveRatio(true);
+                    return imageView;
+                } catch (Exception ignored) {}
+            }
         } catch (Exception ignored) {}
-        
+
         return null;
     }
 

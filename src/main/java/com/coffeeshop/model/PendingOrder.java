@@ -11,8 +11,13 @@ public class PendingOrder {
     private LocalDateTime orderTime;
     private List<OrderItemData> items;
     private double totalAmount;
-    private String status; // "PENDING" or "COMPLETED"
+    private String status; // STATUS_* constants below
     private String orderType; // "Dine In" or "Take Away"
+
+    public static final String STATUS_PENDING = "PENDING"; // created but not paid
+    public static final String STATUS_PAID = "PAID"; // paid and waiting to be prepared
+    public static final String STATUS_PREPARING = "PREPARING"; // being prepared
+    public static final String STATUS_COMPLETED = "COMPLETED"; // picked up / finished
 
     public PendingOrder(String orderId, String customerName) {
         this.orderId = orderId;
@@ -20,7 +25,7 @@ public class PendingOrder {
         this.orderTime = LocalDateTime.now();
         this.items = new ArrayList<>();
         this.totalAmount = 0.0;
-        this.status = "PENDING";
+        this.status = STATUS_PENDING;
         this.orderType = "Dine In"; // default
     }
 
@@ -30,7 +35,7 @@ public class PendingOrder {
         this.orderTime = LocalDateTime.now();
         this.items = new ArrayList<>();
         this.totalAmount = 0.0;
-        this.status = "PENDING";
+        this.status = STATUS_PENDING;
         this.orderType = orderType;
     }
 
@@ -173,11 +178,15 @@ public class PendingOrder {
     // paymentMethod removed in revert
 
     public boolean isPending() {
-        return "PENDING".equals(status);
+        return STATUS_PENDING.equals(status);
+    }
+
+    public boolean isActive() {
+        return !STATUS_COMPLETED.equals(status);
     }
 
     public void markCompleted() {
-        this.status = "COMPLETED";
+        this.status = STATUS_COMPLETED;
     }
 
     @Override

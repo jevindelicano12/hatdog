@@ -422,9 +422,10 @@ public class TextDatabase {
      * Load only pending orders (not completed)
      */
     public static List<PendingOrder> loadPendingOrders() {
+        // Return any order that is not completed so the UI can show IN_QUEUE, IN_PROGRESS, READY, etc.
         return loadAllPendingOrders().stream()
-                .filter(PendingOrder::isPending)
-                .collect(Collectors.toList());
+            .filter(order -> order.isActive())
+            .collect(Collectors.toList());
     }
 
     /**
@@ -435,7 +436,7 @@ public class TextDatabase {
         
         for (PendingOrder order : allOrders) {
             if (order.getOrderId().equals(orderId)) {
-                order.markCompleted();
+                order.setStatus(PendingOrder.STATUS_COMPLETED);
                 break;
             }
         }

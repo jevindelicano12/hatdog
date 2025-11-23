@@ -22,9 +22,26 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.XYChart;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import com.coffeeshop.service.SalesAnalytics;
+import com.coffeeshop.model.Receipt;
+import com.coffeeshop.model.ItemRecord;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.XYChart;
+import java.time.format.DateTimeFormatter;
 
 public class AdminApp extends Application {
     private Store store;
@@ -35,6 +52,7 @@ public class AdminApp extends Application {
     private Label pendingOrdersLabel;
     private Label completedOrdersLabel;
     private Label lowStockLabel;
+    private javafx.scene.control.ListView<String> categoriesListView;
     private TextArea dashboardAlertsArea;
 
     @Override
@@ -97,8 +115,98 @@ public class AdminApp extends Application {
         Tab categoriesTab = new Tab("Categories", createCategoriesTab());
         categoriesTab.setClosable(false);
 
-        tabPane.getTabs().addAll(dashboardTab, productsTab, inventoryTab, refillTab, categoriesTab);
+        Tab salesTab = new Tab("Sales Reports", createSalesTab());
+        salesTab.setClosable(false);
+
+        tabPane.getTabs().addAll(dashboardTab, productsTab, inventoryTab, refillTab, categoriesTab, salesTab);
         return tabPane;
+    }
+
+    private VBox createSalesTab() {
+        VBox panel = new VBox(16);
+        panel.setPadding(new Insets(20));
+
+        Label title = new Label("📈 Sales Reports & Analytics");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+
+        // Metrics
+        Label totalSales = new Label();
+        totalSales.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        Label todaySales = new Label();
+        todaySales.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        Label ordersToday = new Label();
+        ordersToday.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+
+        VBox metricsBox = new VBox(8);
+        metricsBox.setPadding(new Insets(10));
+        metricsBox.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 8; -fx-background-radius: 8;");
+        metricsBox.getChildren().addAll(new Label("Total Sales (All time):"), totalSales,
+                                        new Label("Sales Today:"), todaySales,
+                                        new Label("Orders Today:"), ordersToday);
+
+        // Top products bar chart
+        CategoryAxis xAxis = new CategoryAxis();
+        NumberAxis yAxis = new NumberAxis();
+        BarChart<String, Number> topChart = new BarChart<>(xAxis, yAxis);
+        topChart.setTitle("Top Products (by units sold)");
+        xAxis.setLabel("Product");
+        yAxis.setLabel("Units Sold");
+        topChart.setLegendVisible(false);
+        topChart.setPrefHeight(300);
+
+        // Sales trend line chart (last 7 days)
+        CategoryAxis trendX = new CategoryAxis();
+        NumberAxis trendY = new NumberAxis();
+        LineChart<String, Number> trendChart = new LineChart<>(trendX, trendY);
+        trendChart.setTitle("Sales Trend (Last 7 days)");
+        trendX.setLabel("Date");
+        trendY.setLabel("Sales (₱)");
+        trendChart.setPrefHeight(300);
+
+        Button refreshBtn = new Button("Refresh Reports");
+        refreshBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold;");
+
+        // Loader function
+        Runnable load = () -> {
+            List<Receipt> receipts = TextDatabase.loadAllReceipts();
+            List<ItemRecord> items = TextDatabase.loadAllItems();
+
+            double total = SalesAnalytics.getTotalSales(receipts);
+            double today = SalesAnalytics.getTotalSalesForDate(receipts, LocalDate.now());
+            long orders = SalesAnalytics.getOrderCountForDate(receipts, LocalDate.now());
+
+            totalSales.setText(String.format("₱%.2f", total));
+            todaySales.setText(String.format("₱%.2f", today));
+            ordersToday.setText(String.valueOf(orders));
+
+            // Top products
+            topChart.getData().clear();
+            XYChart.Series<String, Number> s = new XYChart.Series<>();
+            List<Map.Entry<String,Integer>> top = SalesAnalytics.getTopProducts(items, 8);
+            for (Map.Entry<String,Integer> e : top) {
+                s.getData().add(new XYChart.Data<>(e.getKey(), e.getValue()));
+            }
+            topChart.getData().add(s);
+
+            // Trend - last 7 days
+            trendChart.getData().clear();
+            XYChart.Series<String, Number> series = new XYChart.Series<>();
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM-dd");
+            for (int i = 6; i >= 0; i--) {
+                LocalDate d = LocalDate.now().minusDays(i);
+                double salesForDay = SalesAnalytics.getTotalSalesForDate(receipts, d);
+                series.getData().add(new XYChart.Data<>(d.format(fmt), salesForDay));
+            }
+            trendChart.getData().add(series);
+        };
+
+        refreshBtn.setOnAction(e -> load.run());
+
+        // initial load
+        load.run();
+
+        panel.getChildren().addAll(title, new Separator(), metricsBox, new Separator(), topChart, trendChart, refreshBtn);
+        return panel;
     }
 
     private VBox createCategoriesTab() {
@@ -123,16 +231,16 @@ public class AdminApp extends Application {
         addRow.getChildren().addAll(newCatField, addBtn);
 
         // List view of categories
-        javafx.scene.control.ListView<String> listView = new javafx.scene.control.ListView<>();
-        listView.setPrefHeight(300);
-        listView.getItems().addAll(store.getCategories());
+        categoriesListView = new javafx.scene.control.ListView<>();
+        categoriesListView.setPrefHeight(300);
+        categoriesListView.getItems().setAll(store.getCategories());
 
         HBox actions = new HBox(8);
         Button renameBtn = new Button("Rename");
         Button deleteBtn = new Button("Delete");
 
         renameBtn.setOnAction(e -> {
-            String sel = listView.getSelectionModel().getSelectedItem();
+            String sel = categoriesListView.getSelectionModel().getSelectedItem();
             if (sel == null) { showAlert("No Selection", "Select a category to rename.", Alert.AlertType.WARNING); return; }
             TextInputDialog dlg = new TextInputDialog(sel);
             dlg.setTitle("Rename Category");
@@ -147,7 +255,7 @@ public class AdminApp extends Application {
         });
 
         deleteBtn.setOnAction(e -> {
-            String sel = listView.getSelectionModel().getSelectedItem();
+            String sel = categoriesListView.getSelectionModel().getSelectedItem();
             if (sel == null) { showAlert("No Selection", "Select a category to delete.", Alert.AlertType.WARNING); return; }
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Delete Category");
@@ -163,7 +271,7 @@ public class AdminApp extends Application {
 
         actions.getChildren().addAll(renameBtn, deleteBtn);
 
-        panel.getChildren().addAll(title, new Separator(), addRow, listView, actions);
+        panel.getChildren().addAll(title, new Separator(), addRow, categoriesListView, actions);
         return panel;
     }
 
@@ -344,23 +452,17 @@ public class AdminApp extends Application {
         priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
         priceCol.setPrefWidth(100);
 
-        TableColumn<ProductRow, Integer> stockCol = new TableColumn<>("Stock");
-        stockCol.setCellValueFactory(new PropertyValueFactory<>("stock"));
-        stockCol.setPrefWidth(100);
+        // Stock column removed as per UI simplification
 
         TableColumn<ProductRow, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setPrefWidth(150);
 
-        productTable.getColumns().addAll(idCol, nameCol, priceCol, stockCol, statusCol);
+        productTable.getColumns().addAll(idCol, nameCol, priceCol, statusCol);
 
         // Controls
         HBox controls = new HBox(15);
         controls.setAlignment(Pos.CENTER_LEFT);
-
-        Button refillButton = new Button("Refill Product");
-        refillButton.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
-        refillButton.setOnAction(e -> refillProduct());
 
         Button editButton = new Button("Edit Product");
         editButton.setStyle("-fx-background-color: #0277BD; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
@@ -378,7 +480,7 @@ public class AdminApp extends Application {
         refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
         refreshButton.setOnAction(e -> refreshData());
 
-        controls.getChildren().addAll(refillButton, editButton, removeButton, addButton, refreshButton);
+        controls.getChildren().addAll(editButton, removeButton, addButton, refreshButton);
 
         panel.getChildren().addAll(title, productTable, controls);
         return panel;
@@ -467,13 +569,18 @@ public class AdminApp extends Application {
             } else {
                 status = "✓ OK";
             }
-            productTable.getItems().add(new ProductRow(p.getId(), p.getName(), p.getPrice(), p.getStock(), status));
+            productTable.getItems().add(new ProductRow(p.getId(), p.getName(), p.getPrice(), status));
         }
 
         // Refresh inventory table
         inventoryTable.getItems().clear();
         for (InventoryItem item : store.getInventory().values()) {
             inventoryTable.getItems().add(new InventoryRow(item.getName(), item.getQuantity(), item.getUnit()));
+        }
+
+        // Refresh categories list view if present
+        if (categoriesListView != null) {
+            categoriesListView.getItems().setAll(store.getCategories());
         }
 
         // Refresh alerts
@@ -490,33 +597,7 @@ public class AdminApp extends Application {
         }
     }
 
-    private void refillProduct() {
-        ProductRow selected = productTable.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showAlert("No Selection", "Please select a product to refill.", Alert.AlertType.WARNING);
-            return;
-        }
-
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Refill Product");
-        dialog.setHeaderText("Refill: " + selected.getName());
-        dialog.setContentText("Enter amount to add (max " + (Store.MAX_STOCK - selected.getStock()) + "):");
-        dialog.showAndWait().ifPresent(amount -> {
-            try {
-                int refillAmount = Integer.parseInt(amount);
-                if (refillAmount <= 0) {
-                    showAlert("Invalid Amount", "Please enter a positive number.", Alert.AlertType.ERROR);
-                    return;
-                }
-
-                store.refillProduct(selected.getId(), refillAmount);
-                showAlert("Success", "Product refilled successfully!", Alert.AlertType.INFORMATION);
-                refreshData();
-            } catch (NumberFormatException e) {
-                showAlert("Invalid Input", "Please enter a valid number.", Alert.AlertType.ERROR);
-            }
-        });
-    }
+    // Refill product UI removed — use inventory management workflow instead.
 
     private void removeProduct() {
         ProductRow selected = productTable.getSelectionModel().getSelectedItem();
@@ -830,17 +911,12 @@ public class AdminApp extends Application {
         priceField.setPromptText("Enter price");
 
         // Stock (editable - for adding stock)
-        TextField stockField = new TextField("0");
-        stockField.setPromptText("Amount to add");
-
         grid.add(idLabel, 0, 0);
         grid.add(idValueLabel, 1, 0);
         grid.add(nameLabel, 0, 1);
         grid.add(nameValueLabel, 1, 1);
         grid.add(new Label("Price:"), 0, 2);
         grid.add(priceField, 1, 2);
-        grid.add(new Label("Add Stock:"), 0, 3);
-        grid.add(stockField, 1, 3);
 
         // Image preview and upload
         javafx.scene.image.ImageView imagePreview = new javafx.scene.image.ImageView();
@@ -892,15 +968,8 @@ public class AdminApp extends Application {
             if (dialogButton == updateButtonType) {
                 try {
                     double newPrice = Double.parseDouble(priceField.getText());
-                    int addStock = Integer.parseInt(stockField.getText());
-
                     // Update price
                     product.setPrice(newPrice);
-
-                    // Update stock
-                    if (addStock > 0) {
-                        product.setStock(product.getStock() + addStock);
-                    }
 
                     store.saveData();
 
@@ -1032,21 +1101,18 @@ public class AdminApp extends Application {
         private String id;
         private String name;
         private double price;
-        private int stock;
         private String status;
 
-        public ProductRow(String id, String name, double price, int stock, String status) {
+        public ProductRow(String id, String name, double price, String status) {
             this.id = id;
             this.name = name;
             this.price = price;
-            this.stock = stock;
             this.status = status;
         }
 
         public String getId() { return id; }
         public String getName() { return name; }
         public double getPrice() { return price; }
-        public int getStock() { return stock; }
         public String getStatus() { return status; }
     }
 
