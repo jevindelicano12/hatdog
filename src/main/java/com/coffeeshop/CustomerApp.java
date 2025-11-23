@@ -13,6 +13,9 @@ import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.Parent;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -39,6 +42,7 @@ public class CustomerApp extends Application {
     private Order currentOrder;
     private OrderItem customizingOrderItem = null; // Track item being customized from cart
     private Stage primaryStage;
+    private boolean keepMaximized = false; // remember we want windowed-fullscreen
     private HBox footerContainer;
     private Label footerItemsLabel;
     private Label footerTotalLabel;
@@ -48,6 +52,9 @@ public class CustomerApp extends Application {
     private Timeline inactivityTimer;
     private int countdownSeconds = 30;
     private Label countdownLabel;
+    // Persistent container to avoid swapping entire Scene (prevents window flicker/minimize)
+    private StackPane persistentRoot;
+    private Scene persistentScene;
 
 
     @Override
@@ -56,9 +63,75 @@ public class CustomerApp extends Application {
         store = Store.getInstance();
         
         primaryStage.setTitle("Brewise Coffee Shop - Kiosk");
-        
-        // Show welcome screen first
+        // Start in windowed-fullscreen: maximized with decorations so Windows taskbar remains visible
+        try {
+            primaryStage.setResizable(true);
+            primaryStage.setFullScreen(false);
+            primaryStage.setMaximized(true);
+            keepMaximized = true;
+        } catch (Exception ex) {
+            System.err.println("Could not set maximized/windowed state: " + ex.getMessage());
+        }
+
+        // Create a persistent root + scene and set on stage to avoid swapping Scenes
+        persistentRoot = new StackPane();
+        persistentScene = new Scene(persistentRoot, 1600, 900);
+        primaryStage.setScene(persistentScene);
+        primaryStage.show();
+
+        // Show welcome screen content inside the persistent scene
         showWelcomeScreen();
+    }
+
+    // Utility: set scene without unexpectedly changing windowed/maximized state
+    private void setScenePreserveWindowSize(Scene scene) {
+        // If we have a persistent root, swap its children with the new scene root instead
+        if (persistentRoot != null) {
+            Parent newRoot = scene.getRoot();
+            boolean wasMax = primaryStage != null && primaryStage.isMaximized();
+            double prevW = primaryStage != null ? primaryStage.getWidth() : 0;
+            double prevH = primaryStage != null ? primaryStage.getHeight() : 0;
+
+            System.out.println("[DEBUG] setScenePreserveWindowSize - swapping root: wasMax=" + wasMax + ", w=" + prevW + ", h=" + prevH);
+
+            javafx.application.Platform.runLater(() -> {
+                persistentRoot.getChildren().setAll(newRoot);
+                try {
+                    persistentScene.getStylesheets().clear();
+                    persistentScene.getStylesheets().addAll(scene.getStylesheets());
+                } catch (Exception ignored) {}
+
+                try {
+                    if (keepMaximized || wasMax) {
+                        primaryStage.setMaximized(true);
+                    } else {
+                        if (prevW > 0 && prevH > 0) {
+                            primaryStage.setWidth(prevW);
+                            primaryStage.setHeight(prevH);
+                        }
+                    }
+                } catch (Exception ex) { System.out.println("[DEBUG] restore error: " + ex.getMessage()); }
+
+                if (!primaryStage.isShowing()) primaryStage.show();
+                System.out.println("[DEBUG] setScenePreserveWindowSize - swapped: isMax=" + primaryStage.isMaximized() + ", w=" + primaryStage.getWidth() + ", h=" + primaryStage.getHeight());
+            });
+            return;
+        }
+
+        // fallback: if no persistent root available, set the scene directly
+        if (primaryStage == null) primaryStage = new Stage();
+        boolean wasMax = primaryStage.isMaximized();
+        double prevW = primaryStage.getWidth();
+        double prevH = primaryStage.getHeight();
+        System.out.println("[DEBUG] setScenePreserveWindowSize - fallback setScene: wasMax=" + wasMax + ", w=" + prevW + ", h=" + prevH);
+        primaryStage.setScene(scene);
+        javafx.application.Platform.runLater(() -> {
+            try {
+                if (keepMaximized || wasMax) primaryStage.setMaximized(true);
+                else if (prevW > 0 && prevH > 0) { primaryStage.setWidth(prevW); primaryStage.setHeight(prevH); }
+            } catch (Exception ex) { System.out.println("[DEBUG] deferred fallback restore error: " + ex.getMessage()); }
+            if (!primaryStage.isShowing()) primaryStage.show();
+        });
     }
 
     // Attempt to apply Atlantafx theme stylesheet if available on classpath
@@ -108,7 +181,12 @@ public class CustomerApp extends Application {
         // Welcome text
         VBox titleBox = new VBox(10);
         titleBox.setAlignment(Pos.CENTER);
-        
+        // Add big logo above the title if available
+        ImageView bigLogo = createLogoView(140);
+        if (bigLogo != null) {
+            titleBox.getChildren().add(bigLogo);
+        }
+
         Label welcomeTitle = new Label("Welcome to Brewise");
         welcomeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 42));
         welcomeTitle.setTextFill(Color.web("#1A1A1A"));
@@ -123,8 +201,8 @@ public class CustomerApp extends Application {
         HBox optionsBox = new HBox(30);
         optionsBox.setAlignment(Pos.CENTER);
 
-        // Dine In button
-        VBox dineInBox = createOptionCard("🍽", "Dine In", "Enjoy your meal in our cozy space");
+        // Dine In button (use image if available)
+        VBox dineInBox = createOptionCardWithImage("DINEIN.jpg", "Dine In", "Enjoy your meal in our cozy space");
         dineInBox.setOnMouseClicked(e -> {
             orderType = "Dine In";
             showMenuScreen();
@@ -143,9 +221,55 @@ public class CustomerApp extends Application {
         root.getChildren().add(welcomeBox);
 
         Scene scene = new Scene(root, 1600, 900);
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        setScenePreserveWindowSize(scene);
         applyAtlantafx(scene);
+    }
+
+    // Create an ImageView from the project image if available; returns null on failure
+    private ImageView createLogoView(double size) {
+        // Try classpath resource first (recommended for packaged app)
+        try {
+            java.net.URL u = getClass().getResource("/images/NEWLOGO.png");
+            if (u != null) {
+                Image img = new Image(u.toExternalForm(), size, size, true, true);
+                ImageView iv = new ImageView(img);
+                iv.setFitWidth(size);
+                iv.setFitHeight(size);
+                iv.setPreserveRatio(true);
+                return iv;
+            }
+        } catch (Exception ignored) {}
+
+        // Try file path (development workspace)
+        try {
+            String filePath = "file:data/images/NEWLOGO.png";
+            java.io.File f = new java.io.File("data/images/NEWLOGO.png");
+            if (f.exists()) {
+                Image img = new Image(filePath, size, size, true, true);
+                ImageView iv = new ImageView(img);
+                iv.setFitWidth(size);
+                iv.setFitHeight(size);
+                iv.setPreserveRatio(true);
+                return iv;
+            }
+        } catch (Exception ignored) {}
+
+        // Fallback to legacy LOGO.jpg in data/images
+        try {
+            String legacy = "file:data/images/LOGO.jpg";
+            java.io.File lf = new java.io.File("data/images/LOGO.jpg");
+            if (lf.exists()) {
+                Image img = new Image(legacy, size, size, true, true);
+                ImageView iv = new ImageView(img);
+                iv.setFitWidth(size);
+                iv.setFitHeight(size);
+                iv.setPreserveRatio(true);
+                return iv;
+            }
+        } catch (Exception ignored) {}
+
+        // Nothing found
+        return null;
     }
 
     private VBox createOptionCard(String icon, String title, String desc) {
@@ -182,6 +306,77 @@ public class CustomerApp extends Application {
             titleLabel.setTextFill(Color.web("#1A1A1A"));
         });
         
+        return card;
+    }
+
+    // Create option card using an image file name (prefers classpath `/images/<name>` then `data/images/<name>`)
+    private VBox createOptionCardWithImage(String imageFileName, String title, String desc) {
+        VBox card = new VBox(15);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(40, 30, 40, 30));
+        card.setPrefWidth(380);
+        card.setPrefHeight(380);
+        card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand;");
+
+        ImageView iv = null;
+        // try classpath
+        try {
+            java.net.URL u = getClass().getResource("/images/" + imageFileName);
+            if (u != null) {
+                Image img = new Image(u.toExternalForm(), 96, 96, true, true);
+                iv = new ImageView(img);
+                iv.setFitWidth(96);
+                iv.setFitHeight(96);
+                iv.setPreserveRatio(true);
+            }
+        } catch (Exception ignored) {}
+
+        if (iv == null) {
+            try {
+                java.io.File f = new java.io.File("data/images/" + imageFileName);
+                if (f.exists()) {
+                    Image img = new Image("file:data/images/" + imageFileName, 96, 96, true, true);
+                    iv = new ImageView(img);
+                    iv.setFitWidth(96);
+                    iv.setFitHeight(96);
+                    iv.setPreserveRatio(true);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // fallback emoji
+        Label iconLabel;
+        if (iv != null) {
+            iconLabel = new Label();
+            iconLabel.setGraphic(iv);
+        } else {
+            iconLabel = new Label("🍽");
+            iconLabel.setFont(Font.font("Segoe UI Emoji", 64));
+        }
+
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 22));
+        titleLabel.setTextFill(Color.web("#1A1A1A"));
+
+        Label descLabel = new Label(desc);
+        descLabel.setFont(Font.font("Segoe UI", 14));
+        descLabel.setTextFill(Color.web("#666666"));
+        descLabel.setAlignment(Pos.CENTER);
+        descLabel.setWrapText(true);
+
+        card.getChildren().addAll(iconLabel, titleLabel, descLabel);
+
+        // Hover animation (similar to createOptionCard)
+        card.setOnMouseEntered(e -> {
+            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #2C2C2C; -fx-border-width: 2; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(44, 44, 44, 0.15), 12, 0, 0, 3);");
+            titleLabel.setTextFill(Color.web("#2C2C2C"));
+        });
+
+        card.setOnMouseExited(e -> {
+            card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 0; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 0; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 8, 0, 0, 2);");
+            titleLabel.setTextFill(Color.web("#1A1A1A"));
+        });
+
         return card;
     }
 
@@ -228,7 +423,7 @@ public class CustomerApp extends Application {
         root.setBottom(footerContainer);
 
         Scene scene = new Scene(root, 1600, 900);
-        primaryStage.setScene(scene);
+        setScenePreserveWindowSize(scene);
 
         applyAtlantafx(scene);
 
@@ -290,12 +485,19 @@ public class CustomerApp extends Application {
         // Logo and title
         HBox logoBox = new HBox(10);
         logoBox.setAlignment(Pos.CENTER);
-        Label logo = new Label("☕");
-        logo.setFont(Font.font("Segoe UI Emoji", 24));
+        ImageView logo = createLogoView(40);
+        // fallback to emoji label if image not available
+        if (logo == null) {
+            Label fallbackLogo = new Label("☕");
+            fallbackLogo.setFont(Font.font("Segoe UI Emoji", 24));
+            logoBox.getChildren().add(fallbackLogo);
+        } else {
+            logoBox.getChildren().add(logo);
+        }
         Label brandName = new Label("BREWISE");
         brandName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         brandName.setTextFill(Color.web("#1A1A1A"));
-        logoBox.getChildren().addAll(logo, brandName);
+        logoBox.getChildren().add(brandName);
 
         Label subtitle = new Label("Premium Coffee Experience");
         subtitle.setFont(Font.font("Segoe UI", 14));
@@ -306,13 +508,13 @@ public class CustomerApp extends Application {
         // Order type badge on right
         VBox rightBox = new VBox();
         rightBox.setAlignment(Pos.CENTER_RIGHT);
-        
+
         Label orderTypeBadge = new Label(orderType.toUpperCase());
         orderTypeBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
         orderTypeBadge.setTextFill(Color.web("#E65100"));
         orderTypeBadge.setPadding(new Insets(8, 16, 8, 16));
         orderTypeBadge.setStyle("-fx-background-color: #FFF3E0; -fx-background-radius: 0; -fx-border-radius: 0;");
-        
+
         rightBox.getChildren().add(orderTypeBadge);
 
         headerPane.setLeft(leftBox);
@@ -764,7 +966,7 @@ public class CustomerApp extends Application {
         customizationLayout.setCenter(content);
         
         Scene customScene = new Scene(customizationLayout, 1280, 900);
-        primaryStage.setScene(customScene);
+        setScenePreserveWindowSize(customScene);
         primaryStage.setTitle("Customize " + product.getName() + " - Coffee Shop Kiosk");
         applyAtlantafx(customScene);
     }
@@ -1507,7 +1709,7 @@ public class CustomerApp extends Application {
         cartLayout.setBottom(cartFooter);
         
         Scene cartScene = new Scene(cartLayout, 1280, 900);
-        primaryStage.setScene(cartScene);
+        setScenePreserveWindowSize(cartScene);
         primaryStage.setTitle("Your Cart - Coffee Shop Kiosk");
         applyAtlantafx(cartScene);
     }
@@ -1822,7 +2024,7 @@ public class CustomerApp extends Application {
         checkoutLayout.setCenter(scrollPane);
         
         Scene checkoutScene = new Scene(checkoutLayout, 1280, 900);
-        primaryStage.setScene(checkoutScene);
+        setScenePreserveWindowSize(checkoutScene);
         primaryStage.setTitle("Checkout - Coffee Shop Kiosk");
         applyAtlantafx(checkoutScene);
     }

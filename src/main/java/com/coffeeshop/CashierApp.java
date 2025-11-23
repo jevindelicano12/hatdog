@@ -85,11 +85,27 @@ public class CashierApp extends Application {
         // Add global stylesheet for TabPane if needed, or inline styles
         // For now, we rely on inline styles for components
         
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        setScenePreserveWindowSize(scene);
 
         // Start background scheduler to refresh data for near real-time sync
         startBackgroundSync();
+    }
+
+    // Utility to preserve window size/maximized state when switching scenes
+    private void setScenePreserveWindowSize(Scene scene) {
+        Stage primaryStage = (Stage) javafx.stage.Window.getWindows().filtered(w -> w.isShowing()).get(0);
+        boolean wasMax = primaryStage.isMaximized();
+        double prevW = primaryStage.getWidth();
+        double prevH = primaryStage.getHeight();
+        primaryStage.setScene(scene);
+        if (wasMax) primaryStage.setMaximized(true);
+        else {
+            if (prevW > 0 && prevH > 0) {
+                primaryStage.setWidth(prevW);
+                primaryStage.setHeight(prevH);
+            }
+        }
+        primaryStage.show();
     }
 
     private VBox createHeader() {

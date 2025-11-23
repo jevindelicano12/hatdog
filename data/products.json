@@ -3,7 +3,7 @@
     "id": "P001",
     "name": "Espresso",
     "price": 3.5,
-    "stock": 19,
+    "stock": 18,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0
@@ -13,7 +13,7 @@
     "id": "P002",
     "name": "Cappuccino",
     "price": 4.5,
-    "stock": 20,
+    "stock": 19,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
