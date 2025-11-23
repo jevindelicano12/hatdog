@@ -16,6 +16,8 @@ public class PersistenceManager {
     private static final String DATA_DIR = "data";
     private static final String PRODUCTS_FILE = DATA_DIR + "/products.json";
     private static final String INVENTORY_FILE = DATA_DIR + "/inventory.json";
+    private static final String CATEGORIES_FILE = DATA_DIR + "/categories.json";
+    private static final String ACCOUNTS_FILE = DATA_DIR + "/accounts.json";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public static void ensureDataDirectory() {
@@ -70,6 +72,29 @@ public class PersistenceManager {
         }
     }
 
+    public static void saveCategories(java.util.List<String> categories) {
+        ensureDataDirectory();
+        try (Writer writer = new FileWriter(CATEGORIES_FILE)) {
+            gson.toJson(categories, writer);
+        } catch (IOException e) {
+            System.err.println("Error saving categories: " + e.getMessage());
+        }
+    }
+
+    public static java.util.List<String> loadCategories() {
+        ensureDataDirectory();
+        File file = new File(CATEGORIES_FILE);
+        if (!file.exists()) return null;
+        try (Reader reader = new FileReader(file)) {
+            Type listType = new TypeToken<java.util.ArrayList<String>>(){}.getType();
+            java.util.List<String> cats = gson.fromJson(reader, listType);
+            return cats;
+        } catch (IOException e) {
+            System.err.println("Error loading categories: " + e.getMessage());
+            return null;
+        }
+    }
+
     public static Map<String, InventoryItem> loadInventory() {
         ensureDataDirectory();
         File file = new File(INVENTORY_FILE);
@@ -84,6 +109,37 @@ public class PersistenceManager {
         } catch (IOException e) {
             System.err.println("Error loading inventory: " + e.getMessage());
             return initializeDefaultInventory();
+        }
+    }
+
+    public static void saveAccounts(java.util.List<com.coffeeshop.model.CashierAccount> accounts) {
+        ensureDataDirectory();
+        try (Writer writer = new FileWriter(ACCOUNTS_FILE)) {
+            gson.toJson(accounts, writer);
+        } catch (IOException e) {
+            System.err.println("Error saving accounts: " + e.getMessage());
+        }
+    }
+
+    public static java.util.List<com.coffeeshop.model.CashierAccount> loadAccounts() {
+        ensureDataDirectory();
+        File file = new File(ACCOUNTS_FILE);
+        if (!file.exists()) {
+            // create default cashier accounts
+            java.util.List<com.coffeeshop.model.CashierAccount> defaults = new java.util.ArrayList<>();
+            defaults.add(new com.coffeeshop.model.CashierAccount("C001", "cashier1", "cashier1", true));
+            defaults.add(new com.coffeeshop.model.CashierAccount("C002", "cashier2", "cashier2", true));
+            saveAccounts(defaults);
+            return defaults;
+        }
+
+        try (Reader reader = new FileReader(ACCOUNTS_FILE)) {
+            Type listType = new TypeToken<java.util.ArrayList<com.coffeeshop.model.CashierAccount>>(){}.getType();
+            java.util.List<com.coffeeshop.model.CashierAccount> accounts = gson.fromJson(reader, listType);
+            return accounts != null ? accounts : new java.util.ArrayList<>();
+        } catch (IOException e) {
+            System.err.println("Error loading accounts: " + e.getMessage());
+            return new java.util.ArrayList<>();
         }
     }
 

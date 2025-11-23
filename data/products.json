@@ -37,11 +37,9 @@
   {
     "id": "P004",
     "name": "Matcha Latte",
-    "price": 5.0,
+    "price": 30.0,
     "stock": 17,
     "recipe": {
-      "Water": 50.0,
-      "Matcha Powder": 5.0,
       "Milk": 200.0
     },
     "category": "Milk Tea"

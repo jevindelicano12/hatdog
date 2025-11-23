@@ -28,6 +28,7 @@ import com.coffeeshop.service.SalesAnalytics;
 
 public class CashierApp extends Application {
     private Store store;
+    private BorderPane rootPane;
     // currently logged-in cashier id (e.g., "cashier1")
     private String currentCashierId;
     // Removed customer search input to simplify UI and enlarge order queue
@@ -52,9 +53,11 @@ public class CashierApp extends Application {
     private VBox dashboardPanel; // cached dashboard panel
 
     private ScheduledExecutorService scheduler;
+    private Stage primaryStageRef;
 
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStageRef = primaryStage;
         // Require login before initializing the UI
         currentCashierId = null;
         boolean ok = showLoginDialog(primaryStage);
@@ -70,13 +73,13 @@ public class CashierApp extends Application {
 
         primaryStage.setTitle("Coffee Shop - Cashier Terminal");
 
-        BorderPane root = new BorderPane();
-        root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: #F4F1EA;"); // Modern Cream Background
+        rootPane = new BorderPane();
+        rootPane.setPadding(new Insets(20));
+        rootPane.setStyle("-fx-background-color: #F4F1EA;"); // Modern Cream Background
 
         // Header
         VBox header = createHeader();
-        root.setTop(header);
+        rootPane.setTop(header);
 
         // Tabs
         TabPane tabPane = new TabPane();
@@ -97,9 +100,9 @@ public class CashierApp extends Application {
 
         tabPane.getTabs().addAll(ordersTab, receiptHistoryTab, reportsTab);
         
-        root.setCenter(tabPane);
+        rootPane.setCenter(tabPane);
 
-        Scene scene = new Scene(root, 1400, 800);
+        Scene scene = new Scene(rootPane, 1400, 800);
         // Add global stylesheet for TabPane if needed, or inline styles
         // For now, we rely on inline styles for components
         
@@ -187,6 +190,14 @@ public class CashierApp extends Application {
         PasswordField passField = new PasswordField();
         passField.setPromptText("password");
 
+        // Visible text field used when "Show Password" is toggled
+        TextField passVisible = new TextField();
+        passVisible.setPromptText("password");
+        passVisible.setManaged(false);
+        passVisible.setVisible(false);
+
+        CheckBox showPass = new CheckBox("Show Password");
+
         Label msg = new Label();
         msg.setTextFill(javafx.scene.paint.Color.web("#D32F2F"));
 
@@ -199,20 +210,51 @@ public class CashierApp extends Application {
         grid.add(userField, 1, 0);
         grid.add(passLbl, 0, 1);
         grid.add(passField, 1, 1);
-        grid.add(msg, 0, 2, 2, 1);
-        grid.add(actions, 1, 3);
+        grid.add(passVisible, 1, 1);
+        grid.add(showPass, 1, 2);
+        grid.add(msg, 0, 3, 2, 1);
+        grid.add(actions, 1, 4);
 
-        // Quick login when Enter pressed in password
+        // Quick login when Enter pressed in password (or visible password field)
         passField.setOnAction(e -> loginBtn.fire());
+        passVisible.setOnAction(e -> loginBtn.fire());
+
+        // Toggle password visibility
+        showPass.selectedProperty().addListener((obs, oldV, newV) -> {
+            if (newV) {
+                passVisible.setText(passField.getText());
+                passVisible.setVisible(true);
+                passVisible.setManaged(true);
+                passField.setVisible(false);
+                passField.setManaged(false);
+            } else {
+                passField.setText(passVisible.getText());
+                passField.setVisible(true);
+                passField.setManaged(true);
+                passVisible.setVisible(false);
+                passVisible.setManaged(false);
+            }
+        });
 
         loginBtn.setOnAction(e -> {
             String user = userField.getText() == null ? "" : userField.getText().trim();
-            String pass = passField.getText() == null ? "" : passField.getText();
-            if (("cashier1".equals(user) && "cashier1".equals(pass)) || ("cashier2".equals(user) && "cashier2".equals(pass))) {
-                currentCashierId = user;
-                dialog.close();
-            } else {
-                msg.setText("Invalid username or password.");
+            String pass = showPass.isSelected() ? passVisible.getText() : passField.getText();
+            try {
+                java.util.List<com.coffeeshop.model.CashierAccount> accounts = com.coffeeshop.service.PersistenceManager.loadAccounts();
+                com.coffeeshop.model.CashierAccount match = null;
+                for (com.coffeeshop.model.CashierAccount a : accounts) {
+                    if (a.getUsername().equals(user) && a.getPassword().equals(pass)) { match = a; break; }
+                }
+                if (match != null && match.isActive()) {
+                    currentCashierId = match.getUsername();
+                    dialog.close();
+                } else if (match != null && !match.isActive()) {
+                    msg.setText("Account deactivated. Contact admin.");
+                } else {
+                    msg.setText("Invalid username or password.");
+                }
+            } catch (Exception ex) {
+                msg.setText("Login error: " + ex.getMessage());
             }
         });
 
@@ -347,6 +389,38 @@ public class CashierApp extends Application {
                             VBox parent = dashboardPanel;
                             parent.getChildren().clear();
                             parent.getChildren().addAll(createDashboardPanel().getChildren());
+                        }
+                        // Check cashier account active status from persisted accounts for realtime deactivation
+                        try {
+                            if (currentCashierId != null && !currentCashierId.isEmpty()) {
+                                java.util.List<com.coffeeshop.model.CashierAccount> accounts = com.coffeeshop.service.PersistenceManager.loadAccounts();
+                                com.coffeeshop.model.CashierAccount found = null;
+                                for (com.coffeeshop.model.CashierAccount a : accounts) {
+                                    if (a.getUsername().equals(currentCashierId)) { found = a; break; }
+                                }
+                                if (found == null || !found.isActive()) {
+                                    // Force logout and show login dialog
+                                    Alert a = new Alert(Alert.AlertType.WARNING);
+                                    a.setTitle("Logged Out");
+                                    a.setHeaderText(null);
+                                    a.setContentText("Your account has been deactivated. Please login with an active account.");
+                                    a.showAndWait();
+
+                                    // clear current id and prompt re-login
+                                    currentCashierId = null;
+                                    if (rootPane != null) rootPane.setTop(createHeader());
+
+                                    boolean ok = showLoginDialog(primaryStageRef);
+                                    if (!ok) {
+                                        javafx.application.Platform.exit();
+                                    } else {
+                                        // successful login: refresh header
+                                        if (rootPane != null) rootPane.setTop(createHeader());
+                                    }
+                                }
+                            }
+                        } catch (Exception ex) {
+                            System.err.println("Account check failed: " + ex.getMessage());
                         }
                     } catch (Exception ex) {
                         System.err.println("Error applying background sync to UI: " + ex.getMessage());

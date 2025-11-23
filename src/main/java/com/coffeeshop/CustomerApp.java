@@ -39,6 +39,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import java.nio.file.*;
 
 public class CustomerApp extends Application {
     private Store store;
@@ -62,12 +63,22 @@ public class CustomerApp extends Application {
     private java.util.Map<String, javafx.scene.image.Image> imageCache = new java.util.HashMap<>();
     // Simple index for quick lookup of image files by product id (built once)
     private java.util.Map<String, java.io.File> imageFileIndex = null;
+    // Sidebar category container reference so it can be refreshed when categories change
+    private VBox categoryContainerSidebar = null;
 
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
         store = Store.getInstance();
+        // Listen for category changes so customer UI updates in real-time
+        try {
+            Store.getInstance().addCategoryChangeListener(() -> {
+                javafx.application.Platform.runLater(() -> {
+                    try { refreshCategoriesSidebar(); } catch (Exception ignored) {}
+                });
+            });
+        } catch (Exception ignored) {}
         
         primaryStage.setTitle("Brewise Coffee Shop - Kiosk");
         // Start in windowed-fullscreen: maximized with decorations so Windows taskbar remains visible
@@ -85,9 +96,32 @@ public class CustomerApp extends Application {
         persistentScene = new Scene(persistentRoot, 1600, 900);
         primaryStage.setScene(persistentScene);
         primaryStage.show();
+        // Listen for maximize changes so we can tweak inner layout to avoid visible gaps
+        try {
+            primaryStage.maximizedProperty().addListener((obs, oldV, newV) -> {
+                javafx.application.Platform.runLater(() -> {
+                    if (persistentRoot != null && !persistentRoot.getChildren().isEmpty()) {
+                        javafx.scene.Node cur = persistentRoot.getChildren().get(0);
+                        if (cur instanceof Parent) adjustRootForWindowSize((Parent) cur);
+                    }
 
+                    // If the user restored from maximized to windowed, ensure the
+                    // stage is centered/visible so the OS window controls are reachable.
+                    try {
+                        if (primaryStage != null && !primaryStage.isMaximized()) {
+                            // Center on screen to avoid the window being positioned off-screen
+                            primaryStage.centerOnScreen();
+                            // Also ensure the Y position is not negative (put below taskbar)
+                            if (primaryStage.getY() < 0) primaryStage.setY(24);
+                        }
+                    } catch (Exception ignored) {}
+                });
+            });
+        } catch (Exception ignored) {}
         // Show welcome screen content inside the persistent scene
         showWelcomeScreen();
+        // Start background watcher to detect external category changes (Admin edits)
+        startCategoryFileWatcher();
     }
 
     // Utility: set scene without unexpectedly changing windowed/maximized state
@@ -170,6 +204,43 @@ public class CustomerApp extends Application {
         } catch (Exception ex) {
             // Do not block startup if theme loading fails
             System.err.println("Atlantafx theme not applied: " + ex.getMessage());
+        }
+    }
+
+    // Adjust certain layout constraints when window is maximized to avoid
+    // large exterior gaps due to fixed max widths and large paddings.
+    private void adjustRootForWindowSize(Parent root) {
+        boolean isMax = primaryStage != null && primaryStage.isMaximized();
+        try {
+            adjustNodeRecursively(root, isMax);
+        } catch (Exception ignored) {}
+    }
+
+    private void adjustNodeRecursively(javafx.scene.Node node, boolean isMax) {
+        if (node instanceof javafx.scene.layout.Region) {
+            javafx.scene.layout.Region r = (javafx.scene.layout.Region) node;
+            if (isMax) {
+                // Expand constrained containers to use available width
+                if (r.getMaxWidth() > 0 && r.getMaxWidth() < 1200) {
+                    r.setMaxWidth(Double.MAX_VALUE);
+                }
+                // Reduce very large paddings for fullscreen so edges align with window
+                try {
+                    Insets p = r.getPadding();
+                    if (p != null && (p.getTop() > 40 || p.getLeft() > 40)) {
+                        r.setPadding(new Insets(12));
+                    }
+                } catch (Exception ignored) {}
+            } else {
+                // When returning to windowed mode, do not aggressively restore here;
+                // original layout code will set intended paddings/max widths when scenes are rebuilt.
+            }
+        }
+
+        if (node instanceof Parent) {
+            for (javafx.scene.Node child : ((Parent) node).getChildrenUnmodifiable()) {
+                adjustNodeRecursively(child, isMax);
+            }
         }
     }
 
@@ -835,8 +906,8 @@ public class CustomerApp extends Application {
         header.getChildren().addAll(headerRow, subtitle);
         
         // Category buttons
-        VBox categoryContainer = new VBox(2);
-        categoryContainer.setPadding(new Insets(0));
+        categoryContainerSidebar = new VBox(2);
+        categoryContainerSidebar.setPadding(new Insets(0));
         
         // Load categories dynamically from Store
         java.util.List<String> storeCategories = store.getCategories();
@@ -856,10 +927,10 @@ public class CustomerApp extends Application {
         for (String category : categories) {
             String icon = categoryIcons.getOrDefault(category, "📦"); // Default icon if not in map
             Button categoryBtn = createCategoryButton(category, icon);
-            categoryContainer.getChildren().add(categoryBtn);
+            categoryContainerSidebar.getChildren().add(categoryBtn);
         }
-        
-        sidebar.getChildren().addAll(header, categoryContainer);
+
+        sidebar.getChildren().addAll(header, categoryContainerSidebar);
         return sidebar;
     }
     
@@ -893,6 +964,78 @@ public class CustomerApp extends Application {
         });
         
         return btn;
+    }
+
+    // Rebuild the categories sidebar when Store categories change
+    private void refreshCategoriesSidebar() {
+        try {
+            if (categoryContainerSidebar == null) return; // nothing to refresh yet
+            categoryContainerSidebar.getChildren().clear();
+
+            java.util.List<String> storeCategories = store.getCategories();
+            java.util.List<String> categories = new java.util.ArrayList<>();
+            categories.add("All");
+            categories.addAll(storeCategories);
+
+            java.util.Map<String, String> categoryIcons = new java.util.HashMap<>();
+            categoryIcons.put("All", "⭐");
+            categoryIcons.put("Coffee", "☕");
+            categoryIcons.put("Milk Tea", "✨");
+            categoryIcons.put("Frappe", "🧊");
+            categoryIcons.put("Fruit Tea", "🍓");
+            categoryIcons.put("Pastries", "🍰");
+
+            for (String category : categories) {
+                String icon = categoryIcons.getOrDefault(category, "📦");
+                Button categoryBtn = createCategoryButton(category, icon);
+                categoryContainerSidebar.getChildren().add(categoryBtn);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    // Start a background WatchService that watches data/categories.json and reloads categories
+    private void startCategoryFileWatcher() {
+        try {
+            Path dataDir = Paths.get("data");
+            if (!Files.exists(dataDir)) return;
+
+            final WatchService watcher = FileSystems.getDefault().newWatchService();
+            dataDir.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_DELETE);
+
+            Thread t = new Thread(() -> {
+                while (true) {
+                    try {
+                        WatchKey key = watcher.take();
+                        for (WatchEvent<?> ev : key.pollEvents()) {
+                            WatchEvent.Kind<?> kind = ev.kind();
+                            Path changed = (Path) ev.context();
+                            if (changed != null && "categories.json".equals(changed.toString())) {
+                                // small debounce to wait for file write to complete
+                                try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+                                try {
+                                    Store.getInstance().reloadCategoriesFromDisk();
+                                } catch (Exception ex) {
+                                    System.err.println("Failed to reload categories: " + ex.getMessage());
+                                }
+                            }
+                        }
+                        key.reset();
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (ClosedWatchServiceException cwse) {
+                        break;
+                    } catch (Exception ex) {
+                        System.err.println("Category watcher error: " + ex.getMessage());
+                        try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
+                    }
+                }
+            }, "CategoryFileWatcher");
+            t.setDaemon(true);
+            t.start();
+        } catch (Exception ex) {
+            System.err.println("Category watcher failed to start: " + ex.getMessage());
+        }
     }
     
     private void updateCategoryButtonStyle(Button btn, boolean isSelected) {
@@ -1217,20 +1360,61 @@ public class CustomerApp extends Application {
             product.getName().toLowerCase().contains("cappuccino") ?
             "linear-gradient(to bottom right, #404040, #2C2C2C)" :
             "linear-gradient(to bottom right, #505050, #2C2C2C)";
-        imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 24 24 24 24;");
+
+        // Create a centered background box so the gradient only covers the image area
+        StackPane imageBackground = new StackPane();
+        // Do not force a wide pref width; let the image determine width. Fix height to target.
+        final double targetHeight = 220.0;
+        imageBackground.setPrefHeight(targetHeight);
+        // Prevent the background from being stretched by parent containers
+        imageBackground.setMaxWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        imageBackground.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+        imageBackground.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 12 12 12 12;");
 
         // Try to load actual product image
         javafx.scene.image.ImageView productImage = loadProductImage(product.getId());
         if (productImage != null) {
-            productImage.setFitHeight(220);
             productImage.setPreserveRatio(true);
-            imagePane.getChildren().add(productImage);
+            productImage.setFitHeight(targetHeight);
+            // If image already loaded, compute scaled width and size the background to match.
+                    if (productImage.getImage() != null) {
+                javafx.scene.image.Image img = productImage.getImage();
+                if (img.getHeight() > 0) {
+                    double scaledW = img.getWidth() * (targetHeight / img.getHeight());
+                    productImage.setFitWidth(scaledW);
+                            imageBackground.setPrefWidth(scaledW + 24); // include padding
+                            imageBackground.setMinWidth(scaledW + 24);
+                            imageBackground.setMaxWidth(scaledW + 24);
+                }
+            } else {
+                // Wait for image to load then adjust sizes
+                productImage.imageProperty().addListener((obs, oldImg, newImg) -> {
+                    try {
+                        if (newImg != null && newImg.getHeight() > 0) {
+                            double scaledW = newImg.getWidth() * (targetHeight / newImg.getHeight());
+                            javafx.application.Platform.runLater(() -> {
+                                productImage.setFitWidth(scaledW);
+                                imageBackground.setPrefWidth(scaledW + 24);
+                                imageBackground.setMinWidth(scaledW + 24);
+                                imageBackground.setMaxWidth(scaledW + 24);
+                            });
+                        }
+                    } catch (Exception ignored) {}
+                });
+            }
+            imageBackground.getChildren().add(productImage);
+            imagePane.getChildren().add(imageBackground);
         } else {
             // Fallback to emoji if no image
             Label imagePlaceholder = new Label("☕");
             imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 84));
             imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
-            imagePane.getChildren().add(imagePlaceholder);
+            // When no image, make the background a compact square
+            imageBackground.setPrefWidth(targetHeight + 24);
+            imageBackground.setMinWidth(targetHeight + 24);
+            imageBackground.setMaxWidth(targetHeight + 24);
+            imageBackground.getChildren().add(imagePlaceholder);
+            imagePane.getChildren().add(imageBackground);
         }
 
         Label productName = new Label(product.getName());
@@ -1271,37 +1455,44 @@ public class CustomerApp extends Application {
         customSection.getStyleClass().add("card");
         customSection.setPadding(new Insets(18));
         
-        // Temperature selection
-        VBox tempSection = new VBox(8);
-        Label tempTitle = new Label("Temperature");
-        tempTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        
-        HBox tempButtons = new HBox(12);
-        ToggleGroup tempGroup = new ToggleGroup();
-        
-        RadioButton hotBtn = new RadioButton("☕ Hot");
-        hotBtn.setToggleGroup(tempGroup);
-        hotBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-        hotBtn.setTextFill(Color.web("#2C2C2C"));
-        
-        RadioButton coldBtn = new RadioButton("🧊 Cold");
-        coldBtn.setToggleGroup(tempGroup);
-        coldBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-        coldBtn.setTextFill(Color.web("#2C2C2C"));
-        
-        // Pre-select temperature if editing existing item
-        if (customizingOrderItem != null) {
-            if (customizingOrderItem.getTemperature().equals("Hot")) {
-                hotBtn.setSelected(true);
+        // Temperature selection (only for Coffee category)
+        VBox tempSection = null;
+        RadioButton hotBtn = null;
+        RadioButton coldBtn = null;
+        final ToggleGroup tempGroup = new ToggleGroup();
+        if (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee")) {
+            tempSection = new VBox(8);
+            Label tempTitle = new Label("Temperature");
+            tempTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+
+            HBox tempButtons = new HBox(12);
+
+            hotBtn = new RadioButton("☕ Hot");
+            hotBtn.setToggleGroup(tempGroup);
+            hotBtn.setUserData("Hot");
+            hotBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            hotBtn.setTextFill(Color.web("#2C2C2C"));
+
+            coldBtn = new RadioButton("🧊 Cold");
+            coldBtn.setToggleGroup(tempGroup);
+            coldBtn.setUserData("Cold");
+            coldBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            coldBtn.setTextFill(Color.web("#2C2C2C"));
+
+            // Pre-select temperature if editing existing item
+            if (customizingOrderItem != null) {
+                if (customizingOrderItem.getTemperature().equals("Hot")) {
+                    hotBtn.setSelected(true);
+                } else {
+                    coldBtn.setSelected(true);
+                }
             } else {
-                coldBtn.setSelected(true);
+                hotBtn.setSelected(true); // Default to hot
             }
-        } else {
-            hotBtn.setSelected(true); // Default to hot
+
+            tempButtons.getChildren().addAll(hotBtn, coldBtn);
+            tempSection.getChildren().addAll(tempTitle, tempButtons);
         }
-        
-        tempButtons.getChildren().addAll(hotBtn, coldBtn);
-        tempSection.getChildren().addAll(tempTitle, tempButtons);
         
         // Sugar level
         VBox sugarSection = new VBox(8);
@@ -1548,7 +1739,13 @@ public class CustomerApp extends Application {
         addButton.setOnAction(e -> {
             try {
                 // Get selections
-                String temperature = hotBtn.isSelected() ? "Hot" : "Cold";
+                String temperature = "Hot";
+                if (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee")) {
+                    javafx.scene.control.Toggle selected = tempGroup.getSelectedToggle();
+                    if (selected != null && selected.getUserData() != null) {
+                        temperature = selected.getUserData().toString();
+                    }
+                }
                 int sugarLevel = 50; // default
                 for (int i = 0; i < sugarBtns.length; i++) {
                     if (sugarBtns[i].isSelected()) {
@@ -1698,7 +1895,11 @@ public class CustomerApp extends Application {
         bottomSection.getChildren().addAll(qtySection, spacer, totalBox);
         bottomSection.setAlignment(Pos.CENTER_LEFT);
         
-        customSection.getChildren().addAll(tempSection, sugarSection, addOnsSection, bottomSection);
+        if (tempSection != null) {
+            customSection.getChildren().addAll(tempSection, sugarSection, addOnsSection, bottomSection);
+        } else {
+            customSection.getChildren().addAll(sugarSection, addOnsSection, bottomSection);
+        }
         
         return customSection;
     }

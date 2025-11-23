@@ -12,6 +12,8 @@ public class Store {
     private List<Product> products;
     private Map<String, InventoryItem> inventory;
     private java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
+    private java.util.List<Runnable> categoryListeners = new java.util.ArrayList<>();
+    private java.util.List<com.coffeeshop.model.CashierAccount> cashiers = new java.util.ArrayList<>();
     private static Store instance;
 
     private Store() {
@@ -28,17 +30,92 @@ public class Store {
     private void loadData() {
         products = PersistenceManager.loadProducts();
         inventory = PersistenceManager.loadInventory();
-        // initialize categories from products
+        // load cashier accounts
+        try {
+            cashiers = PersistenceManager.loadAccounts();
+        } catch (Exception ignored) {
+            cashiers = new java.util.ArrayList<>();
+        }
+        // initialize categories: prefer explicit categories file if present, otherwise infer from products
         categories.clear();
-        for (Product p : products) {
-            try {
-                if (p.getCategory() != null && !p.getCategory().trim().isEmpty()) categories.add(p.getCategory());
-            } catch (Exception ignored) {}
+        try {
+            java.util.List<String> persisted = PersistenceManager.loadCategories();
+            if (persisted != null && !persisted.isEmpty()) {
+                for (String c : persisted) if (c != null && !c.trim().isEmpty()) categories.add(c.trim());
+            } else {
+                for (Product p : products) {
+                    try {
+                        if (p.getCategory() != null && !p.getCategory().trim().isEmpty()) categories.add(p.getCategory());
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (Exception ex) {
+            for (Product p : products) {
+                try {
+                    if (p.getCategory() != null && !p.getCategory().trim().isEmpty()) categories.add(p.getCategory());
+                } catch (Exception ignored) {}
+            }
         }
     }
 
     public void saveData() {
-        PersistenceManager.save(products, inventory);
+        PersistenceManager.saveProducts(products);
+        PersistenceManager.saveInventory(inventory);
+        try {
+            PersistenceManager.saveAccounts(cashiers);
+        } catch (Exception ignored) {}
+        // save explicit categories file too
+        try {
+            PersistenceManager.saveCategories(new java.util.ArrayList<>(categories));
+        } catch (Exception ignored) {}
+    }
+
+    // Cashier account management
+    public java.util.List<com.coffeeshop.model.CashierAccount> getCashiers() {
+        return new java.util.ArrayList<>(cashiers);
+    }
+
+    public com.coffeeshop.model.CashierAccount getCashierByUsername(String username) {
+        for (com.coffeeshop.model.CashierAccount c : cashiers) {
+            if (c.getUsername().equalsIgnoreCase(username)) return c;
+        }
+        return null;
+    }
+
+    public void addCashier(com.coffeeshop.model.CashierAccount account) {
+        cashiers.add(account);
+        saveData();
+        notifyCategoryListeners();
+    }
+
+    public void updateCashier(com.coffeeshop.model.CashierAccount account) {
+        for (int i = 0; i < cashiers.size(); i++) {
+            if (cashiers.get(i).getId().equals(account.getId())) {
+                cashiers.set(i, account);
+                saveData();
+                return;
+            }
+        }
+    }
+
+    public void setCashierActive(String id, boolean active) {
+        for (com.coffeeshop.model.CashierAccount c : cashiers) {
+            if (c.getId().equals(id)) {
+                c.setActive(active);
+                saveData();
+                return;
+            }
+        }
+    }
+
+    public void changeCashierPassword(String id, String newPassword) {
+        for (com.coffeeshop.model.CashierAccount c : cashiers) {
+            if (c.getId().equals(id)) {
+                c.setPassword(newPassword);
+                saveData();
+                return;
+            }
+        }
     }
 
     // Product operations
@@ -113,6 +190,7 @@ public class Store {
         if (category == null || category.trim().isEmpty()) return;
         categories.add(category.trim());
         saveData();
+        notifyCategoryListeners();
     }
 
     public java.util.List<String> getCategories() {
@@ -130,12 +208,41 @@ public class Store {
             } catch (Exception ignored) {}
         }
         saveData();
+        notifyCategoryListeners();
     }
 
     public void removeCategory(String name) {
         if (name == null) return;
         categories.remove(name);
         saveData();
+        notifyCategoryListeners();
+    }
+
+    // Reload categories from disk (called by other processes via file-watch)
+    public void reloadCategoriesFromDisk() {
+        try {
+            java.util.List<String> persisted = PersistenceManager.loadCategories();
+            if (persisted != null) {
+                categories.clear();
+                for (String c : persisted) if (c != null && !c.trim().isEmpty()) categories.add(c.trim());
+                notifyCategoryListeners();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void notifyCategoryListeners() {
+        for (Runnable r : new java.util.ArrayList<>(categoryListeners)) {
+            try { r.run(); } catch (Exception ignored) {}
+        }
+    }
+
+    public void addCategoryChangeListener(Runnable r) {
+        if (r == null) return;
+        categoryListeners.add(r);
+    }
+
+    public void removeCategoryChangeListener(Runnable r) {
+        categoryListeners.remove(r);
     }
 
     // Order validation and processing

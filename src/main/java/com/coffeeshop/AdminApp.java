@@ -75,10 +75,149 @@ public class AdminApp extends Application {
 
         Scene scene = new Scene(root, 1400, 800);
         primaryStage.setScene(scene);
+
+        // Show admin login after scene is set (avoids Dialog.initOwner NPE when stage has no scene)
+        boolean ok = showAdminLogin(primaryStage);
+        if (!ok) {
+            // User cancelled or failed to login - close the stage and return
+            try { primaryStage.close(); } catch (Exception ignored) {}
+            return;
+        }
+
         primaryStage.show();
 
         refreshData();
     }
+
+    // Helper to filter available inventory ingredient names by product category
+    private java.util.List<String> filterIngredientsByCategory(java.util.List<String> base, String category) {
+        if (base == null) return new java.util.ArrayList<>();
+        if (category == null) return new java.util.ArrayList<>(base);
+
+        String c = category.toLowerCase();
+        java.util.List<String> out = new java.util.ArrayList<>();
+
+        for (String ing : base) {
+            String l = ing.toLowerCase();
+            boolean add = false;
+            if (c.contains("coffee")) {
+                add = l.contains("coffee") || l.contains("bean") || l.contains("espresso") || l.contains("milk") || l.contains("water") || l.contains("syrup") || l.contains("sugar");
+            } else if (c.contains("frappe") || c.contains("blended")) {
+                add = l.contains("milk") || l.contains("ice") || l.contains("cream") || l.contains("syrup") || l.contains("sugar") || l.contains("fruit");
+            } else if (c.contains("tea") || c.contains("milk tea")) {
+                add = l.contains("tea") || l.contains("milk") || l.contains("syrup") || l.contains("sugar") || l.contains("fruit");
+            } else if (c.contains("pastr") || c.contains("snack") || c.contains("bakery")) {
+                add = !l.contains("water") && !l.contains("ice") && (l.contains("flour") || l.contains("sugar") || l.contains("butter") || l.contains("chocolate") || l.contains("egg") || l.contains("milk"));
+            } else {
+                // default: include most common pantry items
+                add = true;
+            }
+
+            if (add) out.add(ing);
+        }
+
+        // If filtering produced empty list, fall back to full base list
+        if (out.isEmpty()) return new java.util.ArrayList<>(base);
+        return out;
+    }
+
+    // Show a simple admin login dialog. Returns true if login successful.
+    private boolean showAdminLogin(Stage owner) {
+        Dialog<Boolean> dlg = new Dialog<>();
+        dlg.setTitle("Admin Login");
+        dlg.setHeaderText("Enter admin credentials to access the Admin Panel");
+        dlg.initOwner(owner);
+
+        ButtonType loginBtn = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+        dlg.getDialogPane().getButtonTypes().addAll(loginBtn, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+
+        TextField userField = new TextField();
+        userField.setPromptText("Username");
+        PasswordField passField = new PasswordField();
+        passField.setPromptText("Password");
+
+        // Visible text field for optional "show password" behavior
+        TextField passVisible = new TextField();
+        passVisible.setPromptText("Password");
+        passVisible.setManaged(false);
+        passVisible.setVisible(false);
+
+        CheckBox showPass = new CheckBox("Show Password");
+
+        grid.add(new Label("Username:"), 0, 0);
+        grid.add(userField, 1, 0);
+        grid.add(new Label("Password:"), 0, 1);
+        // add both fields into the same cell; we'll toggle which is visible
+        grid.add(passField, 1, 1);
+        grid.add(passVisible, 1, 1);
+        grid.add(showPass, 1, 2);
+
+        dlg.getDialogPane().setContent(grid);
+
+        javafx.scene.Node loginNode = dlg.getDialogPane().lookupButton(loginBtn);
+        loginNode.setDisable(true);
+
+        // Helper to update login button disabled state (considers visible password field)
+        Runnable updateLoginDisabled = () -> {
+            String userTxt = userField.getText() == null ? "" : userField.getText().trim();
+            String passTxt = showPass.isSelected() ? passVisible.getText() : passField.getText();
+            passTxt = passTxt == null ? "" : passTxt;
+            loginNode.setDisable(userTxt.isEmpty() || passTxt.trim().isEmpty());
+        };
+
+        userField.textProperty().addListener((obs, o, n) -> updateLoginDisabled.run());
+        passField.textProperty().addListener((obs, o, n) -> updateLoginDisabled.run());
+        passVisible.textProperty().addListener((obs, o, n) -> updateLoginDisabled.run());
+
+        // Toggle password visibility
+        showPass.selectedProperty().addListener((obs, oldV, newV) -> {
+            if (newV) {
+                passVisible.setText(passField.getText());
+                passVisible.setVisible(true);
+                passVisible.setManaged(true);
+                passField.setVisible(false);
+                passField.setManaged(false);
+            } else {
+                passField.setText(passVisible.getText());
+                passField.setVisible(true);
+                passField.setManaged(true);
+                passVisible.setVisible(false);
+                passVisible.setManaged(false);
+            }
+            updateLoginDisabled.run();
+        });
+
+        // Allow pressing Enter on visible field too
+        passVisible.setOnAction(evt -> ((Button) loginNode).fire());
+
+        dlg.setResultConverter(bt -> bt == loginBtn ? Boolean.TRUE : Boolean.FALSE);
+
+        while (true) {
+            java.util.Optional<Boolean> res = dlg.showAndWait();
+            if (res.isEmpty() || !res.get()) return false; // cancelled
+
+            String user = userField.getText().trim();
+            String pass = showPass.isSelected() ? passVisible.getText() : passField.getText();
+            if ("admin".equals(user) && "admin123".equals(pass)) {
+                return true;
+            } else {
+                Alert a = new Alert(Alert.AlertType.ERROR);
+                a.setTitle("Login Failed");
+                a.setHeaderText(null);
+                a.setContentText("Invalid username or password. Please try again.");
+                a.initOwner(owner);
+                a.showAndWait();
+                // loop again
+            }
+        }
+    }
+
+    
 
     private VBox createHeader() {
         VBox header = new VBox(10);
@@ -118,8 +257,150 @@ public class AdminApp extends Application {
         Tab salesTab = new Tab("Sales Reports", createSalesTab());
         salesTab.setClosable(false);
 
-        tabPane.getTabs().addAll(dashboardTab, productsTab, inventoryTab, refillTab, categoriesTab, salesTab);
+        Tab accountsTab = new Tab("Accounts", createAccountsTab());
+        accountsTab.setClosable(false);
+
+        tabPane.getTabs().addAll(dashboardTab, productsTab, inventoryTab, refillTab, categoriesTab, salesTab, accountsTab);
         return tabPane;
+    }
+
+    private VBox createAccountsTab() {
+        VBox panel = new VBox(12);
+        panel.setPadding(new Insets(20));
+
+        Label title = new Label("👥 Cashier Accounts");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+
+        TableView<CashierRow> table = new TableView<>();
+        table.setPrefHeight(400);
+
+        TableColumn<CashierRow, String> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        idCol.setPrefWidth(100);
+
+        TableColumn<CashierRow, String> userCol = new TableColumn<>("Username");
+        userCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+        userCol.setPrefWidth(200);
+
+        TableColumn<CashierRow, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setPrefWidth(150);
+
+        TableColumn<CashierRow, Void> actionsCol = new TableColumn<>("Actions");
+        actionsCol.setPrefWidth(300);
+        actionsCol.setCellFactory(col -> new TableCell<>() {
+            private final HBox box = new HBox(8);
+            private final Button toggleBtn = new Button();
+            private final Button pwdBtn = new Button("Change Password");
+
+            {
+                toggleBtn.setStyle("-fx-font-weight: bold;");
+                pwdBtn.setStyle("-fx-font-size: 11px;");
+                box.getChildren().addAll(toggleBtn, pwdBtn);
+                toggleBtn.setOnAction(e -> {
+                    CashierRow row = getTableView().getItems().get(getIndex());
+                    boolean newActive = !row.isActiveFlag();
+                    Store.getInstance().setCashierActive(row.getId(), newActive);
+                    row.setStatus(newActive ? "Active" : "Inactive");
+                    row.setActiveFlag(newActive);
+                    getTableView().refresh();
+                });
+
+                pwdBtn.setOnAction(e -> {
+                    CashierRow row = getTableView().getItems().get(getIndex());
+                    TextInputDialog dlg = new TextInputDialog();
+                    dlg.setTitle("Change Password");
+                    dlg.setHeaderText("Change password for: " + row.getUsername());
+                    dlg.setContentText("New password:");
+                    dlg.showAndWait().ifPresent(pw -> {
+                        if (pw.trim().isEmpty()) { showAlert("Invalid", "Password cannot be empty", Alert.AlertType.ERROR); return; }
+                        Store.getInstance().changeCashierPassword(row.getId(), pw);
+                        showAlert("Success", "Password changed.", Alert.AlertType.INFORMATION);
+                    });
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    CashierRow row = getTableView().getItems().get(getIndex());
+                    toggleBtn.setText(row.isActiveFlag() ? "Deactivate" : "Activate");
+                    setGraphic(box);
+                }
+            }
+        });
+
+        table.getColumns().addAll(idCol, userCol, statusCol, actionsCol);
+
+        HBox controls = new HBox(12);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        Button addBtn = new Button("Add New Cashier");
+        addBtn.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold;");
+        addBtn.setOnAction(e -> {
+            Dialog<com.coffeeshop.model.CashierAccount> dlg = new Dialog<>();
+            dlg.setTitle("Add Cashier");
+            dlg.setHeaderText("Create a new cashier account");
+            ButtonType create = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+            dlg.getDialogPane().getButtonTypes().addAll(create, ButtonType.CANCEL);
+
+            GridPane grid = new GridPane();
+            grid.setHgap(10); grid.setVgap(10); grid.setPadding(new Insets(20));
+            TextField userField = new TextField(); userField.setPromptText("username");
+            PasswordField passField = new PasswordField(); passField.setPromptText("password");
+            grid.add(new Label("Username:"), 0, 0); grid.add(userField, 1, 0);
+            grid.add(new Label("Password:"), 0, 1); grid.add(passField, 1, 1);
+            dlg.getDialogPane().setContent(grid);
+            dlg.setResultConverter(bt -> {
+                if (bt == create) {
+                    String u = userField.getText().trim(); String p = passField.getText();
+                    if (u.isEmpty() || p.isEmpty()) return null;
+                    // generate id
+                    int max = 0;
+                    for (com.coffeeshop.model.CashierAccount c : Store.getInstance().getCashiers()) {
+                        try { String idn = c.getId().replaceAll("[^0-9]", ""); if (!idn.isEmpty()) max = Math.max(max, Integer.parseInt(idn)); } catch (Exception ignored) {}
+                    }
+                    String id = "C" + String.format("%03d", max + 1);
+                    return new com.coffeeshop.model.CashierAccount(id, u, p, true);
+                }
+                return null;
+            });
+
+            dlg.showAndWait().ifPresent(acc -> {
+                Store.getInstance().addCashier(acc);
+                table.getItems().add(new CashierRow(acc.getId(), acc.getUsername(), acc.isActive() ? "Active" : "Inactive", acc.isActive()));
+            });
+        });
+
+        controls.getChildren().addAll(addBtn);
+
+        // load existing
+        for (com.coffeeshop.model.CashierAccount c : Store.getInstance().getCashiers()) {
+            table.getItems().add(new CashierRow(c.getId(), c.getUsername(), c.isActive() ? "Active" : "Inactive", c.isActive()));
+        }
+
+        panel.getChildren().addAll(title, new Separator(), table, controls);
+        return panel;
+    }
+
+    // Helper row class for cashier table
+    public static class CashierRow {
+        private String id;
+        private String username;
+        private String status;
+        private boolean activeFlag;
+
+        public CashierRow(String id, String username, String status, boolean activeFlag) {
+            this.id = id; this.username = username; this.status = status; this.activeFlag = activeFlag;
+        }
+        public String getId() { return id; }
+        public String getUsername() { return username; }
+        public String getStatus() { return status; }
+        public void setStatus(String s) { status = s; }
+        public boolean isActiveFlag() { return activeFlag; }
+        public void setActiveFlag(boolean v) { activeFlag = v; }
     }
 
     private VBox createSalesTab() {
@@ -232,12 +513,92 @@ public class AdminApp extends Application {
 
         // List view of categories
         categoriesListView = new javafx.scene.control.ListView<>();
-        categoriesListView.setPrefHeight(300);
+        categoriesListView.setPrefHeight(200);
         categoriesListView.getItems().setAll(store.getCategories());
+
+        // Products list for selected category
+        Label productsLabel = new Label("Products in Category:");
+        productsLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        ListView<String> productsInCategory = new ListView<>();
+        productsInCategory.setPrefHeight(220);
+        productsInCategory.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+
+        // Update product list when category selection changes
+        categoriesListView.getSelectionModel().selectedItemProperty().addListener((obs, oldV, newV) -> {
+            productsInCategory.getItems().clear();
+            if (newV == null) return;
+            for (Product p : store.getProducts()) {
+                String cat = p.getCategory();
+                if (cat == null && newV.equals("Uncategorized")) {
+                    productsInCategory.getItems().add(p.getId() + " - " + p.getName());
+                } else if (cat != null && cat.equals(newV)) {
+                    productsInCategory.getItems().add(p.getId() + " - " + p.getName());
+                }
+            }
+        });
 
         HBox actions = new HBox(8);
         Button renameBtn = new Button("Rename");
         Button deleteBtn = new Button("Delete");
+        Button assignBtn = new Button("Assign to Category");
+
+        // Assign selected products to a different category
+        assignBtn.setOnAction(e -> {
+            java.util.List<String> selected = productsInCategory.getSelectionModel().getSelectedItems();
+            if (selected == null || selected.isEmpty()) { showAlert("No Selection", "Select one or more products to assign.", Alert.AlertType.WARNING); return; }
+
+            java.util.List<String> choices = new java.util.ArrayList<>(store.getCategories());
+            choices.add("<Create new category...>");
+            ChoiceDialog<String> dlg = new ChoiceDialog<>(choices.isEmpty() ? "" : choices.get(0), choices);
+            dlg.setTitle("Assign Category");
+            dlg.setHeaderText("Choose a category to assign selected products to");
+            dlg.setContentText("Category:");
+
+            java.util.Optional<String> res = dlg.showAndWait();
+            res.ifPresent(targetCat -> {
+                if (targetCat == null || targetCat.trim().isEmpty()) return;
+                String catTrim = targetCat.trim();
+                if ("<Create new category...>".equals(catTrim)) {
+                    TextInputDialog newCatDlg = new TextInputDialog();
+                    newCatDlg.setTitle("Create Category");
+                    newCatDlg.setHeaderText("Create a new category");
+                    newCatDlg.setContentText("Category name:");
+                    newCatDlg.showAndWait().ifPresent(ncat -> {
+                        if (ncat != null && !ncat.trim().isEmpty()) {
+                            String created = ncat.trim();
+                            store.addCategory(created);
+                            // assign to created
+                            for (String item : selected) {
+                                String id = item.split(" - ")[0].trim();
+                                for (Product p : store.getProducts()) {
+                                    if (p.getId().equals(id)) { p.setCategory(created); break; }
+                                }
+                            }
+                            store.saveData();
+                            refreshData();
+                            showAlert("Success", "Created category '" + created + "' and assigned selected products.", Alert.AlertType.INFORMATION);
+                        }
+                    });
+                } else {
+                    // ensure category exists
+                    store.addCategory(catTrim);
+                    // assign products
+                    for (String item : selected) {
+                        // item format: ID - Name
+                        String id = item.split(" - ")[0].trim();
+                        for (Product p : store.getProducts()) {
+                            if (p.getId().equals(id)) {
+                                p.setCategory(catTrim);
+                                break;
+                            }
+                        }
+                    }
+                    store.saveData();
+                    refreshData();
+                    showAlert("Success", "Assigned selected products to '" + catTrim + "'", Alert.AlertType.INFORMATION);
+                }
+            });
+        });
 
         renameBtn.setOnAction(e -> {
             String sel = categoriesListView.getSelectionModel().getSelectedItem();
@@ -269,9 +630,9 @@ public class AdminApp extends Application {
             });
         });
 
-        actions.getChildren().addAll(renameBtn, deleteBtn);
+        actions.getChildren().addAll(renameBtn, deleteBtn, assignBtn);
 
-        panel.getChildren().addAll(title, new Separator(), addRow, categoriesListView, actions);
+        panel.getChildren().addAll(title, new Separator(), addRow, categoriesListView, productsLabel, productsInCategory, actions);
         return panel;
     }
 
@@ -652,6 +1013,24 @@ public class AdminApp extends Application {
         grid.setHgap(10);
         grid.setVgap(15);
         grid.setPadding(new Insets(20));
+        grid.setMaxWidth(Double.MAX_VALUE);
+        ColumnConstraints col1 = new ColumnConstraints();
+        col1.setPrefWidth(140);
+        ColumnConstraints col2 = new ColumnConstraints();
+        col2.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(col1, col2);
+
+        // Add a small Close/Back button to ensure dialog can be dismissed if it's offscreen
+        Button topCloseEdit = new Button("Close");
+        topCloseEdit.setOnAction(evt -> dialog.close());
+        topCloseEdit.setStyle("-fx-background-color: transparent; -fx-text-fill: #333; -fx-cursor: hand;");
+        grid.add(topCloseEdit, 2, 0);
+
+        // Add a small Close/Back button to ensure dialog can be dismissed if it's offscreen
+        Button topCloseBtn = new Button("Close");
+        topCloseBtn.setOnAction(evt -> dialog.close());
+        topCloseBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #333; -fx-cursor: hand;");
+        grid.add(topCloseBtn, 2, 0);
 
         // Auto-generate next product ID
         int maxId = 0;
@@ -743,65 +1122,80 @@ public class AdminApp extends Application {
 
         grid.add(imageSection, 0, 4, 2, 1);
 
-        // Ingredients section
+        // Ingredients section (limited by selected category)
         Label ingredientLabel = new Label("🧪 Select Ingredients:");
         ingredientLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
         grid.add(ingredientLabel, 0, 5, 2, 1);
 
-        // Get available ingredients from inventory
-        java.util.List<String> availableIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
-
-        // Create ingredient selector UI
+        // Create ingredient selector UI (will be rebuilt when category changes)
         VBox ingredientSection = new VBox(10);
         ingredientSection.setPadding(new Insets(10));
         ingredientSection.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: #fafafa;");
-        
+
         java.util.Map<String, Double> selectedIngredients = new java.util.HashMap<>();
-        
-        ScrollPane ingredientScroll = new ScrollPane();
-        ingredientScroll.setPrefHeight(250);
+
+        // Use a plain VBox for the ingredient list so it expands to fit the dialog. The outer dialog ScrollPane will handle overflow.
         VBox ingredientList = new VBox(8);
-        
-        for (String ingredientName : availableIngredients) {
-            HBox ingredientRow = new HBox(10);
-            ingredientRow.setAlignment(Pos.CENTER_LEFT);
-            
-            CheckBox checkBox = new CheckBox(ingredientName);
-            checkBox.setStyle("-fx-font-size: 11;");
-            
-            TextField quantityField = new TextField();
-            quantityField.setPromptText("Qty");
-            quantityField.setPrefWidth(80);
-            quantityField.setDisable(true);
-            
-            checkBox.setOnAction(e -> {
-                if (checkBox.isSelected()) {
-                    quantityField.setDisable(false);
-                } else {
-                    quantityField.setDisable(true);
-                    selectedIngredients.remove(ingredientName);
-                }
-            });
-            
-            quantityField.setOnKeyReleased(e -> {
-                try {
-                    if (!quantityField.getText().isEmpty()) {
-                        double qty = Double.parseDouble(quantityField.getText());
-                        selectedIngredients.put(ingredientName, qty);
+        ingredientList.setFillWidth(true);
+        VBox.setVgrow(ingredientList, Priority.ALWAYS);
+
+        final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
+        Runnable rebuild = () -> {
+            ingredientList.getChildren().clear();
+            selectedIngredients.clear();
+            java.util.List<String> choices = filterIngredientsByCategory(baseIngredients, categoryBox.getValue());
+            for (String ingredientName : choices) {
+                HBox ingredientRow = new HBox(10);
+                ingredientRow.setAlignment(Pos.CENTER_LEFT);
+
+                CheckBox checkBox = new CheckBox(ingredientName);
+                checkBox.setStyle("-fx-font-size: 11;");
+
+                TextField quantityField = new TextField();
+                quantityField.setPromptText("Qty");
+                quantityField.setPrefWidth(80);
+                quantityField.setDisable(true);
+
+                checkBox.setOnAction(e -> {
+                    if (checkBox.isSelected()) {
+                        quantityField.setDisable(false);
+                    } else {
+                        quantityField.setDisable(true);
+                        selectedIngredients.remove(ingredientName);
                     }
-                } catch (NumberFormatException ignored) {}
-            });
-            
-            ingredientRow.getChildren().addAll(checkBox, quantityField);
-            ingredientList.getChildren().add(ingredientRow);
-        }
-        
-        ingredientScroll.setContent(ingredientList);
-        ingredientScroll.setFitToWidth(true);
-        ingredientSection.getChildren().add(ingredientScroll);
+                });
+
+                quantityField.setOnKeyReleased(e -> {
+                    try {
+                        if (!quantityField.getText().isEmpty()) {
+                            double qty = Double.parseDouble(quantityField.getText());
+                            selectedIngredients.put(ingredientName, qty);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                });
+
+                ingredientRow.getChildren().addAll(checkBox, quantityField);
+                ingredientList.getChildren().add(ingredientRow);
+            }
+        };
+
+        // initial build and rebuild on category change
+        rebuild.run();
+        categoryBox.valueProperty().addListener((obs, o, n) -> rebuild.run());
+
+        ingredientList.setMaxWidth(Double.MAX_VALUE);
+        ingredientSection.getChildren().add(ingredientList);
         grid.add(ingredientSection, 0, 6, 2, 1);
 
-        dialog.getDialogPane().setContent(grid);
+        // Wrap the grid in a ScrollPane so the dialog content can scroll and the button bar remains visible
+        ScrollPane addScroll = new ScrollPane(grid);
+        addScroll.setFitToWidth(true);
+        addScroll.setFitToHeight(true);
+        addScroll.setPrefViewportHeight(520);
+        addScroll.setPrefViewportWidth(720);
+        dialog.getDialogPane().setContent(addScroll);
+        dialog.getDialogPane().setPrefHeight(700);
+        dialog.getDialogPane().setPrefWidth(760);
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == addButtonType) {
@@ -815,7 +1209,38 @@ public class AdminApp extends Application {
                         throw new IllegalArgumentException("Name cannot be empty");
                     }
 
-                    return new Product(id, name, price, 20, new HashMap<>(selectedIngredients), category);
+                    // Validate selected ingredient quantities: ensure any checked ingredient has a positive numeric qty
+                    java.util.Map<String, Double> cleaned = new java.util.HashMap<>();
+                    for (javafx.scene.Node node : ingredientList.getChildren()) {
+                        if (!(node instanceof HBox)) continue;
+                        HBox row = (HBox) node;
+                        if (row.getChildren().size() < 2) continue;
+                        javafx.scene.Node n0 = row.getChildren().get(0);
+                        javafx.scene.Node n1 = row.getChildren().get(1);
+                        if (!(n0 instanceof CheckBox) || !(n1 instanceof TextField)) continue;
+                        CheckBox cb = (CheckBox) n0;
+                        TextField tf = (TextField) n1;
+                        if (cb.isSelected()) {
+                            String txt = tf.getText();
+                            if (txt == null || txt.trim().isEmpty()) {
+                                showAlert("Invalid Ingredient Quantity", "Ingredient '" + cb.getText() + "' requires a quantity.", Alert.AlertType.ERROR);
+                                return null;
+                            }
+                            try {
+                                double v = Double.parseDouble(txt.trim());
+                                if (v <= 0) {
+                                    showAlert("Invalid Ingredient Quantity", "Ingredient '" + cb.getText() + "' must have a positive quantity.", Alert.AlertType.ERROR);
+                                    return null;
+                                }
+                                cleaned.put(cb.getText(), v);
+                            } catch (NumberFormatException nfe) {
+                                showAlert("Invalid Ingredient Quantity", "Ingredient '" + cb.getText() + "' has invalid number format.", Alert.AlertType.ERROR);
+                                return null;
+                            }
+                        }
+                    }
+
+                    return new Product(id, name, price, 20, cleaned, category);
                 } catch (NumberFormatException ex) {
                     showAlert("Error", "Invalid price format. Please enter a valid number.", Alert.AlertType.ERROR);
                     return null;
@@ -962,7 +1387,87 @@ public class AdminApp extends Application {
 
         grid.add(imageSection, 0, 4, 2, 1);
 
-        dialog.getDialogPane().setContent(grid);
+        // Ingredients editor: allow admin to edit which ingredients and quantities are associated with the product
+        Label ingredientLabel = new Label("🧪 Edit Ingredients:");
+        ingredientLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
+        grid.add(ingredientLabel, 0, 5, 2, 1);
+
+        // Build ingredient editor limited by product category
+        VBox ingredientSection = new VBox(10);
+        ingredientSection.setPadding(new Insets(10));
+        ingredientSection.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: #fafafa;");
+        // Ensure the ingredient section is tall enough to show multiple items
+        ingredientSection.setPrefHeight(200);
+
+        java.util.Map<String, Double> selectedIngredients = new java.util.HashMap<>();
+        java.util.Map<String, Double> existingRecipe = new java.util.HashMap<>();
+        try { if (product.getRecipe() != null) existingRecipe.putAll(product.getRecipe()); } catch (Exception ignored) {}
+
+        // Use a plain VBox for the ingredient list so it expands to fit the dialog. The outer dialog ScrollPane will handle overflow.
+        VBox ingredientList = new VBox(8);
+        ingredientList.setFillWidth(true);
+        VBox.setVgrow(ingredientList, Priority.ALWAYS);
+
+        final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
+        Runnable rebuildEdit = () -> {
+            ingredientList.getChildren().clear();
+            selectedIngredients.clear();
+            java.util.List<String> choices = filterIngredientsByCategory(baseIngredients, product.getCategory());
+            for (String ingredientName : choices) {
+                HBox ingredientRow = new HBox(10);
+                ingredientRow.setAlignment(Pos.CENTER_LEFT);
+
+                CheckBox checkBox = new CheckBox(ingredientName);
+                checkBox.setStyle("-fx-font-size: 11;");
+
+                TextField quantityField = new TextField();
+                quantityField.setPromptText("Qty (e.g. 100.0)");
+                quantityField.setPrefWidth(100);
+                quantityField.setDisable(true);
+
+                if (existingRecipe.containsKey(ingredientName)) {
+                    double q = existingRecipe.getOrDefault(ingredientName, 0.0);
+                    checkBox.setSelected(true);
+                    quantityField.setText(String.valueOf(q));
+                    quantityField.setDisable(false);
+                    selectedIngredients.put(ingredientName, q);
+                }
+
+                checkBox.setOnAction(e -> {
+                    if (checkBox.isSelected()) {
+                        quantityField.setDisable(false);
+                        try { double v = Double.parseDouble(quantityField.getText().isEmpty() ? "0" : quantityField.getText()); selectedIngredients.put(ingredientName, v); } catch (NumberFormatException ex) { selectedIngredients.put(ingredientName, 0.0); }
+                    } else {
+                        quantityField.setDisable(true);
+                        selectedIngredients.remove(ingredientName);
+                    }
+                });
+
+                quantityField.setOnKeyReleased(e -> {
+                    try {
+                        if (!quantityField.getText().isEmpty() && !quantityField.isDisable()) {
+                            double qty = Double.parseDouble(quantityField.getText());
+                            selectedIngredients.put(ingredientName, qty);
+                        }
+                    } catch (NumberFormatException ignored) {}
+                });
+
+                ingredientRow.getChildren().addAll(checkBox, quantityField);
+                ingredientList.getChildren().add(ingredientRow);
+            }
+        };
+        rebuildEdit.run();
+        ingredientList.setMaxWidth(Double.MAX_VALUE);
+        ingredientSection.getChildren().add(ingredientList);
+        grid.add(ingredientSection, 0, 6, 2, 1);
+
+        // Wrap edit grid in a ScrollPane so action buttons stay visible on small screens
+        ScrollPane editScroll = new ScrollPane(grid);
+        editScroll.setFitToWidth(true);
+        editScroll.setFitToHeight(true);
+        editScroll.setPrefViewportHeight(520);
+        dialog.getDialogPane().setContent(editScroll);
+        dialog.getDialogPane().setPrefHeight(600);
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == updateButtonType) {
@@ -970,6 +1475,24 @@ public class AdminApp extends Application {
                     double newPrice = Double.parseDouble(priceField.getText());
                     // Update price
                     product.setPrice(newPrice);
+
+                    // Validate selected ingredient quantities
+                    if (selectedIngredients != null) {
+                        for (java.util.Map.Entry<String, Double> e : selectedIngredients.entrySet()) {
+                            Double v = e.getValue();
+                            if (v == null || v <= 0) {
+                                showAlert("Invalid Ingredient Quantity", "Ingredient '" + e.getKey() + "' must have a positive quantity.", Alert.AlertType.ERROR);
+                                return null;
+                            }
+                        }
+
+                        // remove any zero-quantity entries and set cleaned recipe
+                        java.util.Map<String, Double> cleaned = new java.util.HashMap<>();
+                        for (java.util.Map.Entry<String, Double> e : selectedIngredients.entrySet()) {
+                            if (e.getValue() != null && e.getValue() > 0) cleaned.put(e.getKey(), e.getValue());
+                        }
+                        product.setRecipe(cleaned);
+                    }
 
                     store.saveData();
 
@@ -985,6 +1508,8 @@ public class AdminApp extends Application {
                         Files.copy(selectedImageFile[0].toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     }
 
+                    // persist changes
+                    store.saveData();
                     return product;
                 } catch (NumberFormatException ex) {
                     showAlert("Error", "Invalid price or stock format.", Alert.AlertType.ERROR);
