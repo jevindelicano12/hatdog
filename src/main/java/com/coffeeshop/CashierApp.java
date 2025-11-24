@@ -110,6 +110,13 @@ public class CashierApp extends Application {
         Tab reportsTab = new Tab("   📊 Dashboard   ");
         reportsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         reportsTab.setContent(createDashboardPanel());
+        
+        // Refresh dashboard when tab is selected
+        reportsTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                reportsTab.setContent(createDashboardPanel());
+            }
+        });
 
         tabPane.getTabs().addAll(ordersTab, receiptHistoryTab, reportsTab);
         
@@ -1006,8 +1013,35 @@ public class CashierApp extends Application {
         HBox statsBox = new HBox(20);
         
         VBox totalSalesCard = new VBox(15);
+        totalSalesCard.setPadding(new Insets(30));
+        totalSalesCard.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+        totalSalesCard.setMaxWidth(Double.MAX_VALUE);
+        
         VBox todayRevenueCard = new VBox(15);
+        todayRevenueCard.setPadding(new Insets(30));
+        todayRevenueCard.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+        todayRevenueCard.setMaxWidth(Double.MAX_VALUE);
+        
         VBox ordersProcessedCard = new VBox(15);
+        ordersProcessedCard.setPadding(new Insets(30));
+        ordersProcessedCard.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+        ordersProcessedCard.setMaxWidth(Double.MAX_VALUE);
+        
+        // Initialize with placeholder content
+        Label loadingLabel1 = new Label("Loading...");
+        loadingLabel1.setFont(Font.font("Segoe UI", 14));
+        loadingLabel1.setTextFill(Color.web("#6c757d"));
+        totalSalesCard.getChildren().add(loadingLabel1);
+        
+        Label loadingLabel2 = new Label("Loading...");
+        loadingLabel2.setFont(Font.font("Segoe UI", 14));
+        loadingLabel2.setTextFill(Color.web("#6c757d"));
+        todayRevenueCard.getChildren().add(loadingLabel2);
+        
+        Label loadingLabel3 = new Label("Loading...");
+        loadingLabel3.setFont(Font.font("Segoe UI", 14));
+        loadingLabel3.setTextFill(Color.web("#6c757d"));
+        ordersProcessedCard.getChildren().add(loadingLabel3);
         
         statsBox.getChildren().addAll(totalSalesCard, todayRevenueCard, ordersProcessedCard);
         HBox.setHgrow(totalSalesCard, Priority.ALWAYS);

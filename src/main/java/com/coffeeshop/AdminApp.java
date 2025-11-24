@@ -58,6 +58,31 @@ public class AdminApp extends Application {
     private TextArea dashboardAlertsArea;
     private javafx.scene.control.ListView<String> productsInCategoryListView;
 
+    // Modern button styling helpers
+    private void stylePrimaryButton(Button btn) {
+        btn.setStyle("-fx-background-color: linear-gradient(to right, #6366F1, #4F46E5); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);");
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #4F46E5, #4338CA); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 3);"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #6366F1, #4F46E5); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);"));
+    }
+
+    private void styleSuccessButton(Button btn) {
+        btn.setStyle("-fx-background-color: linear-gradient(to right, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);");
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #229954, #1E8449); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 3);"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);"));
+    }
+
+    private void styleDangerButton(Button btn) {
+        btn.setStyle("-fx-background-color: linear-gradient(to right, #E74C3C, #C0392B); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);");
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #C0392B, #A93226); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 3);"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #E74C3C, #C0392B); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);"));
+    }
+
+    private void styleSecondaryButton(Button btn) {
+        btn.setStyle("-fx-background-color: linear-gradient(to right, #95A5A6, #7F8C8D); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);");
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #7F8C8D, #6C7A89); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 3);"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #95A5A6, #7F8C8D); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);"));
+    }
+
     @Override
     public void start(Stage primaryStage) {
         store = Store.getInstance();
@@ -65,8 +90,8 @@ public class AdminApp extends Application {
         primaryStage.setTitle("Coffee Shop - Admin Panel");
 
         BorderPane root = new BorderPane();
-        root.setPadding(new Insets(20));
-        root.setStyle("-fx-background-color: #f5f5f5;");
+        root.setPadding(new Insets(0));
+        root.setStyle("-fx-background-color: #F3F4F6;");
 
         // Header
         VBox header = createHeader();
@@ -301,45 +326,113 @@ public class AdminApp extends Application {
     
 
     private VBox createHeader() {
-        VBox header = new VBox(10);
-        header.setAlignment(Pos.CENTER);
-        header.setPadding(new Insets(0, 0, 20, 0));
+        HBox header = new HBox(20);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(20, 30, 20, 30));
+        header.setStyle("-fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
 
-        Label title = new Label("🛡️ Coffee Shop - Admin Panel");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 28));
-        title.setTextFill(Color.web("#D32F2F"));
-
-        Label subtitle = new Label("Manage products, inventory, and view refill alerts");
-        subtitle.setFont(Font.font("Arial", 14));
-        subtitle.setTextFill(Color.web("#666"));
-
-        header.getChildren().addAll(title, subtitle);
-        return header;
+        // Logo/Brand section
+        VBox brandBox = new VBox(5);
+        brandBox.setAlignment(Pos.CENTER_LEFT);
+        
+        HBox logoRow = new HBox(12);
+        logoRow.setAlignment(Pos.CENTER_LEFT);
+        
+        ImageView logoImageView = null;
+        try {
+            File logoFile = new File("data/images/LOGO3.png");
+            if (logoFile.exists()) {
+                Image logoImage = new Image(logoFile.toURI().toString());
+                logoImageView = new ImageView(logoImage);
+                logoImageView.setFitWidth(48);
+                logoImageView.setFitHeight(48);
+                logoImageView.setPreserveRatio(true);
+                // Make logo circular
+                javafx.scene.shape.Circle clip = new javafx.scene.shape.Circle(24, 24, 24);
+                logoImageView.setClip(clip);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + e.getMessage());
+        }
+        
+        if (logoImageView == null) {
+            Label adminIcon = new Label("🛡️");
+            adminIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+            adminIcon.setTextFill(Color.web("#FFFFFF"));
+            adminIcon.setStyle("-fx-background-color: #DC2626; -fx-padding: 10; -fx-background-radius: 50;");
+            logoRow.getChildren().add(adminIcon);
+        } else {
+            logoRow.getChildren().add(logoImageView);
+        }
+        
+        Label title = new Label("BREWISE Admin");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        title.setTextFill(Color.web("#1F2937"));
+        
+        logoRow.getChildren().add(title);
+        brandBox.getChildren().add(logoRow);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        // Date info
+        VBox infoBox = new VBox(5);
+        infoBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")));
+        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        dateLabel.setTextFill(Color.web("#6B7280"));
+        
+        HBox adminRow = new HBox(8);
+        adminRow.setAlignment(Pos.CENTER_RIGHT);
+        
+        Label adminIconSmall = new Label("👤");
+        adminIconSmall.setFont(Font.font(12));
+        
+        Label adminLabel = new Label("Administrator");
+        adminLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        adminLabel.setTextFill(Color.web("#1F2937"));
+        
+        Label statusBadge = new Label("Logged In");
+        statusBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        statusBadge.setTextFill(Color.web("#10B981"));
+        statusBadge.setStyle("-fx-background-color: #D1FAE5; -fx-padding: 4 12; -fx-background-radius: 12;");
+        
+        adminRow.getChildren().addAll(adminIconSmall, adminLabel, statusBadge);
+        infoBox.getChildren().addAll(dateLabel, adminRow);
+        
+        header.getChildren().addAll(brandBox, spacer, infoBox);
+        
+        VBox wrapper = new VBox();
+        wrapper.getChildren().add(header);
+        return wrapper;
     }
 
     private TabPane createTabPane() {
         TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabPane.setStyle("-fx-background-color: #FFFFFF; -fx-tab-min-height: 50px; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
 
-        Tab dashboardTab = new Tab("📊 Dashboard", createDashboardTab());
-        dashboardTab.setClosable(false);
+        Tab dashboardTab = new Tab("   📊 Dashboard   ", createDashboardTab());
+        dashboardTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
-        Tab productsTab = new Tab("Product Management", createProductsTab());
-        productsTab.setClosable(false);
+        Tab productsTab = new Tab("   📦 Products   ", createProductsTab());
+        productsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
-        Tab inventoryTab = new Tab("Inventory Management", createInventoryTab());
-        inventoryTab.setClosable(false);
+        Tab inventoryTab = new Tab("   📋 Inventory   ", createInventoryTab());
+        inventoryTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
-        Tab refillTab = new Tab("Refill Status", createRefillTab());
-        refillTab.setClosable(false);
+        Tab refillTab = new Tab("   ⚠️ Refill Status   ", createRefillTab());
+        refillTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
-        Tab categoriesTab = new Tab("Categories", createCategoriesTab());
-        categoriesTab.setClosable(false);
+        Tab categoriesTab = new Tab("   🏷️ Categories   ", createCategoriesTab());
+        categoriesTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
-        Tab salesTab = new Tab("Sales Reports", createSalesTab());
-        salesTab.setClosable(false);
+        Tab salesTab = new Tab("   📈 Sales Reports   ", createSalesTab());
+        salesTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
-        Tab accountsTab = new Tab("Accounts", createAccountsTab());
-        accountsTab.setClosable(false);
+        Tab accountsTab = new Tab("   👥 Accounts   ", createAccountsTab());
+        accountsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
 
         tabPane.getTabs().addAll(dashboardTab, productsTab, inventoryTab, refillTab, categoriesTab, salesTab, accountsTab);
         return tabPane;
@@ -959,16 +1052,16 @@ public class AdminApp extends Application {
         controls.setAlignment(Pos.CENTER_LEFT);
         controls.setPickOnBounds(true);
 
-        Button editButton = new Button("Edit Product");
-        editButton.setStyle("-fx-background-color: #0277BD; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button editButton = new Button("✏️ Edit Product");
+        stylePrimaryButton(editButton);
         editButton.setOnAction(e -> editProduct());
 
-        Button removeButton = new Button("Remove Product");
-        removeButton.setStyle("-fx-background-color: #D32F2F; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button removeButton = new Button("🗑️ Remove Product");
+        styleDangerButton(removeButton);
         removeButton.setOnAction(e -> removeProduct());
 
-        Button addButton = new Button("Add New Product");
-        addButton.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button addButton = new Button("➕ Add New Product");
+        styleSuccessButton(addButton);
         addButton.setDisable(false);
         addButton.setFocusTraversable(true);
         addButton.setMouseTransparent(false);
@@ -979,8 +1072,8 @@ public class AdminApp extends Application {
             addNewProduct();
         });
 
-        Button refreshButton = new Button("Refresh");
-        refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button refreshButton = new Button("🔄 Refresh");
+        styleSecondaryButton(refreshButton);
         refreshButton.setDisable(false);
         refreshButton.setFocusTraversable(true);
         refreshButton.setMouseTransparent(false);
@@ -1025,16 +1118,16 @@ public class AdminApp extends Application {
         HBox controls = new HBox(15);
         controls.setAlignment(Pos.CENTER_LEFT);
 
-        Button refillIngredientButton = new Button("Refill Ingredient");
-        refillIngredientButton.setStyle("-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button refillIngredientButton = new Button("🔄 Refill Ingredient");
+        stylePrimaryButton(refillIngredientButton);
         refillIngredientButton.setOnAction(e -> refillIngredient());
 
-        Button addIngredientButton = new Button("Add Ingredient");
-        addIngredientButton.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button addIngredientButton = new Button("➕ Add Ingredient");
+        styleSuccessButton(addIngredientButton);
         addIngredientButton.setOnAction(e -> addIngredient());
 
-        Button refreshButton = new Button("Refresh");
-        refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        Button refreshButton = new Button("🔄 Refresh");
+        styleSecondaryButton(refreshButton);
         refreshButton.setOnAction(e -> refreshData());
 
         controls.getChildren().addAll(refillIngredientButton, addIngredientButton, refreshButton);
@@ -1544,9 +1637,10 @@ public class AdminApp extends Application {
         Label idValueLabel = new Label(product.getId());
         idValueLabel.setStyle("-fx-font-weight: bold;");
 
-        // Name (read-only)
+        // Name (editable)
         Label nameLabel = new Label("Name:");
-        Label nameValueLabel = new Label(product.getName());
+        TextField nameField = new TextField(product.getName());
+        nameField.setPromptText("Enter product name");
 
         // Price (editable)
         TextField priceField = new TextField(String.valueOf(product.getPrice()));
@@ -1556,7 +1650,7 @@ public class AdminApp extends Application {
         grid.add(idLabel, 0, 0);
         grid.add(idValueLabel, 1, 0);
         grid.add(nameLabel, 0, 1);
-        grid.add(nameValueLabel, 1, 1);
+        grid.add(nameField, 1, 1);
         grid.add(new Label("Price:"), 0, 2);
         grid.add(priceField, 1, 2);
 
@@ -1762,6 +1856,14 @@ public class AdminApp extends Application {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == updateButtonType) {
                 try {
+                    // Update name
+                    String newName = nameField.getText().trim();
+                    if (newName.isEmpty()) {
+                        showAlert("Error", "Product name cannot be empty.", Alert.AlertType.ERROR);
+                        return null;
+                    }
+                    product.setName(newName);
+                    
                     double newPrice = Double.parseDouble(priceField.getText());
                     // Update price
                     product.setPrice(newPrice);

@@ -60,38 +60,23 @@
   },
   {
     "id": "P008",
-    "name": "Strawberry Tea",
+    "name": "Strawberry",
     "price": 4.0,
     "stock": 20,
     "recipe": {
-      "Water": 100.0,
-      "Strawberry Puree": 30.0,
       "Tea Leaves": 5.0
     },
     "category": "Fruit Tea"
   },
   {
     "id": "P009",
-    "name": "Mango Tea",
+    "name": "Mango",
     "price": 4.0,
     "stock": 20,
     "recipe": {
-      "Water": 100.0,
-      "Mango Puree": 30.0,
       "Tea Leaves": 5.0
     },
     "category": "Fruit Tea"
-  },
-  {
-    "id": "P011",
-    "name": "Blueberry Muffin",
-    "price": 50.0,
-    "stock": 21,
-    "recipe": {
-      "Muffin Mix": 150.0,
-      "Blueberries": 50.0
-    },
-    "category": "Pastries"
   },
   {
     "id": "P012",
@@ -106,10 +91,7 @@
     "name": "Crossants",
     "price": 100.0,
     "stock": 20,
-    "recipe": {
-      "Chocolate Syrup": 100.0,
-      "Milk": 100.0
-    },
+    "recipe": {},
     "category": "Pastries"
   },
   {

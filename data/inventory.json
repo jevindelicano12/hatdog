@@ -9,8 +9,18 @@
     "quantity": 500.0,
     "unit": "g"
   },
+  "Tea Leaves": {
+    "name": "Tea Leaves",
+    "quantity": 1000.0,
+    "unit": "g"
+  },
   "Mango Puree": {
     "name": "Mango Puree",
+    "quantity": 2000.0,
+    "unit": "ml"
+  },
+  "Vanilla Syrup": {
+    "name": "Vanilla Syrup",
     "quantity": 2000.0,
     "unit": "ml"
   },
@@ -24,44 +34,24 @@
     "quantity": 2000.0,
     "unit": "ml"
   },
-  "Ice": {
-    "name": "Ice",
-    "quantity": 5000.0,
-    "unit": "g"
-  },
-  "Croissant Dough": {
-    "name": "Croissant Dough",
-    "quantity": 5000.0,
-    "unit": "g"
-  },
-  "Muffin Mix": {
-    "name": "Muffin Mix",
-    "quantity": 4400.0,
-    "unit": "g"
-  },
-  "Tea Leaves": {
-    "name": "Tea Leaves",
-    "quantity": 1000.0,
-    "unit": "g"
-  },
-  "Vanilla Syrup": {
-    "name": "Vanilla Syrup",
-    "quantity": 2000.0,
-    "unit": "ml"
-  },
   "Strawberry Puree": {
     "name": "Strawberry Puree",
     "quantity": 2000.0,
     "unit": "ml"
+  },
+  "Ice": {
+    "name": "Ice",
+    "quantity": 5000.0,
+    "unit": "g"
   },
   "Chocolate Syrup": {
     "name": "Chocolate Syrup",
     "quantity": 2000.0,
     "unit": "ml"
   },
-  "Blueberries": {
-    "name": "Blueberries",
-    "quantity": 1800.0,
+  "Croissant Dough": {
+    "name": "Croissant Dough",
+    "quantity": 5000.0,
     "unit": "g"
   },
   "Milk": {
