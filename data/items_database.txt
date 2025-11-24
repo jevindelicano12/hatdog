@@ -7,3 +7,12 @@ Matcha Latte|5.0|Hot|Regular|50
 Latte|4.75|Hot|Regular|50
 Latte|4.75|Hot|Regular|50
 Espresso|3.5|Hot|Regular|50
+Espresso|40.0|Hot|Regular|50
+Cappuccino|40.0|Hot|Regular|50
+Cappuccino|60.0|Hot|Regular|50
+Espresso|50.0|Hot|Regular|50
+Cappuccino|60.0|Hot|Regular|50
+Cappuccino|60.0|Hot|Regular|50
+Blueberry Muffin|50.0|Hot|Regular|50
+Cappuccino|60.0|Hot|Regular|50
+Blueberry Muffin|50.0|Hot|Regular|50

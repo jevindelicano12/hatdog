@@ -2,13 +2,13 @@
   {
     "id": "C001",
     "username": "cashier1",
-    "password": "cashier1",
-    "active": false
+    "password": "123456",
+    "active": true
   },
   {
     "id": "C002",
     "username": "cashier2",
     "password": "cashier2",
-    "active": false
+    "active": true
   }
 ]

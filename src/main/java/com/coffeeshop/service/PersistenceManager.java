@@ -105,7 +105,9 @@ public class PersistenceManager {
         try (Reader reader = new FileReader(INVENTORY_FILE)) {
             Type mapType = new TypeToken<HashMap<String, InventoryItem>>(){}.getType();
             Map<String, InventoryItem> inventory = gson.fromJson(reader, mapType);
-            return inventory != null ? inventory : initializeDefaultInventory();
+            // If the file exists but contains an empty object, treat it as uninitialized and create defaults
+            if (inventory == null || inventory.isEmpty()) return initializeDefaultInventory();
+            return inventory;
         } catch (IOException e) {
             System.err.println("Error loading inventory: " + e.getMessage());
             return initializeDefaultInventory();

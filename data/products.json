@@ -1,31 +1,8 @@
 [
   {
-    "id": "P001",
-    "name": "Espresso",
-    "price": 3.5,
-    "stock": 10,
-    "recipe": {
-      "Water": 30.0,
-      "Coffee Beans": 18.0
-    },
-    "category": "Coffee"
-  },
-  {
-    "id": "P002",
-    "name": "Cappuccino",
-    "price": 4.5,
-    "stock": 15,
-    "recipe": {
-      "Water": 30.0,
-      "Coffee Beans": 18.0,
-      "Milk": 120.0
-    },
-    "category": "Coffee"
-  },
-  {
     "id": "P003",
     "name": "Latte",
-    "price": 4.75,
+    "price": 50.0,
     "stock": 9,
     "recipe": {
       "Water": 30.0,
@@ -106,20 +83,10 @@
     "category": "Fruit Tea"
   },
   {
-    "id": "P010",
-    "name": "Croissant",
-    "price": 3.5,
-    "stock": 25,
-    "recipe": {
-      "Croissant Dough": 100.0
-    },
-    "category": "Pastries"
-  },
-  {
     "id": "P011",
     "name": "Blueberry Muffin",
     "price": 50.0,
-    "stock": 25,
+    "stock": 22,
     "recipe": {
       "Muffin Mix": 150.0,
       "Blueberries": 50.0
@@ -135,35 +102,36 @@
     "category": "Milk Tea"
   },
   {
-    "id": "P013",
-    "name": "gleni",
-    "price": 10000.0,
-    "stock": 20,
-    "recipe": {},
-    "category": "Milk Tea"
-  },
-  {
-    "id": "P014",
-    "name": "daigods",
-    "price": 1.0,
-    "stock": 20,
-    "recipe": {},
-    "category": "Milk Tea"
-  },
-  {
-    "id": "P015",
-    "name": "ID",
-    "price": 1.0,
-    "stock": 18,
-    "recipe": {},
-    "category": "Milk Tea"
-  },
-  {
-    "id": "P016",
-    "name": "hadog",
+    "id": "P017",
+    "name": "Crossants",
     "price": 100.0,
     "stock": 20,
-    "recipe": {},
-    "category": "Frappe"
+    "recipe": {
+      "Chocolate Syrup": 100.0,
+      "Milk": 100.0
+    },
+    "category": "Pastries"
+  },
+  {
+    "id": "P018",
+    "name": "Espresso",
+    "price": 50.0,
+    "stock": 19,
+    "recipe": {
+      "Water": 10.0,
+      "Coffee Beans": 5.0
+    },
+    "category": "Coffee"
+  },
+  {
+    "id": "P019",
+    "name": "Cappuccino",
+    "price": 60.0,
+    "stock": 14,
+    "recipe": {
+      "Water": 10.0,
+      "Coffee Beans": 1.0
+    },
+    "category": "Coffee"
   }
 ]

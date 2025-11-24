@@ -4,17 +4,21 @@ import com.coffeeshop.model.*;
 import com.coffeeshop.service.Store;
 import com.coffeeshop.service.TextDatabase;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import java.io.File;
 
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
@@ -60,13 +64,16 @@ public class CashierApp extends Application {
         this.primaryStageRef = primaryStage;
         // Require login before initializing the UI
         currentCashierId = null;
-        boolean ok = showLoginDialog(primaryStage);
+        boolean ok = showLoginDialog(null);
+        System.out.println("DEBUG: Login result: ok=" + ok + ", currentCashierId=" + currentCashierId);
         if (!ok) {
             // user cancelled or failed to login; exit
+            System.out.println("DEBUG: Login failed, exiting");
             javafx.application.Platform.exit();
             return;
         }
 
+        System.out.println("DEBUG: Setting up main UI...");
         store = Store.getInstance();
         loadReceiptHistory();
         loadPendingOrdersFromFile();
@@ -76,6 +83,8 @@ public class CashierApp extends Application {
         rootPane = new BorderPane();
         rootPane.setPadding(new Insets(20));
         rootPane.setStyle("-fx-background-color: #F4F1EA;"); // Modern Cream Background
+        // Add CSS class so external stylesheet can style the app background
+        rootPane.getStyleClass().add("cashier-root");
 
         // Header
         VBox header = createHeader();
@@ -103,10 +112,21 @@ public class CashierApp extends Application {
         rootPane.setCenter(tabPane);
 
         Scene scene = new Scene(rootPane, 1400, 800);
+        // Load our custom cashier background stylesheet if available
+        try {
+            java.net.URL cssUrl = getClass().getResource("/styles/cashier-background.css");
+            if (cssUrl != null) scene.getStylesheets().add(cssUrl.toExternalForm());
+        } catch (Exception ignored) {}
         // Add global stylesheet for TabPane if needed, or inline styles
         // For now, we rely on inline styles for components
         
-        setScenePreserveWindowSize(primaryStage, scene);
+        primaryStage.setScene(scene);
+        primaryStage.setMaximized(true);
+        primaryStage.show();
+        System.out.println("DEBUG: Main window shown");
+        
+        // Apply bundled Atlantafx fallback stylesheet (no external dependency required)
+        applyAtlantafx(scene);
 
         // Start background scheduler to refresh data for near real-time sync
         startBackgroundSync();
@@ -150,7 +170,7 @@ public class CashierApp extends Application {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(0, 0, 20, 0));
 
-        Label title = new Label("Cashier Terminal");
+        Label title = new Label("💰 Cashier Terminal");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         title.setTextFill(Color.web("#3E2723"));
 
@@ -173,47 +193,111 @@ public class CashierApp extends Application {
      */
     private boolean showLoginDialog(Stage owner) {
         final Stage dialog = new Stage();
-        dialog.initOwner(owner);
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
         dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
         dialog.setTitle("Cashier Login");
 
         GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20));
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(40));
+        grid.setAlignment(Pos.CENTER);
+        grid.setStyle("-fx-background-color: #F4F1EA;");
 
+        // Logo Section
+        ImageView logo = null;
+        try {
+            File logoFile = new File("data/images/LOGO3.png");
+            if (logoFile.exists()) {
+                Image logoImage = new Image(logoFile.toURI().toString());
+                logo = new ImageView(logoImage);
+                logo.setFitWidth(150);
+                logo.setFitHeight(150);
+                logo.setPreserveRatio(true);
+                // Make logo circular
+                javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(150, 150);
+                clip.setArcWidth(150);
+                clip.setArcHeight(150);
+                logo.setClip(clip);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + e.getMessage());
+        }
+
+        // Title Section with better icon
+        Label titleLabel = new Label("💳 Cashier Login");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 26));
+        titleLabel.setTextFill(Color.web("#3E2723"));
+        titleLabel.setStyle("-fx-font-weight: bold;");
+        
+        Label subtitleLabel = new Label("Please sign in to continue");
+        subtitleLabel.setFont(Font.font("Segoe UI", 14));
+        subtitleLabel.setTextFill(Color.web("#795548"));
+        
         Label userLbl = new Label("Username:");
+        userLbl.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        userLbl.setTextFill(Color.web("#3E2723"));
+        
         TextField userField = new TextField();
-        userField.setPromptText("cashier1 or cashier2");
+        userField.setPromptText("username");
+        userField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        userField.setPrefWidth(300);
 
         Label passLbl = new Label("Password:");
+        passLbl.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        passLbl.setTextFill(Color.web("#3E2723"));
+        
         PasswordField passField = new PasswordField();
         passField.setPromptText("password");
+        passField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        passField.setPrefWidth(300);
 
         // Visible text field used when "Show Password" is toggled
         TextField passVisible = new TextField();
         passVisible.setPromptText("password");
+        passVisible.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        passVisible.setPrefWidth(300);
         passVisible.setManaged(false);
         passVisible.setVisible(false);
 
         CheckBox showPass = new CheckBox("Show Password");
+        showPass.setFont(Font.font("Segoe UI", 12));
+        showPass.setTextFill(Color.web("#5D4037"));
 
         Label msg = new Label();
         msg.setTextFill(javafx.scene.paint.Color.web("#D32F2F"));
+        msg.setFont(Font.font("Segoe UI", 12));
 
         Button loginBtn = new Button("Login");
+        loginBtn.setStyle("-fx-background-color: #6F4E37; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        loginBtn.setPrefWidth(140);
+        
         Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #5D4037; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        cancelBtn.setPrefWidth(140);
 
-        HBox actions = new HBox(8, loginBtn, cancelBtn);
+        HBox actions = new HBox(10, loginBtn, cancelBtn);
+        actions.setAlignment(Pos.CENTER);
 
-        grid.add(userLbl, 0, 0);
-        grid.add(userField, 1, 0);
-        grid.add(passLbl, 0, 1);
-        grid.add(passField, 1, 1);
-        grid.add(passVisible, 1, 1);
-        grid.add(showPass, 1, 2);
-        grid.add(msg, 0, 3, 2, 1);
-        grid.add(actions, 1, 4);
+        int row = 0;
+        if (logo != null) {
+            VBox logoBox = new VBox(logo);
+            logoBox.setAlignment(Pos.CENTER);
+            grid.add(logoBox, 0, row++, 2, 1);
+        }
+        grid.add(titleLabel, 0, row++, 2, 1);
+        grid.add(subtitleLabel, 0, row++, 2, 1);
+        grid.add(new Separator(), 0, row++, 2, 1);
+        grid.add(userLbl, 0, 3);
+        grid.add(userField, 0, 4, 2, 1);
+        grid.add(passLbl, 0, 5);
+        grid.add(passField, 0, 6, 2, 1);
+        grid.add(passVisible, 0, 6, 2, 1);
+        grid.add(showPass, 0, 7, 2, 1);
+        grid.add(msg, 0, 8, 2, 1);
+        grid.add(actions, 0, 9, 2, 1);
 
         // Quick login when Enter pressed in password (or visible password field)
         passField.setOnAction(e -> loginBtn.fire());
@@ -239,14 +323,19 @@ public class CashierApp extends Application {
         loginBtn.setOnAction(e -> {
             String user = userField.getText() == null ? "" : userField.getText().trim();
             String pass = showPass.isSelected() ? passVisible.getText() : passField.getText();
+            pass = pass == null ? "" : pass;
             try {
                 java.util.List<com.coffeeshop.model.CashierAccount> accounts = com.coffeeshop.service.PersistenceManager.loadAccounts();
                 com.coffeeshop.model.CashierAccount match = null;
                 for (com.coffeeshop.model.CashierAccount a : accounts) {
-                    if (a.getUsername().equals(user) && a.getPassword().equals(pass)) { match = a; break; }
+                    if (a.getUsername().equals(user) && a.getPassword().equals(pass)) { 
+                        match = a; 
+                        break; 
+                    }
                 }
                 if (match != null && match.isActive()) {
                     currentCashierId = match.getUsername();
+                    System.out.println("DEBUG: Cashier logged in: " + currentCashierId);
                     dialog.close();
                 } else if (match != null && !match.isActive()) {
                     msg.setText("Account deactivated. Contact admin.");
@@ -255,6 +344,7 @@ public class CashierApp extends Application {
                 }
             } catch (Exception ex) {
                 msg.setText("Login error: " + ex.getMessage());
+                ex.printStackTrace();
             }
         });
 
@@ -262,11 +352,27 @@ public class CashierApp extends Application {
             dialog.close();
         });
 
-        Scene scene = new Scene(grid, 360, 180);
+        Scene scene = new Scene(grid, 550, 700);
+        scene.setFill(Color.web("#F4F1EA"));
+        // attach fallback stylesheet to login dialog if available
+        try {
+            java.net.URL u = getClass().getResource("/styles/atlantafx-fallback.css");
+            if (u != null) scene.getStylesheets().add(u.toExternalForm());
+        } catch (Exception ignored) {}
         dialog.setScene(scene);
+        dialog.setResizable(false);
         dialog.showAndWait();
 
         return currentCashierId != null;
+    }
+
+    // Load bundled AtlantisFX fallback stylesheet if present and apply to the scene.
+    private void applyAtlantafx(Scene scene) {
+        if (scene == null) return;
+        try {
+            java.net.URL u = getClass().getResource("/styles/atlantafx-fallback.css");
+            if (u != null) scene.getStylesheets().add(u.toExternalForm());
+        } catch (Exception ignored) {}
     }
 
     // ====================  DATABASE HELPERS ====================
@@ -313,6 +419,9 @@ public class CashierApp extends Application {
         receipt.append("Order ID: ").append(order.getOrderId()).append("\n");
         receipt.append("Customer: ").append(customerName != null ? customerName : "Walk-in").append("\n");
         receipt.append("Order Type: ").append(orderType).append("\n");
+        if (currentCashierId != null && !currentCashierId.isEmpty()) {
+            receipt.append("Cashier: ").append(currentCashierId).append("\n");
+        }
         receipt.append("Date: ").append(java.time.LocalDateTime.now().format(formatter)).append("\n");
         receipt.append("═══════════════════════════════════════\n\n");
         
@@ -485,7 +594,7 @@ public class CashierApp extends Application {
         String status = po.getStatus();
         try {
             if (PendingOrder.STATUS_PENDING.equals(status)) {
-                payAndQueue(po);
+                payAndStartPreparing(po); // Updated: now handles customer name + payment + receipt
             } else if (PendingOrder.STATUS_PAID.equals(status)) {
                 startMaking(po);
             } else if (PendingOrder.STATUS_PREPARING.equals(status)) {
@@ -497,7 +606,7 @@ public class CashierApp extends Application {
         }
     }
 
-    private void payAndQueue(PendingOrder po) {
+    private String payAndQueue(PendingOrder po, String customerName) {
         // Build an Order object from PendingOrder to run checkout logic
         Order order = new Order(po.getOrderId());
         if (po.getOrderTime() != null) order.setOrderTime(po.getOrderTime());
@@ -509,29 +618,19 @@ public class CashierApp extends Application {
             }
         }
 
-        // Confirm customer name
-        String customerName = orderCustomerNames.getOrDefault(po.getOrderId(), null);
-        if (customerName == null) {
-            TextInputDialog nameDialog = new TextInputDialog();
-            nameDialog.setTitle("Customer Name");
-            nameDialog.setHeaderText("Enter Customer Name");
-            nameDialog.setContentText("Name:");
-            customerName = nameDialog.showAndWait().orElse("Guest");
-        }
-
         // Validate stock and process checkout
         if (!store.isStockSufficient(order)) {
             showAlert("Stock Error", "Insufficient stock for some items.", Alert.AlertType.ERROR);
-            return;
+            return "";
         }
         if (!store.isInventorySufficient(order)) {
             showAlert("Ingredient Error", "Insufficient ingredients for some items.", Alert.AlertType.ERROR);
-            return;
+            return "";
         }
 
         store.checkoutBasket(order);
 
-        // Generate and save receipt
+        // Generate and save receipt with cashier name
         String orderType = orderTypes.getOrDefault(po.getOrderId(), "Dine In");
         String receiptContent = generateReceiptWithOrderType(order, customerName, orderType);
         String receiptId = "RCP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -549,6 +648,8 @@ public class CashierApp extends Application {
         // refresh UI
         loadPendingOrdersFromFile();
         showAlert("Payment Successful", "Order paid and added to production queue.", Alert.AlertType.INFORMATION);
+        
+        return receiptContent;
     }
 
     private void startMaking(PendingOrder po) {
@@ -560,10 +661,222 @@ public class CashierApp extends Application {
     // Pay the pending order and immediately mark it as preparing (ready for production)
     private void payAndStartPreparing(PendingOrder po) {
         if (po == null) return;
-        // Process payment (deduct stock, create receipt, mark as PAID)
-        payAndQueue(po);
-        // Then move to preparing state
+        
+        // Step 1: Ask for customer name (optional)
+        String customerName = askForCustomerName(po.getOrderId());
+        
+        // Step 2: Show cash payment dialog
+        boolean paymentSuccess = showCashPaymentDialog(po);
+        if (!paymentSuccess) {
+            return; // User cancelled payment
+        }
+        
+        // Step 3: Process payment (deduct stock, create receipt, mark as PAID)
+        String receiptContent = payAndQueue(po, customerName);
+        // Step 4: Show receipt
+        showReceipt(receiptContent);
+        // Step 5: Move to preparing state
         startMaking(po);
+    }
+    
+    private String askForCustomerName(String orderId) {
+        Dialog<String> nameDialog = new Dialog<>();
+        nameDialog.setTitle("Customer Information");
+        nameDialog.setHeaderText("Enter customer name (optional)");
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+        
+        Label nameLabel = new Label("Customer Name:");
+        nameLabel.setFont(Font.font("Segoe UI", 14));
+        nameLabel.setTextFill(Color.web("#3E2723"));
+        
+        TextField nameField = new TextField();
+        nameField.setPromptText("Enter name or leave empty for 'Guest'");
+        nameField.setPrefWidth(300);
+        nameField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
+        
+        grid.add(nameLabel, 0, 0);
+        grid.add(nameField, 1, 0);
+        
+        nameDialog.getDialogPane().setContent(grid);
+        
+        ButtonType okType = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
+        nameDialog.getDialogPane().getButtonTypes().addAll(okType, ButtonType.CANCEL);
+        
+        nameDialog.setResultConverter(buttonType -> {
+            if (buttonType == okType) {
+                String name = nameField.getText();
+                return (name == null || name.trim().isEmpty()) ? "Guest" : name.trim();
+            }
+            return "Guest";
+        });
+        
+        return nameDialog.showAndWait().orElse("Guest");
+    }
+    
+    private void showReceipt(String receiptContent) {
+        Dialog<Void> receiptDialog = new Dialog<>();
+        receiptDialog.setTitle("Receipt");
+        receiptDialog.setHeaderText(null);
+        
+        TextArea receiptArea = new TextArea();
+        receiptArea.setText(receiptContent);
+        receiptArea.setEditable(false);
+        receiptArea.setWrapText(true);
+        receiptArea.setFont(Font.font("Consolas", 11));
+        receiptArea.setPrefWidth(500);
+        receiptArea.setPrefHeight(400);
+        receiptArea.setStyle("-fx-control-inner-background: #F5F5F5;");
+        
+        receiptDialog.getDialogPane().setContent(receiptArea);
+        receiptDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK);
+        
+        Button okButton = (Button) receiptDialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20;");
+        
+        receiptDialog.showAndWait();
+    }
+    
+    private boolean showCashPaymentDialog(PendingOrder po) {
+        Dialog<Boolean> dialog = new Dialog<>();
+        dialog.setTitle("Cash Payment");
+        dialog.setHeaderText("Process Payment for Order: " + po.getOrderId());
+        
+        // Dialog content
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+        grid.setStyle("-fx-background-color: white;");
+        
+        // Total amount label
+        Label totalLabel = new Label("Total Amount:");
+        totalLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        totalLabel.setTextFill(Color.web("#3E2723"));
+        
+        Label totalValue = new Label("₱" + String.format("%.2f", po.getTotalAmount()));
+        totalValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        totalValue.setTextFill(Color.web("#D32F2F"));
+        
+        // Cash received field
+        Label cashLabel = new Label("Cash Received:");
+        cashLabel.setFont(Font.font("Segoe UI", 14));
+        cashLabel.setTextFill(Color.web("#3E2723"));
+        
+        TextField cashField = new TextField();
+        cashField.setPromptText("Enter cash amount");
+        cashField.setPrefWidth(200);
+        cashField.setStyle("-fx-font-size: 16px; -fx-padding: 8;");
+        
+        // Change label
+        Label changeLabel = new Label("Change:");
+        changeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        changeLabel.setTextFill(Color.web("#3E2723"));
+        
+        Label changeValue = new Label("₱0.00");
+        changeValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        changeValue.setTextFill(Color.web("#4CAF50"));
+        
+        // Error message label
+        Label errorLabel = new Label("");
+        errorLabel.setFont(Font.font("Segoe UI", 12));
+        errorLabel.setTextFill(Color.web("#D32F2F"));
+        errorLabel.setVisible(false);
+        
+        // Calculate change when cash amount changes
+        cashField.textProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                if (newVal == null || newVal.trim().isEmpty()) {
+                    changeValue.setText("₱0.00");
+                    errorLabel.setVisible(false);
+                    return;
+                }
+                
+                double cashReceived = Double.parseDouble(newVal.trim());
+                double total = po.getTotalAmount();
+                double change = cashReceived - total;
+                
+                if (change < 0) {
+                    changeValue.setText("₱0.00");
+                    changeValue.setTextFill(Color.web("#D32F2F"));
+                    errorLabel.setText("Insufficient cash amount!");
+                    errorLabel.setVisible(true);
+                } else {
+                    changeValue.setText("₱" + String.format("%.2f", change));
+                    changeValue.setTextFill(Color.web("#4CAF50"));
+                    errorLabel.setVisible(false);
+                }
+            } catch (NumberFormatException e) {
+                changeValue.setText("₱0.00");
+                errorLabel.setText("Invalid amount!");
+                errorLabel.setVisible(true);
+            }
+        });
+        
+        // Add components to grid
+        grid.add(totalLabel, 0, 0);
+        grid.add(totalValue, 1, 0);
+        grid.add(new Separator(), 0, 1, 2, 1);
+        grid.add(cashLabel, 0, 2);
+        grid.add(cashField, 1, 2);
+        grid.add(changeLabel, 0, 3);
+        grid.add(changeValue, 1, 3);
+        grid.add(errorLabel, 0, 4, 2, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        // Add buttons
+        ButtonType confirmButtonType = new ButtonType("Confirm Payment", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(confirmButtonType, cancelButtonType);
+        
+        // Style the buttons
+        Button confirmButton = (Button) dialog.getDialogPane().lookupButton(confirmButtonType);
+        confirmButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20;");
+        
+        Button cancelButton = (Button) dialog.getDialogPane().lookupButton(cancelButtonType);
+        cancelButton.setStyle("-fx-background-color: #757575; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20;");
+        
+        // Disable confirm button initially
+        confirmButton.setDisable(true);
+        
+        // Enable confirm button only when cash is sufficient
+        cashField.textProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                if (newVal == null || newVal.trim().isEmpty()) {
+                    confirmButton.setDisable(true);
+                    return;
+                }
+                double cashReceived = Double.parseDouble(newVal.trim());
+                confirmButton.setDisable(cashReceived < po.getTotalAmount());
+            } catch (NumberFormatException e) {
+                confirmButton.setDisable(true);
+            }
+        });
+        
+        // Focus on cash field
+        Platform.runLater(() -> cashField.requestFocus());
+        
+        // Result converter
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == confirmButtonType) {
+                try {
+                    double cashReceived = Double.parseDouble(cashField.getText().trim());
+                    if (cashReceived >= po.getTotalAmount()) {
+                        return true;
+                    }
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+            }
+            return false;
+        });
+        
+        // Show dialog and return result
+        return dialog.showAndWait().orElse(false);
     }
 
     private void markReady(PendingOrder po) {
@@ -588,6 +901,7 @@ public class CashierApp extends Application {
         dashboardPanel = new VBox(20);
         dashboardPanel.setPadding(new Insets(30));
         dashboardPanel.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
+        dashboardPanel.getStyleClass().add("panel-card");
 
         Label title = new Label("Sales Dashboard");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
@@ -641,6 +955,8 @@ public class CashierApp extends Application {
     private javafx.scene.control.ScrollPane createOrderQueuePanel() {
         VBox panel = new VBox(20);
         panel.setPadding(new Insets(30));
+        panel.getStyleClass().add("panel-card");
+        panel.getStyleClass().add("panel-card");
         
         Label title = new Label("Order Queue");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
@@ -742,6 +1058,7 @@ public class CashierApp extends Application {
             private final Button removeBtn = new Button("✕");
             {
                 actionBtn.setStyle("-fx-font-weight: bold; -fx-cursor: hand;");
+                actionBtn.getStyleClass().add("cashier-accent");
                 removeBtn.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-font-weight: bold;");
                 actionBtn.setOnAction(e -> {
                     PendingOrder p = getTableView().getItems().get(getIndex());
@@ -780,6 +1097,7 @@ public class CashierApp extends Application {
             private final Button completeBtn = new Button("Complete");
             {
                 completeBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
+                completeBtn.getStyleClass().add("cashier-accent");
                 completeBtn.setOnAction(e -> {
                     PendingOrder p = getTableView().getItems().get(getIndex());
                     completePickup(p);
@@ -851,6 +1169,7 @@ public class CashierApp extends Application {
         VBox detailsPanel = new VBox(12);
         detailsPanel.setPadding(new Insets(22));
         detailsPanel.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
+        detailsPanel.getStyleClass().add("panel-card");
         detailsPanel.setPrefHeight(380);
         detailsPanel.setMinHeight(300);
 

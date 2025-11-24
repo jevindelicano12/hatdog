@@ -7,3 +7,12 @@ ba3e7e15|Guest|2025-11-23 19:36:33|Matcha Latte|Regular|Hot
 c269af09|Guest|2025-11-23 19:44:08|Latte|Regular|Hot
 dd658efe|Guest|2025-11-23 20:04:10|Latte|Regular|Hot
 f0ddb6eb|Guest|2025-11-23 20:08:31|Espresso|Regular|Hot
+f0cf4490|Guest|2025-11-24 02:45:58|Espresso|Regular|Hot
+f0cf4490|Guest|2025-11-24 02:45:58|Cappuccino|Regular|Hot
+3c4174cf|Guest|2025-11-24 12:45:04|Cappuccino|Regular|Hot
+42987da8|Guest|2025-11-24 12:45:08|Espresso|Regular|Hot
+57cb6afc|Guest|2025-11-24 12:46:54|Cappuccino|Regular|Hot
+1c889ce2|Guest|2025-11-24 12:57:09|Cappuccino|Regular|Hot
+3c15d685|Guest|2025-11-24 12:59:29|Blueberry Muffin|Regular|Hot
+e6abbf0d|Guest|2025-11-24 14:08:26|Cappuccino|Regular|Hot
+f566fe57|Guest|2025-11-24 14:15:59|Blueberry Muffin|Regular|Hot

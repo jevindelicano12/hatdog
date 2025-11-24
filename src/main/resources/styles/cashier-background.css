@@ -1,0 +1,26 @@
+/* Colorful complementary background for CashierApp
+   Uses a diagonal gradient with complementary accent for controls.
+*/
+.root.cashier-root {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #5B8DEF 0%, #8AE2B8 50%, #FFCF66 100%);
+}
+
+/* Slight card style for internal panels */
+.panel-card {
+    -fx-background-color: rgba(255,255,255,0.85);
+    -fx-background-radius: 12;
+    -fx-padding: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 12, 0, 0, 3);
+}
+
+/* Accent button style for cashier actions */
+.button.cashier-accent {
+    -fx-background-color: linear-gradient(#FF8A65, #FF7043);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+/* Make tables slightly transparent to blend with background */
+.table-view {
+    -fx-background-color: rgba(255,255,255,0.9);
+}

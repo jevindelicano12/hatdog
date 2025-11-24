@@ -78,6 +78,17 @@ public class CustomerApp extends Application {
                     try { refreshCategoriesSidebar(); } catch (Exception ignored) {}
                 });
             });
+            // Listen for product changes so customer UI updates in real-time when Admin edits products
+            // Clear image caches/index so newly-copied images are discovered when Admin updates product images
+            Store.getInstance().addProductChangeListener(() -> {
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        try { imageCache.clear(); } catch (Exception ignored) {}
+                        imageFileIndex = null; // force rebuild of index on next image load
+                        refreshProductGrid();
+                    } catch (Exception ignored) {}
+                });
+            });
         } catch (Exception ignored) {}
         
         primaryStage.setTitle("Brewise Coffee Shop - Kiosk");
@@ -909,11 +920,13 @@ public class CustomerApp extends Application {
         categoryContainerSidebar = new VBox(2);
         categoryContainerSidebar.setPadding(new Insets(0));
         
-        // Load categories dynamically from Store
-        java.util.List<String> storeCategories = store.getCategories();
+        // Use canonical category list (in desired order)
+        java.util.List<String> defaultCats = java.util.Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
+        // Ensure defaults exist in store
+        for (String c : defaultCats) { try { if (!store.getCategories().contains(c)) store.addCategory(c); } catch (Exception ignored) {} }
         java.util.List<String> categories = new java.util.ArrayList<>();
-        categories.add("All"); // Always add "All" first
-        categories.addAll(storeCategories); // Add store categories
+        categories.add("All");
+        categories.addAll(defaultCats);
         
         // Icon mapping for categories
         java.util.Map<String, String> categoryIcons = new java.util.HashMap<>();
@@ -972,10 +985,11 @@ public class CustomerApp extends Application {
             if (categoryContainerSidebar == null) return; // nothing to refresh yet
             categoryContainerSidebar.getChildren().clear();
 
-            java.util.List<String> storeCategories = store.getCategories();
+            java.util.List<String> defaultCats = java.util.Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
+            for (String c : defaultCats) { try { if (!store.getCategories().contains(c)) store.addCategory(c); } catch (Exception ignored) {} }
             java.util.List<String> categories = new java.util.ArrayList<>();
             categories.add("All");
-            categories.addAll(storeCategories);
+            categories.addAll(defaultCats);
 
             java.util.Map<String, String> categoryIcons = new java.util.HashMap<>();
             categoryIcons.put("All", "⭐");
@@ -1009,14 +1023,24 @@ public class CustomerApp extends Application {
                         for (WatchEvent<?> ev : key.pollEvents()) {
                             WatchEvent.Kind<?> kind = ev.kind();
                             Path changed = (Path) ev.context();
-                            if (changed != null && "categories.json".equals(changed.toString())) {
+                            if (changed != null) {
+                                String name = changed.toString();
                                 // small debounce to wait for file write to complete
                                 try { Thread.sleep(150); } catch (InterruptedException ignored) {}
-                                try {
-                                    Store.getInstance().reloadCategoriesFromDisk();
-                                } catch (Exception ex) {
-                                    System.err.println("Failed to reload categories: " + ex.getMessage());
+                                if ("categories.json".equals(name)) {
+                                    try {
+                                        Store.getInstance().reloadCategoriesFromDisk();
+                                    } catch (Exception ex) {
+                                        System.err.println("Failed to reload categories: " + ex.getMessage());
+                                    }
+                                } else if ("products.json".equals(name)) {
+                                    try {
+                                        Store.getInstance().reloadProductsFromDisk();
+                                    } catch (Exception ex) {
+                                        System.err.println("Failed to reload products: " + ex.getMessage());
+                                    }
                                 }
+                                continue;
                             }
                         }
                         key.reset();
@@ -1160,14 +1184,27 @@ public class CustomerApp extends Application {
     
     private java.util.List<Product> getFilteredProducts() {
         java.util.List<Product> allProducts = store.getProducts();
+        // If the user selected the special "All" category, return every product (no 5-item limit)
+        if (selectedCategory != null && selectedCategory.equalsIgnoreCase("All")) {
+            java.util.List<Product> copy = new java.util.ArrayList<>(allProducts);
+            try {
+                copy.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            } catch (Exception ignored) {}
+            return copy;
+        }
+
         java.util.List<Product> filtered = new java.util.ArrayList<>();
-        
         for (Product product : allProducts) {
             if (productMatchesCategory(product, selectedCategory)) {
                 filtered.add(product);
             }
         }
-        
+
+        // Ensure deterministic order
+        try {
+            filtered.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        } catch (Exception ignored) {}
+
         return filtered;
     }
     
@@ -1455,12 +1492,13 @@ public class CustomerApp extends Application {
         customSection.getStyleClass().add("card");
         customSection.setPadding(new Insets(18));
         
-        // Temperature selection (only for Coffee category)
+        // Temperature selection (only for Coffee category, excluding Espresso)
         VBox tempSection = null;
         RadioButton hotBtn = null;
         RadioButton coldBtn = null;
         final ToggleGroup tempGroup = new ToggleGroup();
-        if (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee")) {
+        boolean isEspresso = product.getName() != null && product.getName().equalsIgnoreCase("Espresso");
+        if (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee") && !isEspresso) {
             tempSection = new VBox(8);
             Label tempTitle = new Label("Temperature");
             tempTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
@@ -1541,10 +1579,15 @@ public class CustomerApp extends Application {
         extraRow.setAlignment(Pos.CENTER_LEFT);
         Label extraQtyLabel = new Label(String.valueOf(extraShotQty[0]));
         extraQtyLabel.getStyleClass().add("qty-label");
-        Button extraMinus = new Button("−");
+        Button extraMinus = new Button("-");
         extraMinus.getStyleClass().add("qty-button");
         extraMinus.setOnAction(ev -> { if (extraShotQty[0] > 1) { extraShotQty[0]--; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); } });
-        Button extraPlus = new Button("+");
+        Button extraPlus = new Button();
+        Label extraPlusLbl = new Label("+");
+        extraPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        extraPlus.setGraphic(extraPlusLbl);
+        extraPlus.setText(null);
+        extraPlus.setMnemonicParsing(false);
         extraPlus.getStyleClass().add("qty-button");
         extraPlus.setOnAction(ev -> { extraShotQty[0]++; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); });
         extraRow.getChildren().addAll(extraShotCheck, extraMinus, extraQtyLabel, extraPlus);
@@ -1553,9 +1596,14 @@ public class CustomerApp extends Application {
         final int[] whippedQty = {1};
         HBox whipRow = new HBox(8);
         whipRow.setAlignment(Pos.CENTER_LEFT);
-        Button whipMinus = new Button("−");
+        Button whipMinus = new Button("-");
         whipMinus.getStyleClass().add("qty-button");
-        Button whipPlus = new Button("+");
+        Button whipPlus = new Button();
+        Label whipPlusLbl = new Label("+");
+        whipPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        whipPlus.setGraphic(whipPlusLbl);
+        whipPlus.setText(null);
+        whipPlus.setMnemonicParsing(false);
         whipPlus.getStyleClass().add("qty-button");
         Label whipQtyLabel = new Label(String.valueOf(whippedQty[0]));
         whipQtyLabel.getStyleClass().add("qty-label");
@@ -1567,11 +1615,16 @@ public class CustomerApp extends Application {
         final int[] vanillaQty = {1};
         HBox vanillaRow = new HBox(8);
         vanillaRow.setAlignment(Pos.CENTER_LEFT);
-        Button vanMinus = new Button("−");
+        Button vanMinus = new Button("-");
         vanMinus.getStyleClass().add("qty-button");
         vanMinus.setOnMouseEntered(e -> vanMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         vanMinus.setOnMouseExited(e -> vanMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Button vanPlus = new Button("+");
+        Button vanPlus = new Button();
+        Label vanPlusLbl = new Label("+");
+        vanPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        vanPlus.setGraphic(vanPlusLbl);
+        vanPlus.setText(null);
+        vanPlus.setMnemonicParsing(false);
         vanPlus.setPrefSize(30, 30);
         vanPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
         vanPlus.setOnMouseEntered(e -> vanPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
@@ -1585,12 +1638,17 @@ public class CustomerApp extends Application {
         final int[] caramelQty = {1};
         HBox caramelRow = new HBox(8);
         caramelRow.setAlignment(Pos.CENTER_LEFT);
-        Button carMinus = new Button("−");
+        Button carMinus = new Button("-");
         carMinus.setPrefSize(30, 30);
         carMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
         carMinus.setOnMouseEntered(e -> carMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         carMinus.setOnMouseExited(e -> carMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Button carPlus = new Button("+");
+        Button carPlus = new Button();
+        Label carPlusLbl = new Label("+");
+        carPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        carPlus.setGraphic(carPlusLbl);
+        carPlus.setText(null);
+        carPlus.setMnemonicParsing(false);
         carPlus.setPrefSize(30, 30);
         carPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
         carPlus.setOnMouseEntered(e -> carPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
@@ -1604,12 +1662,17 @@ public class CustomerApp extends Application {
         final int[] chocolateQty = {1};
         HBox chocRow = new HBox(8);
         chocRow.setAlignment(Pos.CENTER_LEFT);
-        Button chocMinus = new Button("−");
+        Button chocMinus = new Button("-");
         chocMinus.setPrefSize(30, 30);
         chocMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
         chocMinus.setOnMouseEntered(e -> chocMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         chocMinus.setOnMouseExited(e -> chocMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Button chocPlus = new Button("+");
+        Button chocPlus = new Button();
+        Label chocPlusLbl = new Label("+");
+        chocPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        chocPlus.setGraphic(chocPlusLbl);
+        chocPlus.setText(null);
+        chocPlus.setMnemonicParsing(false);
         chocPlus.setPrefSize(30, 30);
         chocPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
         chocPlus.setOnMouseEntered(e -> chocPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
@@ -1646,7 +1709,7 @@ public class CustomerApp extends Application {
         qtyLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
         qtyLabel.setTextFill(Color.web("#1A1A1A"));
         
-        Button minusBtn = new Button("−");
+        Button minusBtn = new Button("-");
         minusBtn.setPrefSize(34, 34);
         minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
         minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
@@ -1658,11 +1721,16 @@ public class CustomerApp extends Application {
         qtyValueLabel.setPrefWidth(36);
         qtyValueLabel.setAlignment(Pos.CENTER);
         
-        Button plusBtn = new Button("+");
+        Button plusBtn = new Button();
+        Label plusBtnLabel = new Label("+");
+        plusBtnLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        plusBtn.setGraphic(plusBtnLabel);
+        plusBtn.setText(null);
+        plusBtn.setMnemonicParsing(false);
         plusBtn.setPrefSize(34, 34);
-        plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
-        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
+        plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
+        plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
         final int[] quantity = {1};
         minusBtn.setOnAction(e -> {
@@ -1971,10 +2039,15 @@ public class CustomerApp extends Application {
             qtyBox.setAlignment(Pos.CENTER);
             // make qty controls transparent (no background)
             qtyBox.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
-            Button minus = new Button("−");
+            Button minus = new Button("-");
             minus.setPrefSize(30, 30);
             minus.setStyle("-fx-cursor: hand; -fx-background-color: transparent;");
-            Button plus = new Button("+");
+            Button plus = new Button();
+            Label plusLbl = new Label("+");
+            plusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+            plus.setGraphic(plusLbl);
+            plus.setText(null);
+            plus.setMnemonicParsing(false);
             plus.setPrefSize(30, 30);
             plus.setStyle("-fx-cursor: hand; -fx-background-color: transparent;");
             final int[] qty = {1};
@@ -2228,7 +2301,7 @@ public class CustomerApp extends Application {
         // Remove background so quantity controls are flush and minimal
         controls.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
 
-        Button minusBtn = new Button("−");
+        Button minusBtn = new Button("-");
         minusBtn.setPrefSize(32, 32);
         minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
         minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
@@ -2240,7 +2313,12 @@ public class CustomerApp extends Application {
         qtyLabel.setPrefWidth(32);
         qtyLabel.setAlignment(Pos.CENTER);
 
-        Button plusBtn = new Button("+");
+        Button plusBtn = new Button();
+        Label plusBtnLbl = new Label("+");
+        plusBtnLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        plusBtn.setGraphic(plusBtnLbl);
+        plusBtn.setText(null);
+        plusBtn.setMnemonicParsing(false);
         plusBtn.setPrefSize(32, 32);
         plusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #757575; -fx-cursor: hand;");
         plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-border-color: transparent; -fx-background-radius: 6; -fx-font-size: 16px; -fx-text-fill: #1A1A1A; -fx-cursor: hand;"));
@@ -2692,12 +2770,16 @@ public class CustomerApp extends Application {
 
             // Lookup by product id in the index
             java.io.File match = imageFileIndex.get(productId);
-            if (match != null && match.exists()) {
+                if (match != null && match.exists()) {
                 try {
                     javafx.scene.image.Image image = new javafx.scene.image.Image(match.toURI().toString(), true);
                     imageCache.put(productId, image);
                     javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView(image);
                     imageView.setPreserveRatio(true);
+                    // Ensure the image view does not consume mouse events so parent card handles clicks
+                    imageView.setMouseTransparent(true);
+                    imageView.setFocusTraversable(false);
+                    imageView.setSmooth(true);
                     return imageView;
                 } catch (Exception ignored) {}
             }

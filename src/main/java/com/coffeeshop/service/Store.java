@@ -13,6 +13,7 @@ public class Store {
     private Map<String, InventoryItem> inventory;
     private java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
     private java.util.List<Runnable> categoryListeners = new java.util.ArrayList<>();
+    private java.util.List<Runnable> productListeners = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.CashierAccount> cashiers = new java.util.ArrayList<>();
     private static Store instance;
 
@@ -56,6 +57,11 @@ public class Store {
                 } catch (Exception ignored) {}
             }
         }
+        // Ensure canonical default categories exist (preserve existing categories)
+        java.util.List<String> defaultCats = java.util.Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
+        for (String c : defaultCats) {
+            if (c != null && !c.trim().isEmpty() && !categories.contains(c)) categories.add(c);
+        }
     }
 
     public void saveData() {
@@ -67,6 +73,20 @@ public class Store {
         // save explicit categories file too
         try {
             PersistenceManager.saveCategories(new java.util.ArrayList<>(categories));
+        } catch (Exception ignored) {}
+        // Notify listeners that products (or categories/inventory) may have changed
+        notifyProductListeners();
+    }
+
+    // Reload products from disk (called by other processes via file-watch)
+    public void reloadProductsFromDisk() {
+        try {
+            java.util.List<Product> persisted = PersistenceManager.loadProducts();
+            if (persisted != null) {
+                products.clear();
+                products.addAll(persisted);
+                notifyProductListeners();
+            }
         } catch (Exception ignored) {}
     }
 
@@ -236,9 +256,24 @@ public class Store {
         }
     }
 
+    private void notifyProductListeners() {
+        for (Runnable r : new java.util.ArrayList<>(productListeners)) {
+            try { r.run(); } catch (Exception ignored) {}
+        }
+    }
+
     public void addCategoryChangeListener(Runnable r) {
         if (r == null) return;
         categoryListeners.add(r);
+    }
+
+    public void addProductChangeListener(Runnable r) {
+        if (r == null) return;
+        productListeners.add(r);
+    }
+
+    public void removeProductChangeListener(Runnable r) {
+        productListeners.remove(r);
     }
 
     public void removeCategoryChangeListener(Runnable r) {

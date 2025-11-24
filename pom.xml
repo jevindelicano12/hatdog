@@ -36,7 +36,11 @@
             <version>2.10.1</version>
         </dependency>
         
+        <!-- AtlantisFX modern JavaFX theme -->
+        
     </dependencies>
+
+        <!-- NOTE: Atlantafx dependency temporarily removed due to unresolved coordinates. -->
 
     <build>
         <plugins>

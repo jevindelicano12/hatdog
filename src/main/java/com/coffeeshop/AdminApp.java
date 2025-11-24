@@ -4,6 +4,7 @@ import com.coffeeshop.model.*;
 import com.coffeeshop.service.Store;
 import com.coffeeshop.service.TextDatabase;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -30,6 +31,7 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import java.time.YearMonth;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,7 @@ public class AdminApp extends Application {
     private Label lowStockLabel;
     private javafx.scene.control.ListView<String> categoriesListView;
     private TextArea dashboardAlertsArea;
+    private javafx.scene.control.ListView<String> productsInCategoryListView;
 
     @Override
     public void start(Stage primaryStage) {
@@ -73,17 +76,21 @@ public class AdminApp extends Application {
         TabPane tabPane = createTabPane();
         root.setCenter(tabPane);
 
-        Scene scene = new Scene(root, 1400, 800);
-        primaryStage.setScene(scene);
-
-        // Show admin login after scene is set (avoids Dialog.initOwner NPE when stage has no scene)
-        boolean ok = showAdminLogin(primaryStage);
+        // Show admin login BEFORE setting up the scene
+        boolean ok = showAdminLogin(null);
         if (!ok) {
-            // User cancelled or failed to login - close the stage and return
-            try { primaryStage.close(); } catch (Exception ignored) {}
+            // User cancelled or failed to login - exit application
+            javafx.application.Platform.exit();
             return;
         }
 
+        Scene scene = new Scene(root, 1400, 800);
+        primaryStage.setScene(scene);
+
+        // Apply bundled Atlantafx fallback stylesheet (no external dependency required)
+        applyAtlantafx(scene);
+
+        primaryStage.setMaximized(true);
         primaryStage.show();
 
         refreshData();
@@ -123,51 +130,121 @@ public class AdminApp extends Application {
 
     // Show a simple admin login dialog. Returns true if login successful.
     private boolean showAdminLogin(Stage owner) {
-        Dialog<Boolean> dlg = new Dialog<>();
-        dlg.setTitle("Admin Login");
-        dlg.setHeaderText("Enter admin credentials to access the Admin Panel");
-        dlg.initOwner(owner);
-
-        ButtonType loginBtn = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
-        dlg.getDialogPane().getButtonTypes().addAll(loginBtn, ButtonType.CANCEL);
+        final Stage dialog = new Stage();
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialog.setTitle("Admin Login");
 
         GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(10);
-        grid.setPadding(new Insets(20));
+        grid.setHgap(15);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(40));
+        grid.setAlignment(Pos.CENTER);
+        grid.setStyle("-fx-background-color: #F4F1EA;");
 
+        // Logo Section
+        ImageView logo = null;
+        try {
+            File logoFile = new File("data/images/LOGO3.png");
+            if (logoFile.exists()) {
+                javafx.scene.image.Image logoImage = new javafx.scene.image.Image(logoFile.toURI().toString());
+                logo = new ImageView(logoImage);
+                logo.setFitWidth(150);
+                logo.setFitHeight(150);
+                logo.setPreserveRatio(true);
+                // Make logo circular
+                javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(150, 150);
+                clip.setArcWidth(150);
+                clip.setArcHeight(150);
+                logo.setClip(clip);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + e.getMessage());
+        }
+
+        // Title Section with better icon
+        Label titleLabel = new Label("🔐 Admin Login");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 26));
+        titleLabel.setTextFill(Color.web("#3E2723"));
+        titleLabel.setStyle("-fx-font-weight: bold;");
+        
+        Label subtitleLabel = new Label("Enter admin credentials to access the Admin Panel");
+        subtitleLabel.setFont(Font.font("Segoe UI", 14));
+        subtitleLabel.setTextFill(Color.web("#795548"));
+        
+        Label userLabel = new Label("Username:");
+        userLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        userLabel.setTextFill(Color.web("#3E2723"));
+        
         TextField userField = new TextField();
-        userField.setPromptText("Username");
+        userField.setPromptText("username");
+        userField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        userField.setPrefWidth(300);
+
+        Label passLabel = new Label("Password:");
+        passLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        passLabel.setTextFill(Color.web("#3E2723"));
+        
         PasswordField passField = new PasswordField();
-        passField.setPromptText("Password");
+        passField.setPromptText("password");
+        passField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        passField.setPrefWidth(300);
 
         // Visible text field for optional "show password" behavior
         TextField passVisible = new TextField();
-        passVisible.setPromptText("Password");
+        passVisible.setPromptText("password");
+        passVisible.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        passVisible.setPrefWidth(300);
         passVisible.setManaged(false);
         passVisible.setVisible(false);
 
         CheckBox showPass = new CheckBox("Show Password");
+        showPass.setFont(Font.font("Segoe UI", 12));
+        showPass.setTextFill(Color.web("#5D4037"));
 
-        grid.add(new Label("Username:"), 0, 0);
-        grid.add(userField, 1, 0);
-        grid.add(new Label("Password:"), 0, 1);
-        // add both fields into the same cell; we'll toggle which is visible
-        grid.add(passField, 1, 1);
-        grid.add(passVisible, 1, 1);
-        grid.add(showPass, 1, 2);
+        Button loginBtn = new Button("Login");
+        loginBtn.setStyle("-fx-background-color: #6F4E37; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        loginBtn.setPrefWidth(140);
+        loginBtn.setDisable(true);
+        
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #5D4037; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        cancelBtn.setPrefWidth(140);
 
-        dlg.getDialogPane().setContent(grid);
+        HBox actions = new HBox(10, loginBtn, cancelBtn);
+        actions.setAlignment(Pos.CENTER);
 
-        javafx.scene.Node loginNode = dlg.getDialogPane().lookupButton(loginBtn);
-        loginNode.setDisable(true);
+        int row = 0;
+        if (logo != null) {
+            VBox logoBox = new VBox(logo);
+            logoBox.setAlignment(Pos.CENTER);
+            grid.add(logoBox, 0, row++, 2, 1);
+        }
+        grid.add(titleLabel, 0, row++, 2, 1);
+        grid.add(subtitleLabel, 0, row++, 2, 1);
+        grid.add(new Separator(), 0, row++, 2, 1);
+        grid.add(userLabel, 0, row++, 2, 1);
+        grid.add(userField, 0, row++, 2, 1);
+        grid.add(passLabel, 0, row++, 2, 1);
+        grid.add(passField, 0, row, 2, 1);
+        grid.add(passVisible, 0, row, 2, 1);
+        row++;
+        grid.add(showPass, 0, row++, 2, 1);
+        grid.add(actions, 0, row++, 2, 1);
 
-        // Helper to update login button disabled state (considers visible password field)
+        Scene scene = new Scene(grid, 550, 700);
+        scene.setFill(Color.web("#F4F1EA"));
+        dialog.setScene(scene);
+        dialog.setResizable(false);
+
+        // Helper to update login button disabled state
         Runnable updateLoginDisabled = () -> {
             String userTxt = userField.getText() == null ? "" : userField.getText().trim();
             String passTxt = showPass.isSelected() ? passVisible.getText() : passField.getText();
             passTxt = passTxt == null ? "" : passTxt;
-            loginNode.setDisable(userTxt.isEmpty() || passTxt.trim().isEmpty());
+            loginBtn.setDisable(userTxt.isEmpty() || passTxt.trim().isEmpty());
         };
 
         userField.textProperty().addListener((obs, o, n) -> updateLoginDisabled.run());
@@ -192,29 +269,33 @@ public class AdminApp extends Application {
             updateLoginDisabled.run();
         });
 
-        // Allow pressing Enter on visible field too
-        passVisible.setOnAction(evt -> ((Button) loginNode).fire());
+        // Allow pressing Enter on password fields
+        passField.setOnAction(e -> loginBtn.fire());
+        passVisible.setOnAction(e -> loginBtn.fire());
 
-        dlg.setResultConverter(bt -> bt == loginBtn ? Boolean.TRUE : Boolean.FALSE);
-
-        while (true) {
-            java.util.Optional<Boolean> res = dlg.showAndWait();
-            if (res.isEmpty() || !res.get()) return false; // cancelled
-
+        final boolean[] loginSuccess = {false};
+        loginBtn.setOnAction(e -> {
             String user = userField.getText().trim();
             String pass = showPass.isSelected() ? passVisible.getText() : passField.getText();
             if ("admin".equals(user) && "admin123".equals(pass)) {
-                return true;
+                loginSuccess[0] = true;
+                dialog.close();
             } else {
                 Alert a = new Alert(Alert.AlertType.ERROR);
                 a.setTitle("Login Failed");
                 a.setHeaderText(null);
                 a.setContentText("Invalid username or password. Please try again.");
-                a.initOwner(owner);
                 a.showAndWait();
-                // loop again
             }
-        }
+        });
+
+        cancelBtn.setOnAction(e -> {
+            loginSuccess[0] = false;
+            dialog.close();
+        });
+
+        dialog.showAndWait();
+        return loginSuccess[0];
     }
 
     
@@ -224,7 +305,7 @@ public class AdminApp extends Application {
         header.setAlignment(Pos.CENTER);
         header.setPadding(new Insets(0, 0, 20, 0));
 
-        Label title = new Label("⚙️ Coffee Shop - Admin Panel");
+        Label title = new Label("🛡️ Coffee Shop - Admin Panel");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 28));
         title.setTextFill(Color.web("#D32F2F"));
 
@@ -511,31 +592,39 @@ public class AdminApp extends Application {
         });
         addRow.getChildren().addAll(newCatField, addBtn);
 
-        // List view of categories
+        // List view of categories — enforce canonical categories order
         categoriesListView = new javafx.scene.control.ListView<>();
         categoriesListView.setPrefHeight(200);
+
+        java.util.List<String> defaultCats = Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
+        // Ensure default categories exist in store (add if missing)
+        for (String c : defaultCats) {
+            try { if (!store.getCategories().contains(c)) store.addCategory(c); } catch (Exception ignored) {}
+        }
+        // Show ALL categories from store, not just the defaults
         categoriesListView.getItems().setAll(store.getCategories());
+        // select the first category (products list will be populated after ListView is created)
+        if (!categoriesListView.getItems().isEmpty()) {
+            categoriesListView.getSelectionModel().selectFirst();
+        }
 
         // Products list for selected category
         Label productsLabel = new Label("Products in Category:");
         productsLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
-        ListView<String> productsInCategory = new ListView<>();
-        productsInCategory.setPrefHeight(220);
-        productsInCategory.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+        productsInCategoryListView = new ListView<>();
+        productsInCategoryListView.setPrefHeight(220);
+        productsInCategoryListView.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
 
         // Update product list when category selection changes
         categoriesListView.getSelectionModel().selectedItemProperty().addListener((obs, oldV, newV) -> {
-            productsInCategory.getItems().clear();
-            if (newV == null) return;
-            for (Product p : store.getProducts()) {
-                String cat = p.getCategory();
-                if (cat == null && newV.equals("Uncategorized")) {
-                    productsInCategory.getItems().add(p.getId() + " - " + p.getName());
-                } else if (cat != null && cat.equals(newV)) {
-                    productsInCategory.getItems().add(p.getId() + " - " + p.getName());
-                }
-            }
+            populateProductsInCategory(productsInCategoryListView, newV);
         });
+
+        // Populate initial products list for the selected category
+        String initialCategory = categoriesListView.getSelectionModel().getSelectedItem();
+        if (initialCategory != null) {
+            populateProductsInCategory(productsInCategoryListView, initialCategory);
+        }
 
         HBox actions = new HBox(8);
         Button renameBtn = new Button("Rename");
@@ -544,7 +633,7 @@ public class AdminApp extends Application {
 
         // Assign selected products to a different category
         assignBtn.setOnAction(e -> {
-            java.util.List<String> selected = productsInCategory.getSelectionModel().getSelectedItems();
+            java.util.List<String> selected = productsInCategoryListView.getSelectionModel().getSelectedItems();
             if (selected == null || selected.isEmpty()) { showAlert("No Selection", "Select one or more products to assign.", Alert.AlertType.WARNING); return; }
 
             java.util.List<String> choices = new java.util.ArrayList<>(store.getCategories());
@@ -632,8 +721,22 @@ public class AdminApp extends Application {
 
         actions.getChildren().addAll(renameBtn, deleteBtn, assignBtn);
 
-        panel.getChildren().addAll(title, new Separator(), addRow, categoriesListView, productsLabel, productsInCategory, actions);
+        panel.getChildren().addAll(title, new Separator(), addRow, categoriesListView, productsLabel, productsInCategoryListView, actions);
         return panel;
+    }
+
+    // Helper to fill product list for a given category
+    private void populateProductsInCategory(javafx.scene.control.ListView<String> listView, String category) {
+        listView.getItems().clear();
+        if (category == null) return;
+        for (Product p : store.getProducts()) {
+            String cat = p.getCategory();
+            if (cat == null && "Uncategorized".equals(category)) {
+                listView.getItems().add(p.getId() + " - " + p.getName());
+            } else if (cat != null && cat.equals(category)) {
+                listView.getItems().add(p.getId() + " - " + p.getName());
+            }
+        }
     }
 
     private VBox createDashboardTab() {
@@ -800,6 +903,7 @@ public class AdminApp extends Application {
         // Product table
         productTable = new TableView<>();
         productTable.setPrefHeight(400);
+        productTable.setMaxHeight(400);
 
         TableColumn<ProductRow, String> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -824,6 +928,7 @@ public class AdminApp extends Application {
         // Controls
         HBox controls = new HBox(15);
         controls.setAlignment(Pos.CENTER_LEFT);
+        controls.setPickOnBounds(true);
 
         Button editButton = new Button("Edit Product");
         editButton.setStyle("-fx-background-color: #0277BD; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
@@ -835,11 +940,26 @@ public class AdminApp extends Application {
 
         Button addButton = new Button("Add New Product");
         addButton.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        addButton.setDisable(false);
+        addButton.setFocusTraversable(true);
+        addButton.setMouseTransparent(false);
         addButton.setOnAction(e -> addNewProduct());
+        // Defensive mouse-click handler in case an overlay prevents normal action events
+        addButton.setOnMouseClicked(e -> {
+            System.out.println("DEBUG: Add New Product clicked");
+            addNewProduct();
+        });
 
         Button refreshButton = new Button("Refresh");
         refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
+        refreshButton.setDisable(false);
+        refreshButton.setFocusTraversable(true);
+        refreshButton.setMouseTransparent(false);
         refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnMouseClicked(e -> {
+            System.out.println("DEBUG: Refresh Products clicked");
+            refreshData();
+        });
 
         controls.getChildren().addAll(editButton, removeButton, addButton, refreshButton);
 
@@ -939,9 +1059,25 @@ public class AdminApp extends Application {
             inventoryTable.getItems().add(new InventoryRow(item.getName(), item.getQuantity(), item.getUnit()));
         }
 
-        // Refresh categories list view if present
+        // Refresh categories list view if present and repopulate products list
         if (categoriesListView != null) {
+            // Save current selection before updating list
+            String previousSelection = categoriesListView.getSelectionModel().getSelectedItem();
             categoriesListView.getItems().setAll(store.getCategories());
+            // Restore selection or select first
+            if (!categoriesListView.getItems().isEmpty()) {
+                if (previousSelection != null && categoriesListView.getItems().contains(previousSelection)) {
+                    categoriesListView.getSelectionModel().select(previousSelection);
+                } else {
+                    categoriesListView.getSelectionModel().selectFirst();
+                }
+                String sel = categoriesListView.getSelectionModel().getSelectedItem();
+                if (productsInCategoryListView != null && sel != null) {
+                    populateProductsInCategory(productsInCategoryListView, sel);
+                }
+            } else {
+                if (productsInCategoryListView != null) productsInCategoryListView.getItems().clear();
+            }
         }
 
         // Refresh alerts
@@ -1068,8 +1204,10 @@ public class AdminApp extends Application {
             if (!categoryBox.getItems().isEmpty()) categoryBox.setValue(categoryBox.getItems().get(0));
             else categoryBox.setValue("Coffee");
         } catch (Exception ignored) {
-            categoryBox.getItems().addAll("Coffee", "Pastries", "Beverages", "Snacks", "Other");
-            categoryBox.setValue("Coffee");
+            // fallback to canonical default categories (local list)
+            java.util.List<String> fallbackCats = java.util.Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
+            categoryBox.getItems().addAll(fallbackCats);
+            categoryBox.setValue(fallbackCats.get(0));
         }
         categoryBox.setEditable(true);
         categoryBox.setPromptText("Select or type a category");
@@ -1140,10 +1278,34 @@ public class AdminApp extends Application {
         VBox.setVgrow(ingredientList, Priority.ALWAYS);
 
         final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
+        // If inventory is empty (fresh install), provide sensible defaults so admins can edit recipes
+        if (baseIngredients.isEmpty()) {
+            baseIngredients.addAll(java.util.Arrays.asList(
+                "Coffee Beans", "Milk", "Water", "Matcha Powder", "Chocolate Syrup",
+                "Vanilla Syrup", "Caramel Syrup", "Ice", "Mango Puree", "Strawberry Puree",
+                "Tea Leaves", "Flour", "Butter", "Sugar", "Egg"
+            ));
+        }
+        // No existing recipe to merge for new product; proceed with baseIngredients
+        // If inventory is empty (fresh install), provide sensible defaults so admins can compose recipes
+        if (baseIngredients.isEmpty()) {
+            baseIngredients.addAll(java.util.Arrays.asList(
+                "Coffee Beans", "Milk", "Water", "Matcha Powder", "Chocolate Syrup",
+                "Vanilla Syrup", "Caramel Syrup", "Ice", "Mango Puree", "Strawberry Puree",
+                "Tea Leaves", "Croissant Dough", "Muffin Mix", "Blueberries"
+            ));
+        }
         Runnable rebuild = () -> {
             ingredientList.getChildren().clear();
             selectedIngredients.clear();
             java.util.List<String> choices = filterIngredientsByCategory(baseIngredients, categoryBox.getValue());
+            // If filtering yields nothing (unexpected), fall back to full list and show a hint
+            if (choices == null || choices.isEmpty()) {
+                choices = new java.util.ArrayList<>(baseIngredients);
+                Label hint = new Label("No inventory items matched this category — showing all ingredients.");
+                hint.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+                ingredientList.getChildren().add(hint);
+            }
             for (String ingredientName : choices) {
                 HBox ingredientRow = new HBox(10);
                 ingredientRow.setAlignment(Pos.CENTER_LEFT);
@@ -1194,6 +1356,9 @@ public class AdminApp extends Application {
         addScroll.setPrefViewportHeight(520);
         addScroll.setPrefViewportWidth(720);
         dialog.getDialogPane().setContent(addScroll);
+        // attach fallback stylesheet to the dialog pane
+        java.net.URL addCss = getClass().getResource("/styles/atlantafx-fallback.css");
+        if (addCss != null) dialog.getDialogPane().getStylesheets().add(addCss.toExternalForm());
         dialog.getDialogPane().setPrefHeight(700);
         dialog.getDialogPane().setPrefWidth(760);
 
@@ -1277,7 +1442,30 @@ public class AdminApp extends Application {
                     }
 
                     showAlert("Success", "Product added successfully!" + (selectedImageFile[0] != null ? "\nImage saved to data/images/" : ""), Alert.AlertType.INFORMATION);
+                    // Refresh UI and make the new product visible in the Categories tab
                     refreshData();
+                    try {
+                        if (chosenCat != null && !chosenCat.trim().isEmpty() && categoriesListView != null) {
+                            // ensure categories list is up-to-date
+                            categoriesListView.getItems().setAll(store.getCategories());
+                            // select the category of the newly added product
+                            categoriesListView.getSelectionModel().select(chosenCat.trim());
+                            // populate the products list for that category and select the newly added product
+                            if (productsInCategoryListView != null) {
+                                populateProductsInCategory(productsInCategoryListView, chosenCat.trim());
+                                String search = product.getId() + " - ";
+                                for (int i = 0; i < productsInCategoryListView.getItems().size(); i++) {
+                                    String it = productsInCategoryListView.getItems().get(i);
+                                    if (it != null && it.startsWith(search)) {
+                                        productsInCategoryListView.getSelectionModel().clearSelection();
+                                        productsInCategoryListView.getSelectionModel().select(i);
+                                        productsInCategoryListView.scrollTo(i);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
                 } catch (Exception ex) {
                     showAlert("Error", "Failed to add product: " + ex.getMessage(), Alert.AlertType.ERROR);
                 }
@@ -1397,22 +1585,56 @@ public class AdminApp extends Application {
         ingredientSection.setPadding(new Insets(10));
         ingredientSection.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: #fafafa;");
         // Ensure the ingredient section is tall enough to show multiple items
-        ingredientSection.setPrefHeight(200);
+        ingredientSection.setPrefHeight(320);
 
         java.util.Map<String, Double> selectedIngredients = new java.util.HashMap<>();
         java.util.Map<String, Double> existingRecipe = new java.util.HashMap<>();
         try { if (product.getRecipe() != null) existingRecipe.putAll(product.getRecipe()); } catch (Exception ignored) {}
 
-        // Use a plain VBox for the ingredient list so it expands to fit the dialog. The outer dialog ScrollPane will handle overflow.
+        // Choice row + scrollable ingredient list so admins can select or add ingredients easily
+        HBox addChoiceRow = new HBox(8);
+        addChoiceRow.setAlignment(Pos.CENTER_LEFT);
+        ComboBox<String> ingredientChoiceBox = new ComboBox<>();
+        ingredientChoiceBox.setPromptText("Select ingredient");
+        ingredientChoiceBox.setPrefWidth(360);
+        Button addChoiceBtn = new Button("Add");
+        addChoiceBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white;");
+        addChoiceRow.getChildren().addAll(ingredientChoiceBox, addChoiceBtn);
+
         VBox ingredientList = new VBox(8);
         ingredientList.setFillWidth(true);
         VBox.setVgrow(ingredientList, Priority.ALWAYS);
+        ScrollPane ingredientScroll = new ScrollPane(ingredientList);
+        ingredientScroll.setFitToWidth(true);
+        ingredientScroll.setPrefHeight(260);
 
         final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
+        // fallback defaults when inventory empty
+        if (baseIngredients.isEmpty()) {
+            baseIngredients.addAll(java.util.Arrays.asList(
+                "Coffee Beans", "Milk", "Water", "Matcha Powder", "Chocolate Syrup",
+                "Vanilla Syrup", "Caramel Syrup", "Ice", "Mango Puree", "Strawberry Puree",
+                "Tea Leaves", "Flour", "Butter", "Sugar", "Egg"
+            ));
+        }
+        // ensure existing recipe ingredients are present
+        try { for (String k : existingRecipe.keySet()) if (k != null && !k.trim().isEmpty() && !baseIngredients.contains(k)) baseIngredients.add(k); } catch (Exception ignored) {}
+
         Runnable rebuildEdit = () -> {
             ingredientList.getChildren().clear();
             selectedIngredients.clear();
             java.util.List<String> choices = filterIngredientsByCategory(baseIngredients, product.getCategory());
+            if (choices == null) choices = new java.util.ArrayList<>(baseIngredients);
+            // populate combo box choices
+            ingredientChoiceBox.getItems().setAll(choices);
+            if (!ingredientChoiceBox.getItems().isEmpty() && ingredientChoiceBox.getValue() == null) ingredientChoiceBox.setValue(ingredientChoiceBox.getItems().get(0));
+
+            if (choices.isEmpty()) {
+                Label hint = new Label("No inventory items available.");
+                hint.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+                ingredientList.getChildren().add(hint);
+            }
+
             for (String ingredientName : choices) {
                 HBox ingredientRow = new HBox(10);
                 ingredientRow.setAlignment(Pos.CENTER_LEFT);
@@ -1456,18 +1678,57 @@ public class AdminApp extends Application {
                 ingredientList.getChildren().add(ingredientRow);
             }
         };
+
+        // initial build
         rebuildEdit.run();
+
         ingredientList.setMaxWidth(Double.MAX_VALUE);
-        ingredientSection.getChildren().add(ingredientList);
+
+        // add-button behavior: select existing or prepend a new ingredient row
+        addChoiceBtn.setOnAction(evt -> {
+            String choice = ingredientChoiceBox.getValue();
+            if (choice == null || choice.trim().isEmpty()) return;
+            for (javafx.scene.Node node : ingredientList.getChildren()) {
+                if (!(node instanceof HBox)) continue;
+                HBox row = (HBox) node;
+                if (row.getChildren().isEmpty()) continue;
+                javafx.scene.Node n0 = row.getChildren().get(0);
+                javafx.scene.Node n1 = row.getChildren().get(1);
+                if (n0 instanceof CheckBox && ((CheckBox)n0).getText().equals(choice) && n1 instanceof TextField) {
+                    CheckBox cb = (CheckBox) n0; TextField tf = (TextField) n1;
+                    cb.setSelected(true); tf.setDisable(false); if (tf.getText().isEmpty()) tf.setText("1.0");
+                    try { selectedIngredients.put(choice, Double.parseDouble(tf.getText())); } catch (Exception ignored) {}
+                    return;
+                }
+            }
+            // not found -> add new row
+            HBox ingredientRow = new HBox(10);
+            ingredientRow.setAlignment(Pos.CENTER_LEFT);
+            CheckBox checkBox = new CheckBox(choice); checkBox.setStyle("-fx-font-size: 11;"); checkBox.setSelected(true);
+            TextField quantityField = new TextField("1.0"); quantityField.setPromptText("Qty (e.g. 100.0)"); quantityField.setPrefWidth(100); quantityField.setDisable(false);
+            checkBox.setOnAction(e2 -> { if (!checkBox.isSelected()) { quantityField.setDisable(true); selectedIngredients.remove(choice); } else { quantityField.setDisable(false); try { selectedIngredients.put(choice, Double.parseDouble(quantityField.getText())); } catch (Exception ignored) {} } });
+            quantityField.setOnKeyReleased(e2 -> { try { if (!quantityField.getText().isEmpty()) selectedIngredients.put(choice, Double.parseDouble(quantityField.getText())); } catch (Exception ignored) {} });
+            ingredientRow.getChildren().addAll(checkBox, quantityField);
+            ingredientList.getChildren().add(0, ingredientRow);
+            selectedIngredients.put(choice, 1.0);
+        });
+
+        ingredientSection.getChildren().addAll(addChoiceRow, ingredientScroll);
         grid.add(ingredientSection, 0, 6, 2, 1);
 
         // Wrap edit grid in a ScrollPane so action buttons stay visible on small screens
         ScrollPane editScroll = new ScrollPane(grid);
         editScroll.setFitToWidth(true);
         editScroll.setFitToHeight(true);
-        editScroll.setPrefViewportHeight(520);
+        editScroll.setPrefViewportHeight(620);
+        editScroll.setPrefViewportWidth(760);
         dialog.getDialogPane().setContent(editScroll);
-        dialog.getDialogPane().setPrefHeight(600);
+        // attach fallback stylesheet to the dialog pane
+        java.net.URL editCss = getClass().getResource("/styles/atlantafx-fallback.css");
+        if (editCss != null) dialog.getDialogPane().getStylesheets().add(editCss.toExternalForm());
+        // Make dialog more square and taller so content fits comfortably
+        dialog.getDialogPane().setPrefWidth(760);
+        dialog.getDialogPane().setPrefHeight(760);
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == updateButtonType) {
@@ -1502,6 +1763,20 @@ public class AdminApp extends Application {
                         if (!imagesDir.exists()) {
                             imagesDir.mkdirs();
                         }
+                        
+                        // Delete all existing images for this product ID (any extension)
+                        String productId = product.getId();
+                        File[] existingImages = imagesDir.listFiles((dir, name) -> 
+                            name.startsWith(productId + ".") || name.equals(productId + ".jpg") || 
+                            name.equals(productId + ".jpeg") || name.equals(productId + ".png") || 
+                            name.equals(productId + ".gif") || name.equals(productId + ".bmp"));
+                        if (existingImages != null) {
+                            for (File oldImage : existingImages) {
+                                oldImage.delete();
+                            }
+                        }
+                        
+                        // Copy new image with product ID as filename
                         String fileName = selectedImageFile[0].getName();
                         String fileExtension = fileName.substring(fileName.lastIndexOf("."));
                         File destFile = new File(imagesDir, product.getId() + fileExtension);
@@ -1528,6 +1803,15 @@ public class AdminApp extends Application {
                 refreshData();
             }
         });
+    }
+
+    // Load bundled AtlantisFX fallback stylesheet if present and apply to the scene.
+    private void applyAtlantafx(Scene scene) {
+        if (scene == null) return;
+        try {
+            java.net.URL u = getClass().getResource("/styles/atlantafx-fallback.css");
+            if (u != null) scene.getStylesheets().add(u.toExternalForm());
+        } catch (Exception ignored) {}
     }
 
     private void refillIngredient() {
