@@ -16,3 +16,4 @@ Cappuccino|60.0|Hot|Regular|50
 Blueberry Muffin|50.0|Hot|Regular|50
 Cappuccino|60.0|Hot|Regular|50
 Blueberry Muffin|50.0|Hot|Regular|50
+Blueberry Muffin|50.0|Hot|Regular|50

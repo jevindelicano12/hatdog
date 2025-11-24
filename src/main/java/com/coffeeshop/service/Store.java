@@ -138,6 +138,16 @@ public class Store {
         }
     }
 
+    public void changeCashierUsername(String id, String newUsername) {
+        for (com.coffeeshop.model.CashierAccount c : cashiers) {
+            if (c.getId().equals(id)) {
+                c.setUsername(newUsername);
+                saveData();
+                return;
+            }
+        }
+    }
+
     // Product operations
     public List<Product> getProducts() {
         return new ArrayList<>(products);

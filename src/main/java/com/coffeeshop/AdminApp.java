@@ -368,16 +368,19 @@ public class AdminApp extends Application {
         statusCol.setPrefWidth(150);
 
         TableColumn<CashierRow, Void> actionsCol = new TableColumn<>("Actions");
-        actionsCol.setPrefWidth(300);
+        actionsCol.setPrefWidth(400);
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final HBox box = new HBox(8);
             private final Button toggleBtn = new Button();
             private final Button pwdBtn = new Button("Change Password");
+            private final Button userBtn = new Button("Change Username");
 
             {
-                toggleBtn.setStyle("-fx-font-weight: bold;");
+                toggleBtn.setStyle("-fx-font-weight: bold; -fx-font-size: 11px;");
                 pwdBtn.setStyle("-fx-font-size: 11px;");
-                box.getChildren().addAll(toggleBtn, pwdBtn);
+                userBtn.setStyle("-fx-font-size: 11px; -fx-background-color: #1976D2; -fx-text-fill: white;");
+                box.getChildren().addAll(toggleBtn, pwdBtn, userBtn);
+                
                 toggleBtn.setOnAction(e -> {
                     CashierRow row = getTableView().getItems().get(getIndex());
                     boolean newActive = !row.isActiveFlag();
@@ -397,6 +400,31 @@ public class AdminApp extends Application {
                         if (pw.trim().isEmpty()) { showAlert("Invalid", "Password cannot be empty", Alert.AlertType.ERROR); return; }
                         Store.getInstance().changeCashierPassword(row.getId(), pw);
                         showAlert("Success", "Password changed.", Alert.AlertType.INFORMATION);
+                    });
+                });
+
+                userBtn.setOnAction(e -> {
+                    CashierRow row = getTableView().getItems().get(getIndex());
+                    TextInputDialog dlg = new TextInputDialog(row.getUsername());
+                    dlg.setTitle("Change Username");
+                    dlg.setHeaderText("Change username for cashier ID: " + row.getId());
+                    dlg.setContentText("New username:");
+                    dlg.showAndWait().ifPresent(newUsername -> {
+                        if (newUsername.trim().isEmpty()) { 
+                            showAlert("Invalid", "Username cannot be empty", Alert.AlertType.ERROR); 
+                            return; 
+                        }
+                        // Check if username already exists
+                        for (CashierAccount acc : Store.getInstance().getCashiers()) {
+                            if (acc.getUsername().equals(newUsername.trim()) && !acc.getId().equals(row.getId())) {
+                                showAlert("Error", "Username already exists. Please choose a different username.", Alert.AlertType.ERROR);
+                                return;
+                            }
+                        }
+                        Store.getInstance().changeCashierUsername(row.getId(), newUsername.trim());
+                        row.setUsername(newUsername.trim());
+                        getTableView().refresh();
+                        showAlert("Success", "Username changed to: " + newUsername.trim(), Alert.AlertType.INFORMATION);
                     });
                 });
             }
@@ -478,6 +506,7 @@ public class AdminApp extends Application {
         }
         public String getId() { return id; }
         public String getUsername() { return username; }
+        public void setUsername(String u) { username = u; }
         public String getStatus() { return status; }
         public void setStatus(String s) { status = s; }
         public boolean isActiveFlag() { return activeFlag; }

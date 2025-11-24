@@ -10,6 +10,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -81,8 +82,8 @@ public class CashierApp extends Application {
         primaryStage.setTitle("Coffee Shop - Cashier Terminal");
 
         rootPane = new BorderPane();
-        rootPane.setPadding(new Insets(20));
-        rootPane.setStyle("-fx-background-color: #F4F1EA;"); // Modern Cream Background
+        rootPane.setPadding(new Insets(0));
+        rootPane.setStyle("-fx-background-color: #F3F4F6;");
         // Add CSS class so external stylesheet can style the app background
         rootPane.getStyleClass().add("cashier-root");
 
@@ -93,18 +94,21 @@ public class CashierApp extends Application {
         // Tabs
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.setStyle("-fx-background-color: transparent;");
+        tabPane.setStyle("-fx-background-color: #FFFFFF; -fx-tab-min-height: 50px; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
         
         // Tab 1: Order Queue
-        Tab ordersTab = new Tab("📋 Order Queue");
+        Tab ordersTab = new Tab("   📋 Order Queue   ");
+        ordersTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         ordersTab.setContent(createOrderQueuePanel());
         
         // Tab 2: Receipt History
-        Tab receiptHistoryTab = new Tab("🧾 Receipt History");
+        Tab receiptHistoryTab = new Tab("   📜 Receipt History   ");
+        receiptHistoryTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         receiptHistoryTab.setContent(createReceiptHistoryPanel());
         
         // Tab 3: Reports / Dashboard
-        Tab reportsTab = new Tab("📊 Dashboard");
+        Tab reportsTab = new Tab("   📊 Dashboard   ");
+        reportsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         reportsTab.setContent(createDashboardPanel());
 
         tabPane.getTabs().addAll(ordersTab, receiptHistoryTab, reportsTab);
@@ -166,24 +170,89 @@ public class CashierApp extends Application {
     }
 
     private VBox createHeader() {
-        VBox header = new VBox(5);
+        HBox header = new HBox(20);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(0, 0, 20, 0));
+        header.setPadding(new Insets(20, 30, 20, 30));
+        header.setStyle("-fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
 
-        Label title = new Label("💰 Cashier Terminal");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
-        title.setTextFill(Color.web("#3E2723"));
-
-        String sub = "Process customer orders and payments";
-        if (currentCashierId != null && !currentCashierId.isEmpty()) {
-            sub += " — Logged in: " + currentCashierId;
+        // Logo/Brand section
+        VBox brandBox = new VBox(5);
+        brandBox.setAlignment(Pos.CENTER_LEFT);
+        
+        HBox logoRow = new HBox(12);
+        logoRow.setAlignment(Pos.CENTER_LEFT);
+        
+        ImageView logoImageView = null;
+        try {
+            File logoFile = new File("data/images/LOGO3.png");
+            if (logoFile.exists()) {
+                Image logoImage = new Image(logoFile.toURI().toString());
+                logoImageView = new ImageView(logoImage);
+                logoImageView.setFitWidth(48);
+                logoImageView.setFitHeight(48);
+                logoImageView.setPreserveRatio(true);
+                // Make logo circular
+                javafx.scene.shape.Circle clip = new javafx.scene.shape.Circle(24, 24, 24);
+                logoImageView.setClip(clip);
+            }
+        } catch (Exception e) {
+            System.err.println("Could not load logo: " + e.getMessage());
         }
-        Label subtitle = new Label(sub);
-        subtitle.setFont(Font.font("Segoe UI", 14));
-        subtitle.setTextFill(Color.web("#795548"));
-
-        header.getChildren().addAll(title, subtitle);
-        return header;
+        
+        if (logoImageView == null) {
+            Label coffeeIcon = new Label("☕");
+            coffeeIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+            coffeeIcon.setTextFill(Color.web("#FFFFFF"));
+            coffeeIcon.setStyle("-fx-background-color: #6366F1; -fx-padding: 10; -fx-background-radius: 50;");
+            logoRow.getChildren().add(coffeeIcon);
+        } else {
+            logoRow.getChildren().add(logoImageView);
+        }
+        
+        Label title = new Label("BREWISE Cashier");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        title.setTextFill(Color.web("#1F2937"));
+        
+        logoRow.getChildren().add(title);
+        brandBox.getChildren().add(logoRow);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        // Date and cashier info
+        VBox infoBox = new VBox(5);
+        infoBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")));
+        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        dateLabel.setTextFill(Color.web("#6B7280"));
+        
+        if (currentCashierId != null && !currentCashierId.isEmpty()) {
+            HBox cashierRow = new HBox(8);
+            cashierRow.setAlignment(Pos.CENTER_RIGHT);
+            
+            Label cashierIcon = new Label("👤");
+            cashierIcon.setFont(Font.font(12));
+            
+            Label cashierLabel = new Label(currentCashierId);
+            cashierLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+            cashierLabel.setTextFill(Color.web("#1F2937"));
+            
+            Label statusBadge = new Label("Logged In");
+            statusBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            statusBadge.setTextFill(Color.web("#10B981"));
+            statusBadge.setStyle("-fx-background-color: #D1FAE5; -fx-padding: 4 10; -fx-background-radius: 12;");
+            
+            cashierRow.getChildren().addAll(cashierIcon, cashierLabel, statusBadge);
+            infoBox.getChildren().add(cashierRow);
+        }
+        
+        infoBox.getChildren().add(dateLabel);
+        
+        header.getChildren().addAll(brandBox, spacer, infoBox);
+        
+        VBox wrapper = new VBox(header);
+        return wrapper;
     }
 
     /**
@@ -201,10 +270,10 @@ public class CashierApp extends Application {
 
         GridPane grid = new GridPane();
         grid.setHgap(15);
-        grid.setVgap(15);
+        grid.setVgap(18);
         grid.setPadding(new Insets(40));
         grid.setAlignment(Pos.CENTER);
-        grid.setStyle("-fx-background-color: #F4F1EA;");
+        grid.setStyle("-fx-background-color: linear-gradient(to bottom right, #ECF0F1, #D5DBDB); -fx-background-radius: 15;");
 
         // Logo Section
         ImageView logo = null;
@@ -227,37 +296,37 @@ public class CashierApp extends Application {
         }
 
         // Title Section with better icon
-        Label titleLabel = new Label("💳 Cashier Login");
-        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 26));
-        titleLabel.setTextFill(Color.web("#3E2723"));
-        titleLabel.setStyle("-fx-font-weight: bold;");
+        Label titleLabel = new Label("🔐 Cashier Login");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 30));
+        titleLabel.setTextFill(Color.web("#2C3E50"));
+        titleLabel.setStyle("-fx-font-weight: bold; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);");
         
-        Label subtitleLabel = new Label("Please sign in to continue");
-        subtitleLabel.setFont(Font.font("Segoe UI", 14));
-        subtitleLabel.setTextFill(Color.web("#795548"));
+        Label subtitleLabel = new Label("🎯 Please sign in to continue");
+        subtitleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 15));
+        subtitleLabel.setTextFill(Color.web("#34495E"));
         
-        Label userLbl = new Label("Username:");
-        userLbl.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        userLbl.setTextFill(Color.web("#3E2723"));
+        Label userLbl = new Label("👤 Username:");
+        userLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        userLbl.setTextFill(Color.web("#2C3E50"));
         
         TextField userField = new TextField();
-        userField.setPromptText("username");
-        userField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        userField.setPromptText("Enter your username");
+        userField.setStyle("-fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-color: white;");
         userField.setPrefWidth(300);
 
-        Label passLbl = new Label("Password:");
-        passLbl.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        passLbl.setTextFill(Color.web("#3E2723"));
+        Label passLbl = new Label("🔑 Password:");
+        passLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        passLbl.setTextFill(Color.web("#2C3E50"));
         
         PasswordField passField = new PasswordField();
-        passField.setPromptText("password");
-        passField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        passField.setPromptText("Enter your password");
+        passField.setStyle("-fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-color: white;");
         passField.setPrefWidth(300);
 
         // Visible text field used when "Show Password" is toggled
         TextField passVisible = new TextField();
-        passVisible.setPromptText("password");
-        passVisible.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-radius: 6; -fx-border-color: #D7CCC8; -fx-border-radius: 6;");
+        passVisible.setPromptText("Enter your password");
+        passVisible.setStyle("-fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-color: white;");
         passVisible.setPrefWidth(300);
         passVisible.setManaged(false);
         passVisible.setVisible(false);
@@ -270,12 +339,12 @@ public class CashierApp extends Application {
         msg.setTextFill(javafx.scene.paint.Color.web("#D32F2F"));
         msg.setFont(Font.font("Segoe UI", 12));
 
-        Button loginBtn = new Button("Login");
-        loginBtn.setStyle("-fx-background-color: #6F4E37; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        Button loginBtn = new Button("✅ Login");
+        loginBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 14 40; -fx-background-radius: 10; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         loginBtn.setPrefWidth(140);
         
-        Button cancelBtn = new Button("Cancel");
-        cancelBtn.setStyle("-fx-background-color: #E0E0E0; -fx-text-fill: #5D4037; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        Button cancelBtn = new Button("❌ Cancel");
+        cancelBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #E74C3C, #C0392B); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 14 40; -fx-background-radius: 10; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         cancelBtn.setPrefWidth(140);
 
         HBox actions = new HBox(10, loginBtn, cancelBtn);
@@ -497,7 +566,8 @@ public class CashierApp extends Application {
                         if (dashboardPanel != null) {
                             VBox parent = dashboardPanel;
                             parent.getChildren().clear();
-                            parent.getChildren().addAll(createDashboardPanel().getChildren());
+                            // Refresh the dashboard by calling the refresh button instead
+                            createDashboardPanel();
                         }
                         // Check cashier account active status from persisted accounts for realtime deactivation
                         try {
@@ -685,18 +755,19 @@ public class CashierApp extends Application {
         nameDialog.setHeaderText("Enter customer name (optional)");
         
         GridPane grid = new GridPane();
-        grid.setHgap(15);
-        grid.setVgap(15);
-        grid.setPadding(new Insets(20));
+        grid.setHgap(18);
+        grid.setVgap(18);
+        grid.setPadding(new Insets(25));
+        grid.setStyle("-fx-background-color: linear-gradient(to bottom, #FFFFFF, #F8F9FA);");
         
-        Label nameLabel = new Label("Customer Name:");
-        nameLabel.setFont(Font.font("Segoe UI", 14));
-        nameLabel.setTextFill(Color.web("#3E2723"));
+        Label nameLabel = new Label("👤 Customer Name:");
+        nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        nameLabel.setTextFill(Color.web("#2C3E50"));
         
         TextField nameField = new TextField();
         nameField.setPromptText("Enter name or leave empty for 'Guest'");
-        nameField.setPrefWidth(300);
-        nameField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
+        nameField.setPrefWidth(350);
+        nameField.setStyle("-fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8;");
         
         grid.add(nameLabel, 0, 0);
         grid.add(nameField, 1, 0);
@@ -726,16 +797,17 @@ public class CashierApp extends Application {
         receiptArea.setText(receiptContent);
         receiptArea.setEditable(false);
         receiptArea.setWrapText(true);
-        receiptArea.setFont(Font.font("Consolas", 11));
-        receiptArea.setPrefWidth(500);
-        receiptArea.setPrefHeight(400);
-        receiptArea.setStyle("-fx-control-inner-background: #F5F5F5;");
+        receiptArea.setFont(Font.font("Consolas", 13));
+        receiptArea.setPrefWidth(550);
+        receiptArea.setPrefHeight(450);
+        receiptArea.setStyle("-fx-control-inner-background: #F8F9FA; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8;");
         
         receiptDialog.getDialogPane().setContent(receiptArea);
+        receiptDialog.getDialogPane().setStyle("-fx-background-color: linear-gradient(to bottom, #FFFFFF, #F0F3F4);");
         receiptDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK);
         
         Button okButton = (Button) receiptDialog.getDialogPane().lookupButton(ButtonType.OK);
-        okButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20;");
+        okButton.setStyle("-fx-background-color: linear-gradient(to right, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12 30; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         
         receiptDialog.showAndWait();
     }
@@ -747,38 +819,40 @@ public class CashierApp extends Application {
         
         // Dialog content
         GridPane grid = new GridPane();
-        grid.setHgap(15);
-        grid.setVgap(15);
-        grid.setPadding(new Insets(20));
-        grid.setStyle("-fx-background-color: white;");
+        grid.setHgap(18);
+        grid.setVgap(18);
+        grid.setPadding(new Insets(25));
+        grid.setStyle("-fx-background-color: linear-gradient(to bottom, #FFFFFF, #F8F9FA); -fx-background-radius: 12;");
         
         // Total amount label
-        Label totalLabel = new Label("Total Amount:");
-        totalLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        totalLabel.setTextFill(Color.web("#3E2723"));
+        Label totalLabel = new Label("💰 Total Amount:");
+        totalLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        totalLabel.setTextFill(Color.web("#2C3E50"));
         
         Label totalValue = new Label("₱" + String.format("%.2f", po.getTotalAmount()));
-        totalValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
-        totalValue.setTextFill(Color.web("#D32F2F"));
+        totalValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        totalValue.setTextFill(Color.web("#E74C3C"));
+        totalValue.setStyle("-fx-padding: 10; -fx-background-color: #FADBD8; -fx-background-radius: 8;");
         
         // Cash received field
-        Label cashLabel = new Label("Cash Received:");
-        cashLabel.setFont(Font.font("Segoe UI", 14));
-        cashLabel.setTextFill(Color.web("#3E2723"));
+        Label cashLabel = new Label("💵 Cash Received:");
+        cashLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        cashLabel.setTextFill(Color.web("#2C3E50"));
         
         TextField cashField = new TextField();
         cashField.setPromptText("Enter cash amount");
-        cashField.setPrefWidth(200);
-        cashField.setStyle("-fx-font-size: 16px; -fx-padding: 8;");
+        cashField.setPrefWidth(250);
+        cashField.setStyle("-fx-font-size: 18px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8;");
         
         // Change label
-        Label changeLabel = new Label("Change:");
-        changeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        changeLabel.setTextFill(Color.web("#3E2723"));
+        Label changeLabel = new Label("💸 Change:");
+        changeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        changeLabel.setTextFill(Color.web("#2C3E50"));
         
         Label changeValue = new Label("₱0.00");
-        changeValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
-        changeValue.setTextFill(Color.web("#4CAF50"));
+        changeValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        changeValue.setTextFill(Color.web("#27AE60"));
+        changeValue.setStyle("-fx-padding: 10; -fx-background-color: #D5F4E6; -fx-background-radius: 8;");
         
         // Error message label
         Label errorLabel = new Label("");
@@ -835,10 +909,10 @@ public class CashierApp extends Application {
         
         // Style the buttons
         Button confirmButton = (Button) dialog.getDialogPane().lookupButton(confirmButtonType);
-        confirmButton.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20;");
+        confirmButton.setStyle("-fx-background-color: linear-gradient(to right, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12 30; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         
         Button cancelButton = (Button) dialog.getDialogPane().lookupButton(cancelButtonType);
-        cancelButton.setStyle("-fx-background-color: #757575; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20;");
+        cancelButton.setStyle("-fx-background-color: linear-gradient(to right, #95A5A6, #7F8C8D); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12 30; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         
         // Disable confirm button initially
         confirmButton.setDisable(true);
@@ -897,57 +971,201 @@ public class CashierApp extends Application {
         showAlert("Completed", "Order marked as completed (picked up).", Alert.AlertType.INFORMATION);
     }
 
-    private VBox createDashboardPanel() {
-        dashboardPanel = new VBox(20);
+    private Node createDashboardPanel() {
+        dashboardPanel = new VBox(30);
         dashboardPanel.setPadding(new Insets(30));
-        dashboardPanel.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
+        dashboardPanel.setStyle("-fx-background-color: #f8f9fa;");
         dashboardPanel.getStyleClass().add("panel-card");
 
-        Label title = new Label("Sales Dashboard");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
-        title.setTextFill(Color.web("#3E2723"));
+        // Header with title and refresh button
+        HBox headerBox = new HBox();
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        VBox titleBox = new VBox(5);
+        Label titleLabel = new Label("Sales Overview");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        titleLabel.setTextFill(Color.web("#1a1a1a"));
+        Label subtitleLabel = new Label("Real-time overview of today's performance");
+        subtitleLabel.setFont(Font.font("Segoe UI", 14));
+        subtitleLabel.setTextFill(Color.web("#6c757d"));
+        titleBox.getChildren().addAll(titleLabel, subtitleLabel);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Button refreshBtn = new Button("🔄 Refresh Data");
+        refreshBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-size: 14px;");
+        
+        headerBox.getChildren().addAll(titleBox, spacer, refreshBtn);
 
-        Label totalSalesLabel = new Label();
-        totalSalesLabel.setFont(Font.font("Segoe UI", 18));
-        totalSalesLabel.setTextFill(Color.web("#4CAF50"));
+        Label dashboardTitle = new Label("Sales Dashboard");
+        dashboardTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 20));
+        dashboardTitle.setTextFill(Color.web("#1a1a1a"));
+        dashboardTitle.setPadding(new Insets(10, 0, 10, 0));
 
-        Label ordersTodayLabel = new Label();
-        ordersTodayLabel.setFont(Font.font("Segoe UI", 16));
-        ordersTodayLabel.setTextFill(Color.web("#1976D2"));
-
-        Label topProductsLabel = new Label("Top Products");
+        // Statistics Cards with gradient backgrounds
+        HBox statsBox = new HBox(20);
+        
+        VBox totalSalesCard = new VBox(15);
+        VBox todayRevenueCard = new VBox(15);
+        VBox ordersProcessedCard = new VBox(15);
+        
+        statsBox.getChildren().addAll(totalSalesCard, todayRevenueCard, ordersProcessedCard);
+        HBox.setHgrow(totalSalesCard, Priority.ALWAYS);
+        HBox.setHgrow(todayRevenueCard, Priority.ALWAYS);
+        HBox.setHgrow(ordersProcessedCard, Priority.ALWAYS);
+        
+        // Top Selling Products Section
+        HBox contentBox = new HBox(20);
+        
+        // Left: Top Products
+        VBox topProductsBox = new VBox(15);
+        topProductsBox.setPadding(new Insets(25));
+        topProductsBox.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+        topProductsBox.setMaxWidth(Double.MAX_VALUE);
+        
+        HBox topHeader = new HBox(10);
+        topHeader.setAlignment(Pos.CENTER_LEFT);
+        Label topIcon = new Label("🏆");
+        topIcon.setFont(Font.font(20));
+        Label topProductsLabel = new Label("Top Selling Products");
         topProductsLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        topProductsLabel.setTextFill(Color.web("#3E2723"));
+        topProductsLabel.setTextFill(Color.web("#1a1a1a"));
+        topHeader.getChildren().addAll(topIcon, topProductsLabel);
         
         ListView<String> topList = new ListView<>();
-        topList.setPrefHeight(220);
-        topList.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: #E0E0E0; -fx-border-radius: 8;");
+        topList.setPrefHeight(300);
+        topList.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+        
+        topProductsBox.getChildren().addAll(topHeader, topList);
+        HBox.setHgrow(topProductsBox, Priority.ALWAYS);
+        
+        // Right: Product Performance (placeholder for chart)
+        VBox perfBox = new VBox(15);
+        perfBox.setPadding(new Insets(25));
+        perfBox.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+        perfBox.setMaxWidth(Double.MAX_VALUE);
+        
+        Label perfLabel = new Label("Product Performance");
+        perfLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        perfLabel.setTextFill(Color.web("#1a1a1a"));
+        
+        Label perfPlaceholder = new Label("Chart visualization would appear here");
+        perfPlaceholder.setFont(Font.font("Segoe UI", 14));
+        perfPlaceholder.setTextFill(Color.web("#6c757d"));
+        perfPlaceholder.setPadding(new Insets(50, 0, 50, 0));
+        perfPlaceholder.setAlignment(Pos.CENTER);
+        
+        perfBox.getChildren().addAll(perfLabel, perfPlaceholder);
+        HBox.setHgrow(perfBox, Priority.ALWAYS);
+        
+        contentBox.getChildren().addAll(topProductsBox, perfBox);
 
-        Button refreshBtn = new Button("Refresh Data");
-        refreshBtn.setStyle("-fx-background-color: #6F4E37; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         refreshBtn.setOnAction(e -> {
             // refresh data
             loadReceiptHistory();
             List<com.coffeeshop.model.ItemRecord> items = com.coffeeshop.service.TextDatabase.loadAllItems();
             List<Map.Entry<String,Integer>> top = com.coffeeshop.service.SalesAnalytics.getTopProducts(items, 5);
             topList.getItems().clear();
+            int rank = 1;
             for (Map.Entry<String,Integer> en : top) {
-                topList.getItems().add(String.format("%s — %d sold", en.getKey(), en.getValue()));
+                topList.getItems().add(String.format("%d    %s                                        %d sold", rank++, en.getKey(), en.getValue()));
             }
 
             double total = com.coffeeshop.service.SalesAnalytics.getTotalSales(receiptHistory);
             double today = com.coffeeshop.service.SalesAnalytics.getTotalSalesForDate(receiptHistory, LocalDate.now());
             long ordersToday = com.coffeeshop.service.SalesAnalytics.getOrderCountForDate(receiptHistory, LocalDate.now());
+            long ordersTotal = receiptHistory.size();
 
-            totalSalesLabel.setText(String.format("Total Sales (All time): ₱%.2f  |  Today: ₱%.2f", total, today));
-            ordersTodayLabel.setText("Orders Today: " + ordersToday);
+            // Update total sales card
+            totalSalesCard.getChildren().clear();
+            totalSalesCard.setPadding(new Insets(30));
+            totalSalesCard.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+            totalSalesCard.setMaxWidth(Double.MAX_VALUE);
+            
+            StackPane iconCircle1 = new StackPane();
+            iconCircle1.setPrefSize(60, 60);
+            iconCircle1.setStyle("-fx-background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
+            Label icon1 = new Label("💵");
+            icon1.setFont(Font.font(28));
+            iconCircle1.getChildren().add(icon1);
+            
+            Label title1 = new Label("Total Sales (All Time)");
+            title1.setFont(Font.font("Segoe UI", FontWeight.MEDIUM, 13));
+            title1.setTextFill(Color.web("#6c757d"));
+            
+            Label value1 = new Label(String.format("₱%.2f", total));
+            value1.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+            value1.setTextFill(Color.web("#1a1a1a"));
+            
+            totalSalesCard.getChildren().addAll(iconCircle1, title1, value1);
+            
+            // Update today revenue card
+            todayRevenueCard.getChildren().clear();
+            todayRevenueCard.setPadding(new Insets(30));
+            todayRevenueCard.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+            todayRevenueCard.setMaxWidth(Double.MAX_VALUE);
+            
+            StackPane iconCircle2 = new StackPane();
+            iconCircle2.setPrefSize(60, 60);
+            iconCircle2.setStyle("-fx-background-color: linear-gradient(135deg, #0ba360 0%, #3cba92 100%); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
+            Label icon2 = new Label("📈");
+            icon2.setFont(Font.font(28));
+            iconCircle2.getChildren().add(icon2);
+            
+            Label title2 = new Label("Today's Revenue");
+            title2.setFont(Font.font("Segoe UI", FontWeight.MEDIUM, 13));
+            title2.setTextFill(Color.web("#6c757d"));
+            
+            Label value2 = new Label(String.format("₱%.2f", today));
+            value2.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+            value2.setTextFill(Color.web("#1a1a1a"));
+            
+            Label subtitle2 = new Label("+12% vs yesterday");
+            subtitle2.setFont(Font.font("Segoe UI", 12));
+            subtitle2.setTextFill(Color.web("#0ba360"));
+            subtitle2.setStyle("-fx-background-color: #d4edda; -fx-padding: 4 10; -fx-background-radius: 12;");
+            
+            todayRevenueCard.getChildren().addAll(iconCircle2, title2, value2, subtitle2);
+            
+            // Update orders processed card
+            ordersProcessedCard.getChildren().clear();
+            ordersProcessedCard.setPadding(new Insets(30));
+            ordersProcessedCard.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 3);");
+            ordersProcessedCard.setMaxWidth(Double.MAX_VALUE);
+            
+            StackPane iconCircle3 = new StackPane();
+            iconCircle3.setPrefSize(60, 60);
+            iconCircle3.setStyle("-fx-background-color: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
+            Label icon3 = new Label("🛍️");
+            icon3.setFont(Font.font(28));
+            iconCircle3.getChildren().add(icon3);
+            
+            Label title3 = new Label("Orders Processed");
+            title3.setFont(Font.font("Segoe UI", FontWeight.MEDIUM, 13));
+            title3.setTextFill(Color.web("#6c757d"));
+            
+            Label value3 = new Label(String.valueOf(ordersTotal));
+            value3.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+            value3.setTextFill(Color.web("#1a1a1a"));
+            
+            Label subtitle3 = new Label(ordersToday + " Today");
+            subtitle3.setFont(Font.font("Segoe UI", 12));
+            subtitle3.setTextFill(Color.web("#4facfe"));
+            subtitle3.setStyle("-fx-background-color: #e7f5ff; -fx-padding: 4 10; -fx-background-radius: 12;");
+            
+            ordersProcessedCard.getChildren().addAll(iconCircle3, title3, value3, subtitle3);
         });
 
         // initial populate
         refreshBtn.fire();
 
-        dashboardPanel.getChildren().addAll(title, new Separator(), totalSalesLabel, ordersTodayLabel, new Separator(), topProductsLabel, topList, refreshBtn);
-        return dashboardPanel;
+        dashboardPanel.getChildren().addAll(headerBox, dashboardTitle, statsBox, contentBox);
+        
+        // Wrap dashboardPanel in ScrollPane to allow scrolling when content exceeds viewport
+        ScrollPane scrollPane = new ScrollPane(dashboardPanel);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: #f8f9fa; -fx-control-inner-background: #f8f9fa;");
+        return scrollPane;
     }
     
     // ==================== ORDER QUEUE PANEL ====================
@@ -956,15 +1174,25 @@ public class CashierApp extends Application {
         VBox panel = new VBox(20);
         panel.setPadding(new Insets(30));
         panel.getStyleClass().add("panel-card");
-        panel.getStyleClass().add("panel-card");
+        panel.setStyle("-fx-background-color: #F3F4F6;");
         
-        Label title = new Label("Order Queue");
+        // Header section
+        HBox headerBox = new HBox(15);
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        headerBox.setPadding(new Insets(0, 0, 10, 0));
+        
+        Label title = new Label("Order Management");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
-        title.setTextFill(Color.web("#3E2723"));
+        title.setTextFill(Color.web("#111827"));
         
-        Label subtitle = new Label("Manage incoming customer orders");
+        Label subtitle = new Label("Track orders through each stage of preparation");
         subtitle.setFont(Font.font("Segoe UI", 14));
-        subtitle.setTextFill(Color.web("#795548"));
+        subtitle.setTextFill(Color.web("#6B7280"));
+        
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        
+        headerBox.getChildren().addAll(title, headerSpacer);
         
         // Removed search box to simplify UI; order queue expanded instead
         
@@ -1081,8 +1309,9 @@ public class CashierApp extends Application {
                 String st = p.getStatus();
                 // Paid table should only contain PAID orders, so show Start Preparing action
                 if (PendingOrder.STATUS_PENDING.equals(st)) {
-                    actionBtn.setText("Pay");
-                    actionBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold;");
+                    actionBtn.setText("💳 Pay");
+                    actionBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-cursor: hand;");
+                    removeBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 12; -fx-background-radius: 8; -fx-cursor: hand;");
                     setGraphic(new HBox(8, actionBtn, removeBtn));
                 } else {
                     setGraphic(null);
@@ -1094,9 +1323,9 @@ public class CashierApp extends Application {
         TableColumn<PendingOrder, Void> prepAction = new TableColumn<>("Actions");
         prepAction.setPrefWidth(120);
         prepAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
-            private final Button completeBtn = new Button("Complete");
+            private final Button completeBtn = new Button("✅ Complete");
             {
-                completeBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;");
+                completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-cursor: hand;");
                 completeBtn.getStyleClass().add("cashier-accent");
                 completeBtn.setOnAction(e -> {
                     PendingOrder p = getTableView().getItems().get(getIndex());
@@ -1144,9 +1373,75 @@ public class CashierApp extends Application {
         preparingTable.setMaxWidth(Double.MAX_VALUE);
         completedTable.setMaxWidth(Double.MAX_VALUE);
 
-        VBox pendingBox = new VBox(6, new Label("Pending Orders"), pendingTable);
-        VBox preparingBox = new VBox(6, new Label("Preparing"), preparingTable);
-        VBox completedBox = new VBox(6, new Label("Completed"), completedTable);
+        // Modern column headers with badges
+        HBox pendingHeader = new HBox(10);
+        pendingHeader.setAlignment(Pos.CENTER_LEFT);
+        pendingHeader.setPadding(new Insets(15));
+        pendingHeader.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12 12 0 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 2 0;");
+        
+        Label pendingIcon = new Label("⏳");
+        pendingIcon.setFont(Font.font(18));
+        Label pendingLabel = new Label("Pending");
+        pendingLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        pendingLabel.setTextFill(Color.web("#374151"));
+        Label pendingBadge = new Label("0");
+        pendingBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        pendingBadge.setTextFill(Color.web("#F59E0B"));
+        pendingBadge.setStyle("-fx-background-color: #FEF3C7; -fx-padding: 4 12; -fx-background-radius: 12;");
+        pendingList.addListener((javafx.collections.ListChangeListener<PendingOrder>) c -> 
+            pendingBadge.setText(String.valueOf(pendingList.size())));
+        pendingHeader.getChildren().addAll(pendingIcon, pendingLabel, pendingBadge);
+        
+        HBox preparingHeader = new HBox(10);
+        preparingHeader.setAlignment(Pos.CENTER_LEFT);
+        preparingHeader.setPadding(new Insets(15));
+        preparingHeader.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12 12 0 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 2 0;");
+        
+        Label preparingIcon = new Label("⏱️");
+        preparingIcon.setFont(Font.font(18));
+        Label preparingLabel = new Label("Preparing");
+        preparingLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        preparingLabel.setTextFill(Color.web("#374151"));
+        Label preparingBadge = new Label("0");
+        preparingBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        preparingBadge.setTextFill(Color.web("#3B82F6"));
+        preparingBadge.setStyle("-fx-background-color: #DBEAFE; -fx-padding: 4 12; -fx-background-radius: 12;");
+        preparingList.addListener((javafx.collections.ListChangeListener<PendingOrder>) c -> 
+            preparingBadge.setText(String.valueOf(preparingList.size())));
+        preparingHeader.getChildren().addAll(preparingIcon, preparingLabel, preparingBadge);
+        
+        HBox completedHeader = new HBox(10);
+        completedHeader.setAlignment(Pos.CENTER_LEFT);
+        completedHeader.setPadding(new Insets(15));
+        completedHeader.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12 12 0 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 2 0;");
+        
+        Label completedIcon = new Label("✅");
+        completedIcon.setFont(Font.font(18));
+        Label completedLabel = new Label("Completed");
+        completedLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        completedLabel.setTextFill(Color.web("#374151"));
+        Label completedBadge = new Label("0");
+        completedBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        completedBadge.setTextFill(Color.web("#10B981"));
+        completedBadge.setStyle("-fx-background-color: #D1FAE5; -fx-padding: 4 12; -fx-background-radius: 12;");
+        completedList.addListener((javafx.collections.ListChangeListener<PendingOrder>) c -> 
+            completedBadge.setText(String.valueOf(completedList.size())));
+        completedHeader.getChildren().addAll(completedIcon, completedLabel, completedBadge);
+        
+        VBox pendingBox = new VBox(0);
+        pendingBox.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        pendingTable.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+        pendingBox.getChildren().addAll(pendingHeader, pendingTable);
+        
+        VBox preparingBox = new VBox(0);
+        preparingBox.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        preparingTable.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+        preparingBox.getChildren().addAll(preparingHeader, preparingTable);
+        
+        VBox completedBox = new VBox(0);
+        completedBox.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        completedTable.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
+        completedBox.getChildren().addAll(completedHeader, completedTable);
 
         // Allow the boxes to grow vertically so tables can expand
         VBox.setVgrow(pendingTable, Priority.ALWAYS);
@@ -1165,28 +1460,28 @@ public class CashierApp extends Application {
         // Replace old single-table UI: we will populate these lists from file loader
         panel.getChildren().addAll(title, subtitle, new Separator(), tablesRow, new Separator());
         
-        // Order details panel (larger and more readable)
-        VBox detailsPanel = new VBox(12);
-        detailsPanel.setPadding(new Insets(22));
-        detailsPanel.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
+        // Order details panel with modern design
+        VBox detailsPanel = new VBox(15);
+        detailsPanel.setPadding(new Insets(20));
+        detailsPanel.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
         detailsPanel.getStyleClass().add("panel-card");
         detailsPanel.setPrefHeight(380);
         detailsPanel.setMinHeight(300);
 
-        Label detailsTitle = new Label("Order Details");
-        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
-        detailsTitle.setTextFill(Color.web("#3E2723"));
+        Label detailsTitle = new Label("📄 Receipt View");
+        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        detailsTitle.setTextFill(Color.web("#111827"));
 
         TextArea orderDetailsArea = new TextArea();
         orderDetailsArea.setEditable(false);
         orderDetailsArea.setWrapText(true);
         // Use larger monospace font for alignment and readability
-        orderDetailsArea.setFont(Font.font("Consolas", 14));
-        orderDetailsArea.setText("Select an order to view details...");
+        orderDetailsArea.setFont(Font.font("Consolas", 15));
+        orderDetailsArea.setText("👆 Select an order to view details...");
         orderDetailsArea.setPrefHeight(320);
         orderDetailsArea.setMaxHeight(Double.MAX_VALUE);
         orderDetailsArea.setPrefWidth(Double.MAX_VALUE);
-        orderDetailsArea.setStyle("-fx-control-inner-background: #FAFAFA; -fx-background-color: #FAFAFA; -fx-font-size: 14px;");
+        orderDetailsArea.setStyle("-fx-control-inner-background: #F9FAFB; -fx-background-color: #F9FAFB; -fx-font-size: 13px; -fx-border-color: #E5E7EB; -fx-border-width: 1; -fx-border-radius: 8;");
         VBox.setVgrow(orderDetailsArea, Priority.ALWAYS);
 
         detailsPanel.getChildren().addAll(detailsTitle, orderDetailsArea);
@@ -1240,16 +1535,29 @@ public class CashierApp extends Application {
         preparingTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
         completedTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
         
-        Label queueCount = new Label("Total Orders in Queue: 0");
-        queueCount.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        queueCount.setTextFill(Color.web("#795548"));
+        HBox activeOrdersBox = new HBox(12);
+        activeOrdersBox.setAlignment(Pos.CENTER_LEFT);
+        activeOrdersBox.setPadding(new Insets(15));
+        activeOrdersBox.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 10;");
+        
+        Label activeIcon = new Label("📈");
+        activeIcon.setFont(Font.font(16));
+        
+        Label queueCount = new Label("0 Active Orders");
+        queueCount.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
+        queueCount.setTextFill(Color.web("#6366F1"));
+        
+        activeOrdersBox.getChildren().addAll(activeIcon, queueCount);
         // update count based on all three lists
-        javafx.collections.ListChangeListener<PendingOrder> updateCount = c -> queueCount.setText("Total Orders in Queue: " + (pendingList.size() + preparingList.size() + completedList.size()));
+        javafx.collections.ListChangeListener<PendingOrder> updateCount = c -> {
+            int total = pendingList.size() + preparingList.size() + completedList.size();
+            queueCount.setText(total + " Active Orders");
+        };
         pendingList.addListener(updateCount);
         preparingList.addListener(updateCount);
         completedList.addListener(updateCount);
         
-        panel.getChildren().addAll(queueCount, new Separator(), detailsPanel);
+        panel.getChildren().addAll(activeOrdersBox, detailsPanel);
 
         // Wrap the panel in a ScrollPane so the entire Order Queue area can scroll vertically
         ScrollPane outerScroll = new ScrollPane(panel);
@@ -1276,32 +1584,40 @@ public class CashierApp extends Application {
     private VBox createReceiptHistoryPanel() {
         VBox panel = new VBox(20);
         panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #f8f9fa;");
         
-        Label title = new Label("Receipt History");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
-        title.setTextFill(Color.web("#3E2723"));
+        // Header
+        HBox headerBox = new HBox();
+        headerBox.setAlignment(Pos.CENTER_LEFT);
+        Label title = new Label("Transaction History");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        title.setTextFill(Color.web("#1a1a1a"));
         
-        Label subtitle = new Label("View past transactions");
-        subtitle.setFont(Font.font("Segoe UI", 14));
-        subtitle.setTextFill(Color.web("#795548"));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        // Search box
-        HBox searchBox = new HBox(10);
+        Label dateLabel = new Label("Monday, November 24, 2025");
+        dateLabel.setFont(Font.font("Segoe UI", 14));
+        dateLabel.setTextFill(Color.web("#6c757d"));
+        
+        headerBox.getChildren().addAll(title, spacer, dateLabel);
+        
+        // Search and refresh box
+        HBox searchBox = new HBox(15);
         searchBox.setAlignment(Pos.CENTER_LEFT);
-        searchBox.setPadding(new Insets(20));
-        searchBox.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2);");
         
         TextField searchField = new TextField();
-        searchField.setPromptText("Search Order ID / Customer...");
-        searchField.setPrefWidth(350);
-        searchField.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-padding: 8;");
+        searchField.setPromptText("🔍 Search Order ID / Customer...");
+        searchField.setPrefWidth(400);
+        searchField.setStyle("-fx-background-color: #343a40; -fx-text-fill: white; -fx-prompt-text-fill: #6c757d; -fx-background-radius: 8; -fx-padding: 12 15; -fx-font-size: 14px; -fx-border-color: transparent;");
+        HBox.setHgrow(searchField, Priority.ALWAYS);
         
-        Button searchBtn = new Button("Search");
-        searchBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 6; -fx-cursor: hand;");
+        Button searchBtn = new Button("🔍 Search");
+        searchBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-size: 14px;");
         searchBtn.setOnAction(e -> searchReceipts(searchField.getText()));
         
-        Button refreshBtn = new Button("Refresh");
-        refreshBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 20; -fx-background-radius: 6; -fx-cursor: hand;");
+        Button refreshBtn = new Button("🔄 Refresh");
+        refreshBtn.setStyle("-fx-background-color: #0ba360; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-weight: 600; -fx-font-size: 14px;");
         refreshBtn.setOnAction(e -> loadReceiptHistory());
         
         searchBox.getChildren().addAll(searchField, searchBtn, refreshBtn);
@@ -1345,8 +1661,30 @@ public class CashierApp extends Application {
             "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
         amountCol.setPrefWidth(100);
         
+        // Add view column with arrow
+        TableColumn<Receipt, Void> actionCol = new TableColumn<>("");
+        actionCol.setPrefWidth(80);
+        actionCol.setCellFactory(param -> new TableCell<>() {
+            private final Button viewBtn = new Button("›");
+            {
+                viewBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5;");
+                viewBtn.setOnMouseEntered(ev -> viewBtn.setStyle("-fx-background-color: #f8f9fa; -fx-text-fill: #495057; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5; -fx-background-radius: 5;"));
+                viewBtn.setOnMouseExited(ev -> viewBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5;"));
+                viewBtn.setOnAction(event -> {
+                    Receipt receipt = getTableView().getItems().get(getIndex());
+                    displayReceiptDetails(receipt);
+                });
+            }
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : viewBtn);
+                setAlignment(Pos.CENTER);
+            }
+        });
+        
         receiptHistoryTable.getColumns().addAll(receiptIdCol, orderIdCol, customerCol, 
-                                                receiptTimeCol, amountCol);
+                                                receiptTimeCol, amountCol, actionCol);
         
         receiptHistoryTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
@@ -1355,25 +1693,30 @@ public class CashierApp extends Application {
         });
         
         // Receipt details
-        VBox detailsBox = new VBox(15);
-        detailsBox.setPadding(new Insets(20));
-        detailsBox.setStyle("-fx-background-color: white; -fx-background-radius: 12;");
+        VBox detailsBox = new VBox(20);
+        detailsBox.setPadding(new Insets(25));
+        detailsBox.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-border-color: #6366f1; -fx-border-width: 2; -fx-border-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);");
         
-        Label detailsTitle = new Label("Receipt View");
-        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        detailsTitle.setTextFill(Color.web("#3E2723"));
+        Label detailsTitle = new Label("📄 Receipt View");
+        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        detailsTitle.setTextFill(Color.web("#1a1a1a"));
+        
+        String receiptNumber = "RCP-2533B391";
+        Label receiptNumLabel = new Label(receiptNumber);
+        receiptNumLabel.setFont(Font.font("Segoe UI", 14));
+        receiptNumLabel.setTextFill(Color.web("#6c757d"));
         
         receiptDetailArea = new TextArea();
         receiptDetailArea.setEditable(false);
-        receiptDetailArea.setFont(Font.font("Consolas", 11));
+        receiptDetailArea.setFont(Font.font("Consolas", 13));
         receiptDetailArea.setPrefWidth(400);
         receiptDetailArea.setWrapText(true);
-        receiptDetailArea.setText("Select a receipt to view details");
-        receiptDetailArea.setStyle("-fx-control-inner-background: #FAFAFA;");
+        receiptDetailArea.setText("👆 Select a receipt to view details");
+        receiptDetailArea.setStyle("-fx-control-inner-background: #F8F9FA; -fx-border-color: #dee2e6; -fx-border-width: 1; -fx-border-radius: 8;");
         
-        Button printBtn = new Button("Print Receipt");
-        printBtn.setStyle("-fx-background-color: #6F4E37; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 6; -fx-cursor: hand;");
-        printBtn.setPrefWidth(200);
+        Button printBtn = new Button("🖨️ Print Receipt");
+        printBtn.setStyle("-fx-background-color: #6366f1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 14 20; -fx-background-radius: 10; -fx-cursor: hand;");
+        printBtn.setPrefWidth(Double.MAX_VALUE);
         
         printBtn.setOnAction(e -> {
             Receipt selected = receiptHistoryTable.getSelectionModel().getSelectedItem();
@@ -1383,20 +1726,21 @@ public class CashierApp extends Application {
             }
         });
         
-        detailsBox.getChildren().addAll(detailsTitle, new Separator(), receiptDetailArea, printBtn);
+        detailsBox.getChildren().addAll(detailsTitle, receiptNumLabel, new Separator(), receiptDetailArea, printBtn);
         
         splitPane.getItems().addAll(receiptHistoryTable, detailsBox);
         splitPane.setDividerPositions(0.65);
         
-        Label countLabel = new Label("Total Receipts: 0");
-        countLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        countLabel.setTextFill(Color.web("#795548"));
+        Label countLabel = new Label("📊 Total Receipts: 0");
+        countLabel.setFont(Font.font("Segoe UI", 13));
+        countLabel.setTextFill(Color.web("#6c757d"));
+        countLabel.setStyle("-fx-padding: 10 0 0 0;");
         receiptHistory.addListener((javafx.collections.ListChangeListener.Change<? extends Receipt> c) -> {
             countLabel.setText("Total Receipts: " + receiptHistory.size());
         });
         countLabel.setText("Total Receipts: " + receiptHistory.size());
         
-        panel.getChildren().addAll(title, subtitle, searchBox, new Separator(), splitPane, countLabel);
+        panel.getChildren().addAll(headerBox, searchBox, splitPane, countLabel);
         
         return panel;
     }

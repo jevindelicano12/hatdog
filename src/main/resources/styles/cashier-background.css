@@ -1,26 +1,108 @@
-/* Colorful complementary background for CashierApp
-   Uses a diagonal gradient with complementary accent for controls.
-*/
+/* Modern professional background for CashierApp with subtle gradient */
 .root.cashier-root {
-    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #5B8DEF 0%, #8AE2B8 50%, #FFCF66 100%);
+    -fx-background-color: linear-gradient(to bottom, #ECF0F1 0%, #BDC3C7 100%);
 }
 
-/* Slight card style for internal panels */
+/* Enhanced card style for internal panels with better shadows */
 .panel-card {
-    -fx-background-color: rgba(255,255,255,0.85);
-    -fx-background-radius: 12;
-    -fx-padding: 12;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 12, 0, 0, 3);
+    -fx-background-color: linear-gradient(to bottom, #FFFFFF, #F8F9FA);
+    -fx-background-radius: 15;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 3);
 }
 
-/* Accent button style for cashier actions */
+/* Modern gradient button style for cashier actions */
 .button.cashier-accent {
-    -fx-background-color: linear-gradient(#FF8A65, #FF7043);
+    -fx-background-color: linear-gradient(to bottom, #3498DB, #2980B9);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 10;
+    -fx-padding: 10 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);
+    -fx-cursor: hand;
+}
+
+.button.cashier-accent:hover {
+    -fx-background-color: linear-gradient(to bottom, #2E86C1, #21618C);
+    -fx-scale-x: 1.03;
+    -fx-scale-y: 1.03;
+}
+
+/* Modern table styling with clean borders */
+.table-view {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-border-color: #3498DB;
+    -fx-border-width: 2;
+    -fx-border-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 8, 0, 0, 2);
+}
+
+.table-view .column-header {
+    -fx-background-color: linear-gradient(to bottom, #3498DB, #2980B9);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 10;
+}
+
+.table-view .column-header .label {
     -fx-text-fill: white;
     -fx-font-weight: bold;
 }
 
-/* Make tables slightly transparent to blend with background */
-.table-view {
-    -fx-background-color: rgba(255,255,255,0.9);
+.table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: #ECF0F1;
+    -fx-border-width: 0 0 1 0;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #EBF5FB;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #D6EAF8;
+    -fx-text-fill: #2C3E50;
+}
+
+/* Tab styling */
+.tab-pane .tab {
+    -fx-background-color: #ECF0F1;
+    -fx-background-radius: 8 8 0 0;
+    -fx-padding: 12 20;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: linear-gradient(to bottom, #3498DB, #2980B9);
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: white;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: #2C3E50;
+    -fx-font-weight: bold;
+}
+
+/* Scrollbar styling */
+.scroll-bar:vertical {
+    -fx-background-color: #ECF0F1;
+    -fx-background-radius: 10;
+}
+
+.scroll-bar:vertical .thumb {
+    -fx-background-color: linear-gradient(to right, #3498DB, #2980B9);
+    -fx-background-radius: 10;
+}
+
+.scroll-bar:horizontal {
+    -fx-background-color: #ECF0F1;
+    -fx-background-radius: 10;
+}
+
+.scroll-bar:horizontal .thumb {
+    -fx-background-color: linear-gradient(to bottom, #3498DB, #2980B9);
+    -fx-background-radius: 10;
 }

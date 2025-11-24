@@ -86,7 +86,7 @@
     "id": "P011",
     "name": "Blueberry Muffin",
     "price": 50.0,
-    "stock": 22,
+    "stock": 21,
     "recipe": {
       "Muffin Mix": 150.0,
       "Blueberries": 50.0
