@@ -1573,7 +1573,9 @@ public class CustomerApp extends Application {
         VBox addOnsList = new VBox(10);
 
         // Add-on rows: checkbox + quantity controls
-        CheckBox extraShotCheck = createStyledCheckBox("Extra Shot (+₱1.00)");
+        // Only offer extra shot for non-Milk Tea products
+        boolean isMilkTea = product.getCategory() != null && product.getCategory().equalsIgnoreCase("Milk Tea");
+        final CheckBox extraShotCheck = !isMilkTea ? createStyledCheckBox("Extra Shot (+₱1.00)") : null;
         final int[] extraShotQty = {1};
         HBox extraRow = new HBox(8);
         extraRow.setAlignment(Pos.CENTER_LEFT);
@@ -1590,7 +1592,12 @@ public class CustomerApp extends Application {
         extraPlus.setMnemonicParsing(false);
         extraPlus.getStyleClass().add("qty-button");
         extraPlus.setOnAction(ev -> { extraShotQty[0]++; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); });
-        extraRow.getChildren().addAll(extraShotCheck, extraMinus, extraQtyLabel, extraPlus);
+        if (extraShotCheck != null) {
+            extraRow.getChildren().addAll(extraShotCheck, extraMinus, extraQtyLabel, extraPlus);
+        } else {
+            // keep layout consistent: show quantity controls but without the checkbox label
+            extraRow.getChildren().addAll(new Region(), extraMinus, extraQtyLabel, extraPlus);
+        }
 
         CheckBox whippedCreamCheck = createStyledCheckBox("Whipped Cream (+₱0.50)");
         final int[] whippedQty = {1};
@@ -1685,16 +1692,40 @@ public class CustomerApp extends Application {
         // Pre-select add-ons if editing existing item
         if (customizingOrderItem != null && customizingOrderItem.getAddOns() != null) {
             String addOns = customizingOrderItem.getAddOns();
-            extraShotCheck.setSelected(addOns.contains("Extra Shot"));
+            if (extraShotCheck != null) extraShotCheck.setSelected(addOns.contains("Extra Shot"));
             whippedCreamCheck.setSelected(addOns.contains("Whipped Cream"));
             vanillaSyrupCheck.setSelected(addOns.contains("Vanilla Syrup"));
             caramelSyrupCheck.setSelected(addOns.contains("Caramel Syrup"));
             chocolateSyrupCheck.setSelected(addOns.contains("Chocolate Syrup"));
         }
 
-        addOnsList.getChildren().addAll(extraRow, whipRow, vanillaRow, caramelRow, chocRow);
+        if (extraShotCheck != null) addOnsList.getChildren().add(extraRow);
+        addOnsList.getChildren().addAll(whipRow, vanillaRow, caramelRow, chocRow);
         
         addOnsSection.getChildren().addAll(addOnsTitle, addOnsList);
+
+        // Cup size selection: Small (base), Medium (+₱5), Large (+₱10)
+        VBox sizeSection = new VBox(8);
+        Label sizeTitle = new Label("Cup Size");
+        sizeTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+
+        ToggleGroup sizeGroup = new ToggleGroup();
+        RadioButton sizeSmall = new RadioButton("Small (₱" + String.format("%.2f", product.getPrice()) + ")");
+        sizeSmall.setToggleGroup(sizeGroup);
+        sizeSmall.setUserData(0.0);
+
+        RadioButton sizeMedium = new RadioButton("Medium (₱" + String.format("%.2f", product.getPrice() + 5.0) + ")");
+        sizeMedium.setToggleGroup(sizeGroup);
+        sizeMedium.setUserData(5.0);
+
+        RadioButton sizeLarge = new RadioButton("Large (₱" + String.format("%.2f", product.getPrice() + 10.0) + ")");
+        sizeLarge.setToggleGroup(sizeGroup);
+        sizeLarge.setUserData(10.0);
+
+        // Default to Small
+        sizeSmall.setSelected(true);
+
+        sizeSection.getChildren().addAll(sizeTitle, sizeSmall, sizeMedium, sizeLarge);
         
         // Quantity and Add button
         VBox bottomSection = new VBox(12);
@@ -1764,11 +1795,26 @@ public class CustomerApp extends Application {
         // Helper to recompute totals (reads current UI state)
         Runnable recompute = () -> {
             double addOnsCost = 0.0;
-            if (extraShotCheck.isSelected()) addOnsCost += 1.00 * extraShotQty[0];
+            // Extra shot may be null for certain categories (e.g., Milk Tea)
+            if (extraShotCheck != null && extraShotCheck.isSelected()) addOnsCost += 1.00 * extraShotQty[0];
             if (whippedCreamCheck.isSelected()) addOnsCost += 0.50 * whippedQty[0];
             if (vanillaSyrupCheck.isSelected()) addOnsCost += 0.75 * vanillaQty[0];
             if (caramelSyrupCheck.isSelected()) addOnsCost += 0.75 * caramelQty[0];
             if (chocolateSyrupCheck.isSelected()) addOnsCost += 0.75 * chocolateQty[0];
+
+            // Include cup size delta (userData on selected Toggle)
+            double sizeDelta = 0.0;
+            try {
+                if (sizeGroup != null) {
+                    javafx.scene.control.Toggle sel = sizeGroup.getSelectedToggle();
+                    if (sel != null && sel.getUserData() != null) {
+                        Object ud = sel.getUserData();
+                        if (ud instanceof Number) sizeDelta = ((Number) ud).doubleValue();
+                        else sizeDelta = Double.parseDouble(ud.toString());
+                    }
+                }
+            } catch (Exception ignored) {}
+            addOnsCost += sizeDelta;
 
             double suggestions = suggestionsExtra.get();
             double base = product.getPrice();
@@ -1777,11 +1823,12 @@ public class CustomerApp extends Application {
         };
 
         // attach recompute listeners to controls that affect price
-        extraShotCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (extraShotCheck != null) extraShotCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
         whippedCreamCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
         vanillaSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
         caramelSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
         chocolateSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (sizeGroup != null) sizeGroup.selectedToggleProperty().addListener((obs, o, n) -> recompute.run());
 
         // quantity changes should also recompute
         plusBtn.setOnAction(e -> {
@@ -1826,7 +1873,24 @@ public class CustomerApp extends Application {
                 StringBuilder addOnsText = new StringBuilder();
                 double addOnsCost = 0.0;
 
-                if (extraShotCheck.isSelected()) {
+                // Include selected cup size (if any)
+                double selSizeDelta = 0.0;
+                String selSizeLabel = null;
+                try {
+                    if (sizeGroup != null) {
+                        javafx.scene.control.Toggle sel = sizeGroup.getSelectedToggle();
+                        if (sel != null && sel instanceof RadioButton) {
+                            RadioButton rb = (RadioButton) sel;
+                            selSizeLabel = rb.getText();
+                            Object ud = sel.getUserData();
+                            if (ud instanceof Number) selSizeDelta = ((Number) ud).doubleValue();
+                            else selSizeDelta = Double.parseDouble(ud.toString());
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                // Apply extra shot only if control exists for this product
+                if (extraShotCheck != null && extraShotCheck.isSelected()) {
                     addOnsText.append("Extra Shot");
                     addOnsCost += 1.00 * extraShotQty[0];
                     if (extraShotQty[0] > 1) addOnsText.append(" x").append(extraShotQty[0]);
@@ -1854,6 +1918,13 @@ public class CustomerApp extends Application {
                     addOnsText.append("Chocolate Syrup");
                     addOnsCost += 0.75 * chocolateQty[0];
                     if (chocolateQty[0] > 1) addOnsText.append(" x").append(chocolateQty[0]);
+                }
+
+                // Append size information and include its delta per unit
+                if (selSizeLabel != null) {
+                    if (addOnsText.length() > 0) addOnsText.append(", ");
+                    addOnsText.append(selSizeLabel);
+                    addOnsCost += selSizeDelta;
                 }
                 
                 if (customizingOrderItem != null) {
@@ -1999,15 +2070,35 @@ public class CustomerApp extends Application {
             cardRow.setMaxWidth(Double.MAX_VALUE);
             HBox.setHgrow(cardRow, Priority.ALWAYS);
 
-            // Image thumbnail
+            // Image thumbnail (try product image then fallback to emoji)
             StackPane img = new StackPane();
             img.setPrefSize(110, 90);
-            String grad = p.getName().toLowerCase().contains("espresso") ? "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" : "linear-gradient(to bottom right, #505050, #2C2C2C)";
-            img.setStyle("-fx-background-color: " + grad + "; -fx-background-radius: 0; -fx-border-radius: 0;");
-            Label emoji = new Label("☕");
-            emoji.setFont(Font.font("Segoe UI Emoji", 28));
-            emoji.setTextFill(Color.web("#F5EFE7"));
-            img.getChildren().add(emoji);
+            javafx.scene.image.ImageView thumb = loadProductImage(p.getId());
+            if (thumb != null) {
+                try {
+                    // Size it to fill the thumbnail area while preserving aspect ratio
+                    thumb.setFitWidth(110);
+                    thumb.setFitHeight(90);
+                    thumb.setPreserveRatio(true);
+                    thumb.setSmooth(true);
+                    img.getChildren().add(thumb);
+                } catch (Exception ignored) {
+                    // fallback to emoji below
+                    String grad = p.getName().toLowerCase().contains("espresso") ? "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" : "linear-gradient(to bottom right, #505050, #2C2C2C)";
+                    img.setStyle("-fx-background-color: " + grad + "; -fx-background-radius: 0; -fx-border-radius: 0;");
+                    Label emoji = new Label("☕");
+                    emoji.setFont(Font.font("Segoe UI Emoji", 28));
+                    emoji.setTextFill(Color.web("#F5EFE7"));
+                    img.getChildren().add(emoji);
+                }
+            } else {
+                String grad = p.getName().toLowerCase().contains("espresso") ? "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" : "linear-gradient(to bottom right, #505050, #2C2C2C)";
+                img.setStyle("-fx-background-color: " + grad + "; -fx-background-radius: 0; -fx-border-radius: 0;");
+                Label emoji = new Label("☕");
+                emoji.setFont(Font.font("Segoe UI Emoji", 28));
+                emoji.setTextFill(Color.web("#F5EFE7"));
+                img.getChildren().add(emoji);
+            }
 
             // Middle: title and unit price
             VBox mid = new VBox(6);

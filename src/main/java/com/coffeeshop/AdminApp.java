@@ -30,6 +30,9 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,7 +52,9 @@ public class AdminApp extends Application {
     private Store store;
     private TableView<ProductRow> productTable;
     private TableView<InventoryRow> inventoryTable;
-    private TextArea alertsArea;
+    private java.util.Deque<UndoAction> undoStack = new java.util.ArrayDeque<>();
+    private javafx.scene.control.ListView<com.coffeeshop.model.InventoryItem> alertsListView;
+    private Label adminTimeLabel;
     private Label netSalesLabel;
     private Label pendingOrdersLabel;
     private Label completedOrdersLabel;
@@ -83,23 +88,16 @@ public class AdminApp extends Application {
         btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: linear-gradient(to right, #95A5A6, #7F8C8D); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 24; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 6, 0, 0, 2);"));
     }
 
+    private VBox currentContentArea;
+    private VBox dashboardContent, productsContent, inventoryContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent;
+    private VBox archivedContent;
+    private TableView<InventoryRow> archivedTable;
+
     @Override
     public void start(Stage primaryStage) {
         store = Store.getInstance();
 
-        primaryStage.setTitle("Coffee Shop - Admin Panel");
-
-        BorderPane root = new BorderPane();
-        root.setPadding(new Insets(0));
-        root.setStyle("-fx-background-color: #F3F4F6;");
-
-        // Header
-        VBox header = createHeader();
-        root.setTop(header);
-
-        // Center - Tabs
-        TabPane tabPane = createTabPane();
-        root.setCenter(tabPane);
+        primaryStage.setTitle("brewise - Admin Panel");
 
         // Show admin login BEFORE setting up the scene
         boolean ok = showAdminLogin(null);
@@ -108,6 +106,33 @@ public class AdminApp extends Application {
             javafx.application.Platform.exit();
             return;
         }
+
+        // Main container with sidebar
+        HBox root = new HBox(0);
+        root.setStyle("-fx-background-color: #F3F4F6;");
+
+        // Left Sidebar
+        VBox sidebar = createSidebar();
+        
+        // Right Content Area (will be swapped based on nav selection)
+        currentContentArea = new VBox();
+        currentContentArea.setStyle("-fx-background-color: #F3F4F6;");
+        HBox.setHgrow(currentContentArea, Priority.ALWAYS);
+        
+        // Initialize all content panels
+        dashboardContent = createDashboardTab();
+        productsContent = createProductsTab();
+        inventoryContent = createInventoryTab();
+        categoriesContent = createCategoriesTab();
+        accountsContent = createAccountsTab();
+        refillAlertsContent = createRefillAlertsTab();
+        archivedContent = createArchivedTab();
+        reportsContent = createReportsTab();
+        
+        // Show dashboard by default
+        showContent(dashboardContent);
+        
+        root.getChildren().addAll(sidebar, currentContentArea);
 
         Scene scene = new Scene(root, 1400, 800);
         primaryStage.setScene(scene);
@@ -119,6 +144,12 @@ public class AdminApp extends Application {
         primaryStage.show();
 
         refreshData();
+    }
+    
+    private void showContent(VBox content) {
+        currentContentArea.getChildren().clear();
+        currentContentArea.getChildren().add(content);
+        VBox.setVgrow(content, Priority.ALWAYS);
     }
 
     // Helper to filter available inventory ingredient names by product category
@@ -323,120 +354,198 @@ public class AdminApp extends Application {
         return loginSuccess[0];
     }
 
-    
+    private Button activeNavButton = null;
 
-    private VBox createHeader() {
-        HBox header = new HBox(20);
-        header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(20, 30, 20, 30));
-        header.setStyle("-fx-background-color: #FFFFFF; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
-
-        // Logo/Brand section
-        VBox brandBox = new VBox(5);
-        brandBox.setAlignment(Pos.CENTER_LEFT);
+    private VBox createSidebar() {
+        VBox sidebar = new VBox(0);
+        sidebar.setPrefWidth(230);
+        sidebar.setMinWidth(230);
+        sidebar.setMaxWidth(230);
+        sidebar.setStyle("-fx-background-color: #1F2937;");
+        
+        // Logo and branding at top
+        VBox brandSection = new VBox(5);
+        brandSection.setPadding(new Insets(25, 20, 25, 20));
+        brandSection.setAlignment(Pos.CENTER_LEFT);
         
         HBox logoRow = new HBox(12);
         logoRow.setAlignment(Pos.CENTER_LEFT);
         
-        ImageView logoImageView = null;
-        try {
-            File logoFile = new File("data/images/LOGO3.png");
-            if (logoFile.exists()) {
-                Image logoImage = new Image(logoFile.toURI().toString());
-                logoImageView = new ImageView(logoImage);
-                logoImageView.setFitWidth(48);
-                logoImageView.setFitHeight(48);
-                logoImageView.setPreserveRatio(true);
-                // Make logo circular
-                javafx.scene.shape.Circle clip = new javafx.scene.shape.Circle(24, 24, 24);
-                logoImageView.setClip(clip);
-            }
-        } catch (Exception e) {
-            System.err.println("Could not load logo: " + e.getMessage());
-        }
+        // Coffee cup icon
+        Label cupIcon = new Label("☕");
+        cupIcon.setFont(Font.font("Segoe UI", 24));
+        cupIcon.setTextFill(Color.web("#FFFFFF"));
         
-        if (logoImageView == null) {
-            Label adminIcon = new Label("🛡️");
-            adminIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
-            adminIcon.setTextFill(Color.web("#FFFFFF"));
-            adminIcon.setStyle("-fx-background-color: #DC2626; -fx-padding: 10; -fx-background-radius: 50;");
-            logoRow.getChildren().add(adminIcon);
-        } else {
-            logoRow.getChildren().add(logoImageView);
-        }
+        VBox brandText = new VBox(0);
+        Label brewiseLabel = new Label("brewise");
+        brewiseLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        brewiseLabel.setTextFill(Color.web("#FFFFFF"));
         
-        Label title = new Label("BREWISE Admin");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
-        title.setTextFill(Color.web("#1F2937"));
+        Label adminLabel = new Label("ADMIN PANEL");
+        adminLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
+        adminLabel.setTextFill(Color.web("#9CA3AF"));
         
-        logoRow.getChildren().add(title);
-        brandBox.getChildren().add(logoRow);
+        brandText.getChildren().addAll(brewiseLabel, adminLabel);
+        logoRow.getChildren().addAll(cupIcon, brandText);
+        brandSection.getChildren().add(logoRow);
         
+        // Navigation sections
+        VBox navContainer = new VBox(15);
+        navContainer.setPadding(new Insets(10, 0, 20, 0));
+        
+        // BUSINESS section
+        Label businessHeader = new Label("BUSINESS");
+        businessHeader.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        businessHeader.setTextFill(Color.web("#6B7280"));
+        businessHeader.setPadding(new Insets(5, 20, 5, 20));
+        
+        Button dashboardBtn = createNavButton("📊", "Dashboard", true);
+        Button reportsBtn = createNavButton("📈", "Sales Reports", false);
+        
+        VBox businessSection = new VBox(0);
+        businessSection.getChildren().addAll(businessHeader, dashboardBtn, reportsBtn);
+        
+        // MANAGEMENT section
+        Label managementHeader = new Label("MANAGEMENT");
+        managementHeader.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        managementHeader.setTextFill(Color.web("#6B7280"));
+        managementHeader.setPadding(new Insets(5, 20, 5, 20));
+        
+        Button productsBtn = createNavButton("📦", "Products", false);
+        Button inventoryBtn = createNavButton("📋", "Inventory", false);
+        Button categoriesBtn = createNavButton("🗂️", "Categories", false);
+        Button accountsBtn = createNavButton("👥", "Accounts", false);
+        
+        VBox managementSection = new VBox(0);
+        managementSection.getChildren().addAll(managementHeader, productsBtn, inventoryBtn, categoriesBtn, accountsBtn);
+        
+        // SYSTEM section
+        Label systemHeader = new Label("SYSTEM");
+        systemHeader.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        systemHeader.setTextFill(Color.web("#6B7280"));
+        systemHeader.setPadding(new Insets(5, 20, 5, 20));
+        
+        Button refillBtn = createNavButton("🔔", "Refill Alerts", false);
+        Button archivedBtn = createNavButton("🗄️", "Archived Items", false);
+        
+        VBox systemSection = new VBox(0);
+        systemSection.getChildren().addAll(systemHeader, refillBtn);
+        
+        navContainer.getChildren().addAll(businessSection, managementSection, systemSection);
+        
+        // Admin user at bottom
         Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        VBox.setVgrow(spacer, Priority.ALWAYS);
         
-        // Date info
-        VBox infoBox = new VBox(5);
-        infoBox.setAlignment(Pos.CENTER_RIGHT);
+        HBox adminUserBox = new HBox(10);
+        adminUserBox.setPadding(new Insets(15, 20, 20, 20));
+        adminUserBox.setAlignment(Pos.CENTER_LEFT);
+        adminUserBox.setStyle("-fx-background-color: #374151; -fx-background-radius: 10;");
         
-        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")));
-        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
-        dateLabel.setTextFill(Color.web("#6B7280"));
+        Label adminIcon = new Label("👤");
+        adminIcon.setFont(Font.font(20));
+        adminIcon.setTextFill(Color.web("#FFA500"));
         
-        HBox adminRow = new HBox(8);
-        adminRow.setAlignment(Pos.CENTER_RIGHT);
+        Label adminNameLabel = new Label("Administrator");
+        adminNameLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        adminNameLabel.setTextFill(Color.web("#FFFFFF"));
         
-        Label adminIconSmall = new Label("👤");
-        adminIconSmall.setFont(Font.font(12));
+        adminUserBox.getChildren().addAll(adminIcon, adminNameLabel);
         
-        Label adminLabel = new Label("Administrator");
-        adminLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
-        adminLabel.setTextFill(Color.web("#1F2937"));
+        VBox adminContainer = new VBox();
+        adminContainer.setPadding(new Insets(0, 15, 15, 15));
+        adminContainer.getChildren().add(adminUserBox);
         
-        Label statusBadge = new Label("Logged In");
-        statusBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
-        statusBadge.setTextFill(Color.web("#10B981"));
-        statusBadge.setStyle("-fx-background-color: #D1FAE5; -fx-padding: 4 12; -fx-background-radius: 12;");
+        sidebar.getChildren().addAll(brandSection, navContainer, spacer, adminContainer);
         
-        adminRow.getChildren().addAll(adminIconSmall, adminLabel, statusBadge);
-        infoBox.getChildren().addAll(dateLabel, adminRow);
+        // Wire up navigation buttons
+        dashboardBtn.setOnAction(e -> { setActiveNav(dashboardBtn); showContent(dashboardContent); });
+        reportsBtn.setOnAction(e -> { setActiveNav(reportsBtn); showContent(reportsContent); });
+        productsBtn.setOnAction(e -> { setActiveNav(productsBtn); showContent(productsContent); });
+        inventoryBtn.setOnAction(e -> { setActiveNav(inventoryBtn); showContent(inventoryContent); });
+        categoriesBtn.setOnAction(e -> { setActiveNav(categoriesBtn); showContent(categoriesContent); });
+        accountsBtn.setOnAction(e -> { setActiveNav(accountsBtn); showContent(accountsContent); });
+        refillBtn.setOnAction(e -> { setActiveNav(refillBtn); showContent(refillAlertsContent); });
+        archivedBtn.setOnAction(e -> { setActiveNav(archivedBtn); refreshArchivedItems(); showContent(archivedContent); });
         
-        header.getChildren().addAll(brandBox, spacer, infoBox);
+        return sidebar;
+    }
+    
+    private Button createNavButton(String icon, String text, boolean active) {
+        Button btn = new Button();
+        HBox content = new HBox(12);
+        content.setAlignment(Pos.CENTER_LEFT);
         
-        VBox wrapper = new VBox();
-        wrapper.getChildren().add(header);
-        return wrapper;
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(16));
+        
+        Label textLabel = new Label(text);
+        textLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        
+        content.getChildren().addAll(iconLabel, textLabel);
+        btn.setGraphic(content);
+        btn.setMaxWidth(Double.MAX_VALUE);
+        btn.setAlignment(Pos.CENTER_LEFT);
+        btn.setPadding(new Insets(12, 20, 12, 20));
+        
+        if (active) {
+            btn.setStyle("-fx-background-color: #FFA500; -fx-text-fill: #FFFFFF; -fx-background-radius: 8; -fx-cursor: hand;");
+            iconLabel.setTextFill(Color.web("#FFFFFF"));
+            textLabel.setTextFill(Color.web("#FFFFFF"));
+            textLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+            activeNavButton = btn;
+        } else {
+            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-cursor: hand;");
+            iconLabel.setTextFill(Color.web("#9CA3AF"));
+            textLabel.setTextFill(Color.web("#9CA3AF"));
+        }
+        
+        btn.setOnMouseEntered(e -> {
+            if (btn != activeNavButton) {
+                btn.setStyle("-fx-background-color: #374151; -fx-text-fill: #FFFFFF; -fx-background-radius: 8; -fx-cursor: hand;");
+                iconLabel.setTextFill(Color.web("#FFFFFF"));
+                textLabel.setTextFill(Color.web("#FFFFFF"));
+            }
+        });
+        
+        btn.setOnMouseExited(e -> {
+            if (btn != activeNavButton) {
+                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-cursor: hand;");
+                iconLabel.setTextFill(Color.web("#9CA3AF"));
+                textLabel.setTextFill(Color.web("#9CA3AF"));
+            }
+        });
+        
+        return btn;
+    }
+    
+    private void setActiveNav(Button btn) {
+        if (activeNavButton != null && activeNavButton != btn) {
+            // Reset previous active button
+            HBox oldContent = (HBox) activeNavButton.getGraphic();
+            Label oldIcon = (Label) oldContent.getChildren().get(0);
+            Label oldText = (Label) oldContent.getChildren().get(1);
+            
+            activeNavButton.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-cursor: hand;");
+            oldIcon.setTextFill(Color.web("#9CA3AF"));
+            oldText.setTextFill(Color.web("#9CA3AF"));
+            oldText.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        }
+        
+        // Set new active button
+        HBox content = (HBox) btn.getGraphic();
+        Label icon = (Label) content.getChildren().get(0);
+        Label text = (Label) content.getChildren().get(1);
+        
+        btn.setStyle("-fx-background-color: #FFA500; -fx-text-fill: #FFFFFF; -fx-background-radius: 8; -fx-cursor: hand;");
+        icon.setTextFill(Color.web("#FFFFFF"));
+        text.setTextFill(Color.web("#FFFFFF"));
+        text.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        
+        activeNavButton = btn;
     }
 
-    private TabPane createTabPane() {
-        TabPane tabPane = new TabPane();
-        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.setStyle("-fx-background-color: #FFFFFF; -fx-tab-min-height: 50px; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
-
-        Tab dashboardTab = new Tab("   📊 Dashboard   ", createDashboardTab());
-        dashboardTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        Tab productsTab = new Tab("   📦 Products   ", createProductsTab());
-        productsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        Tab inventoryTab = new Tab("   📋 Inventory   ", createInventoryTab());
-        inventoryTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        Tab refillTab = new Tab("   ⚠️ Refill Status   ", createRefillTab());
-        refillTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        Tab categoriesTab = new Tab("   🏷️ Categories   ", createCategoriesTab());
-        categoriesTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        Tab salesTab = new Tab("   📈 Sales Reports   ", createSalesTab());
-        salesTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        Tab accountsTab = new Tab("   👥 Accounts   ", createAccountsTab());
-        accountsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
-
-        tabPane.getTabs().addAll(dashboardTab, productsTab, inventoryTab, refillTab, categoriesTab, salesTab, accountsTab);
-        return tabPane;
-    }
+    // Removed createTabPane - now using sidebar navigation instead
 
     private VBox createAccountsTab() {
         VBox panel = new VBox(12);
@@ -862,66 +971,129 @@ public class AdminApp extends Application {
     }
 
     private VBox createDashboardTab() {
-        VBox panel = new VBox(20);
-        panel.setPadding(new Insets(20));
+        VBox panel = new VBox(25);
+        panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #F3F4F6;");
 
-        Label title = new Label("📊 Dashboard - Business Overview");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
-        title.setTextFill(Color.web("#1565C0"));
+        // Header with title and time
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        
+        VBox titleBox = new VBox(5);
+        Label title = new Label("Business Overview");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        title.setTextFill(Color.web("#111827"));
+        titleBox.getChildren().add(title);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Label timeLabel = new Label(LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")));
+        timeLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
+        timeLabel.setTextFill(Color.web("#6B7280"));
+        
+        VBox dateBox = new VBox(2);
+        dateBox.setAlignment(Pos.TOP_RIGHT);
+        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd")));
+        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        dateLabel.setTextFill(Color.web("#9CA3AF"));
+        dateBox.getChildren().addAll(timeLabel, dateLabel);
+        
+        header.getChildren().addAll(titleBox, spacer, dateBox);
 
         // Statistics Cards Row
         HBox statsRow = new HBox(20);
-        statsRow.setAlignment(Pos.CENTER);
+        statsRow.setAlignment(Pos.TOP_CENTER);
 
         // Create labels that will be updated
         netSalesLabel = new Label();
-        netSalesLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        netSalesLabel.setTextFill(Color.web("#2E7D32"));
+        netSalesLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        netSalesLabel.setTextFill(Color.web("#111827"));
 
         pendingOrdersLabel = new Label();
-        pendingOrdersLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        pendingOrdersLabel.setTextFill(Color.web("#FF6B6B"));
+        pendingOrdersLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
+        pendingOrdersLabel.setTextFill(Color.web("#111827"));
 
         completedOrdersLabel = new Label();
-        completedOrdersLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        completedOrdersLabel.setTextFill(Color.web("#1565C0"));
+        completedOrdersLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
+        completedOrdersLabel.setTextFill(Color.web("#111827"));
 
         lowStockLabel = new Label();
-        lowStockLabel.setFont(Font.font("Arial", FontWeight.BOLD, 32));
-        lowStockLabel.setTextFill(Color.web("#FFA726"));
+        lowStockLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
+        lowStockLabel.setTextFill(Color.web("#111827"));
 
-        // Create stat cards using labels
-        VBox salesCard = createStatCard("💰 Net Sales (This Month)", netSalesLabel, "#2E7D32");
-        VBox pendingCard = createStatCard("⏳ Pending Orders", pendingOrdersLabel, "#FF6B6B");
-        VBox completedCard = createStatCard("✅ Completed Orders", completedOrdersLabel, "#1565C0");
-        VBox alertCard = createStatCard("⚠️ Low Stock Alerts", lowStockLabel, "#FFA726");
+        // Create modern stat cards
+        VBox salesCard = createModernStatCard("💵", "NET SALES (MONTH)", netSalesLabel, "#10B981");
+        VBox pendingCard = createModernStatCard("🕐", "PENDING ORDERS", pendingOrdersLabel, "#F59E0B");
+        VBox completedCard = createModernStatCard("✓", "COMPLETED ORDERS", completedOrdersLabel, "#3B82F6");
+        VBox alertCard = createModernStatCard("⚠", "LOW STOCK ALERTS", lowStockLabel, "#EF4444");
 
         statsRow.getChildren().addAll(salesCard, pendingCard, completedCard, alertCard);
 
         // Refill Alerts Section
-        VBox alertsSection = new VBox(10);
-        alertsSection.setPadding(new Insets(20));
-        alertsSection.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8;");
-        Label alertsTitle = new Label("⚠️ Refill Alerts");
-        alertsTitle.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        VBox alertsSection = new VBox(15);
+        alertsSection.setPadding(new Insets(25));
+        alertsSection.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        
+        HBox alertsHeader = new HBox();
+        alertsHeader.setAlignment(Pos.CENTER_LEFT);
+        
+        Label alertsTitle = new Label("⚠ Refill Alerts");
+        alertsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        alertsTitle.setTextFill(Color.web("#111827"));
+        
+        Region alertsSpacer = new Region();
+        HBox.setHgrow(alertsSpacer, Priority.ALWAYS);
+        
+        Button refreshBtn = new Button("🔄 Refresh");
+        refreshBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6B7280; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 600;");
+        refreshBtn.setOnMouseEntered(e -> refreshBtn.setStyle("-fx-background-color: #F9FAFB; -fx-text-fill: #6B7280; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 600;"));
+        refreshBtn.setOnMouseExited(e -> refreshBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6B7280; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 600;"));
+        refreshBtn.setOnAction(e -> refreshDashboard());
+        
+        alertsHeader.getChildren().addAll(alertsTitle, alertsSpacer, refreshBtn);
 
         dashboardAlertsArea = new TextArea();
         dashboardAlertsArea.setEditable(false);
-        dashboardAlertsArea.setPrefHeight(200);
+        dashboardAlertsArea.setPrefHeight(150);
         dashboardAlertsArea.setWrapText(true);
-        dashboardAlertsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 12px;");
+        dashboardAlertsArea.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 13px; -fx-control-inner-background: #F9FAFB; -fx-background-color: #F9FAFB; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8;");
 
-        Button refreshBtn = new Button("🔄 Refresh Dashboard");
-        refreshBtn.setStyle("-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
-        refreshBtn.setOnAction(e -> refreshDashboard());
+        alertsSection.getChildren().addAll(alertsHeader, dashboardAlertsArea);
 
-        alertsSection.getChildren().addAll(alertsTitle, dashboardAlertsArea, refreshBtn);
-
-        panel.getChildren().addAll(title, new Separator(), statsRow, new Separator(), alertsSection);
+        panel.getChildren().addAll(header, statsRow, alertsSection);
         // Initial data load
         updateDashboardData();
 
         return panel;
+    }
+    
+    private VBox createModernStatCard(String icon, String label, Label valueLabel, String accentColor) {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(25));
+        card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        card.setPrefWidth(280);
+        card.setMinHeight(140);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        
+        // Icon circle
+        StackPane iconCircle = new StackPane();
+        iconCircle.setPrefSize(50, 50);
+        iconCircle.setMaxSize(50, 50);
+        iconCircle.setStyle("-fx-background-color: " + accentColor + "; -fx-background-radius: 25;");
+        
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font("Segoe UI", 24));
+        iconLabel.setTextFill(Color.web("#FFFFFF"));
+        iconCircle.getChildren().add(iconLabel);
+        
+        Label titleLabel = new Label(label);
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
+        titleLabel.setTextFill(Color.web("#6B7280"));
+        titleLabel.setWrapText(true);
+        
+        card.getChildren().addAll(iconCircle, titleLabel, valueLabel);
+        return card;
     }
 
     private VBox createStatCard(String label, String value, String color) {
@@ -1107,6 +1279,20 @@ public class AdminApp extends Application {
         TableColumn<InventoryRow, Double> quantityCol = new TableColumn<>("Quantity");
         quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
         quantityCol.setPrefWidth(150);
+        // Make quantity editable inline
+        inventoryTable.setEditable(true);
+        quantityCol.setCellFactory(javafx.scene.control.cell.TextFieldTableCell.forTableColumn(new javafx.util.converter.DoubleStringConverter()));
+        quantityCol.setOnEditCommit(evt -> {
+            InventoryRow row = evt.getRowValue();
+            double newVal = evt.getNewValue() == null ? row.getQuantity() : evt.getNewValue();
+            // Update underlying store
+            try {
+                com.coffeeshop.service.Store.getInstance().getInventoryItem(row.getName()).setQuantity(newVal);
+                com.coffeeshop.service.Store.getInstance().saveData();
+            } catch (Exception ignored) {}
+            row.setQuantity(newVal);
+            inventoryTable.refresh();
+        });
 
         TableColumn<InventoryRow, String> unitCol = new TableColumn<>("Unit");
         unitCol.setCellValueFactory(new PropertyValueFactory<>("unit"));
@@ -1122,42 +1308,413 @@ public class AdminApp extends Application {
         stylePrimaryButton(refillIngredientButton);
         refillIngredientButton.setOnAction(e -> refillIngredient());
 
+        Button deductQuantityButton = new Button("➖ Deduct Quantity");
+        styleDangerButton(deductQuantityButton);
+        deductQuantityButton.setOnAction(e -> deductInventoryQuantity());
+
+        Button deleteIngredientButton = new Button("🗑️ Delete Ingredient");
+        styleDangerButton(deleteIngredientButton);
+        deleteIngredientButton.setOnAction(e -> deleteInventoryItem());
+
         Button addIngredientButton = new Button("➕ Add Ingredient");
         styleSuccessButton(addIngredientButton);
         addIngredientButton.setOnAction(e -> addIngredient());
+
+        Button undoButton = new Button("↶ Undo");
+        styleSecondaryButton(undoButton);
+        undoButton.setOnAction(e -> undoLastAction());
 
         Button refreshButton = new Button("🔄 Refresh");
         styleSecondaryButton(refreshButton);
         refreshButton.setOnAction(e -> refreshData());
 
-        controls.getChildren().addAll(refillIngredientButton, addIngredientButton, refreshButton);
+        controls.getChildren().addAll(refillIngredientButton, deductQuantityButton, deleteIngredientButton, addIngredientButton, undoButton, refreshButton);
 
         panel.getChildren().addAll(title, inventoryTable, controls);
         return panel;
     }
 
-    private VBox createRefillTab() {
+    private VBox createRefillAlertsTab() {
+        VBox panel = new VBox(25);
+        panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #F3F4F6;");
+
+        // Header
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
+        
+        Label title = new Label("Refill Alerts");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        title.setTextFill(Color.web("#111827"));
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Label timeLabel = new Label(LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")));
+        timeLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
+        timeLabel.setTextFill(Color.web("#6B7280"));
+        
+        VBox dateBox = new VBox(2);
+        dateBox.setAlignment(Pos.TOP_RIGHT);
+        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd")));
+        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        dateLabel.setTextFill(Color.web("#9CA3AF"));
+        dateBox.getChildren().addAll(timeLabel, dateLabel);
+        
+        header.getChildren().addAll(title, spacer, dateBox);
+
+        // Filter buttons
+        HBox filterBox = new HBox(10);
+        filterBox.setAlignment(Pos.CENTER_LEFT);
+        
+        Button allBtn = new Button("All Ingredients");
+        allBtn.setStyle("-fx-background-color: #1F2937; -fx-text-fill: #FFFFFF; -fx-font-size: 14px; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        
+        Button lowStockBtn = new Button("⚠ Low Stock");
+        lowStockBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: #FFFFFF; -fx-font-size: 14px; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        
+        filterBox.getChildren().addAll(allBtn, lowStockBtn);
+
+        // Alerts content (selectable list)
+        VBox alertsSection = new VBox(15);
+        alertsSection.setPadding(new Insets(25));
+        alertsSection.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+
+        alertsListView = new javafx.scene.control.ListView<>();
+        alertsListView.setPrefHeight(500);
+        alertsListView.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+        alertsListView.setCellFactory(lv -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(com.coffeeshop.model.InventoryItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    String txt = String.format("%s — %.2f %s", item.getName(), item.getQuantity(), item.getUnit());
+                    setText(txt);
+                    // Simple low-stock visual cue
+                    if (item.getQuantity() <= Store.REFILL_THRESHOLD) {
+                        setStyle("-fx-background-color: rgba(254,226,226,0.6);");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
+
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER_LEFT);
+
+        Button refillSelectedBtn = new Button("🔄 Refill Selected");
+        refillSelectedBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+
+        // 'Add Ingredient' removed as requested (no Add button)
+
+        buttonBox.getChildren().addAll(refillSelectedBtn);
+
+        alertsSection.getChildren().addAll(alertsListView, buttonBox);
+
+        panel.getChildren().addAll(header, filterBox, alertsSection);
+        
+        // Wire up refresh
+        allBtn.setOnAction(e -> refreshRefillAlerts(false));
+        lowStockBtn.setOnAction(e -> refreshRefillAlerts(true));
+
+        // Refill selected action: prompt for amount and confirm before applying
+        refillSelectedBtn.setOnAction(e -> {
+            java.util.List<com.coffeeshop.model.InventoryItem> sel = new java.util.ArrayList<>(alertsListView.getSelectionModel().getSelectedItems());
+            if (sel.isEmpty()) {
+                showAlert("No Selection", "Please select one or more ingredients to refill.", Alert.AlertType.WARNING);
+                return;
+            }
+
+            TextInputDialog amountDlg = new TextInputDialog();
+            amountDlg.setTitle("Refill Amount");
+            amountDlg.setHeaderText("Enter amount to add per selected ingredient");
+            amountDlg.setContentText("Amount (numeric). Leave blank to top up to " + Store.MAX_STOCK + ":");
+
+            java.util.Optional<String> result = amountDlg.showAndWait();
+            if (!result.isPresent()) return; // user cancelled
+            String txt = result.get().trim();
+            boolean topUp = txt.isEmpty();
+            double fixedAmount = 0;
+            if (!topUp) {
+                try {
+                    fixedAmount = Double.parseDouble(txt);
+                    if (fixedAmount <= 0) { showAlert("Invalid", "Amount must be a positive number.", Alert.AlertType.ERROR); return; }
+                } catch (NumberFormatException ex) {
+                    showAlert("Invalid", "Please enter a valid numeric amount or leave blank to top up.", Alert.AlertType.ERROR);
+                    return;
+                }
+            }
+
+            // Build confirmation content
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%-30s %-12s %-12s %-12s\n", "Ingredient", "Current", "To Add", "After"));
+            sb.append("---------------------------------------------------------------\n");
+            java.util.Map<String, Double> toAddMap = new java.util.HashMap<>();
+            for (com.coffeeshop.model.InventoryItem it : sel) {
+                double add;
+                if (topUp) {
+                    add = Math.max(0, Store.MAX_STOCK - it.getQuantity());
+                } else {
+                    add = fixedAmount;
+                }
+                toAddMap.put(it.getName(), add);
+                double after = it.getQuantity() + add;
+                sb.append(String.format("%-30s %-12.2f %-12.2f %-12.2f\n", it.getName(), it.getQuantity(), add, after));
+            }
+
+            boolean nothingToDo = true;
+            for (double v : toAddMap.values()) if (v > 0) { nothingToDo = false; break; }
+            if (nothingToDo) {
+                showAlert("Nothing to Refill", "All selected items are already at or above the target level.", Alert.AlertType.INFORMATION);
+                return;
+            }
+
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Refill");
+            confirm.setHeaderText("Please confirm the refill amounts for the selected ingredients:");
+
+            // Build an editable grid: Ingredient | Current | To Add (editable) | After | Delete
+            GridPane grid = new GridPane();
+            grid.setHgap(12);
+            grid.setVgap(8);
+            grid.setPadding(new Insets(8));
+
+            // Header row
+            grid.add(new Label("Ingredient"), 0, 0);
+            grid.add(new Label("Current"), 1, 0);
+            grid.add(new Label("To Add"), 2, 0);
+            grid.add(new Label("After"), 3, 0);
+            grid.add(new Label(""), 4, 0);
+
+            java.util.Map<String, TextField> inputFields = new java.util.HashMap<>();
+            java.util.Map<String, Label> afterLabels = new java.util.HashMap<>();
+            java.util.List<com.coffeeshop.model.InventoryItem> workingList = new java.util.ArrayList<>(sel);
+
+            int row = 1;
+            for (com.coffeeshop.model.InventoryItem it : workingList) {
+                double defaultAdd = toAddMap.getOrDefault(it.getName(), 0.0);
+
+                Label nameLbl = new Label(it.getName());
+                Label curLbl = new Label(String.format("%.2f %s", it.getQuantity(), it.getUnit()));
+                TextField addField = new TextField(String.format("%.2f", defaultAdd));
+                addField.setPrefWidth(100);
+                Label afterLbl = new Label(String.format("%.2f %s", it.getQuantity() + defaultAdd, it.getUnit()));
+                Button delBtn = new Button("Delete");
+
+                grid.add(nameLbl, 0, row);
+                grid.add(curLbl, 1, row);
+                grid.add(addField, 2, row);
+                grid.add(afterLbl, 3, row);
+                grid.add(delBtn, 4, row);
+
+                inputFields.put(it.getName(), addField);
+                afterLabels.put(it.getName(), afterLbl);
+
+                // Update 'after' when user edits the addField
+                addField.textProperty().addListener((obs, o, n) -> {
+                    double val = 0;
+                    try { if (n != null && !n.trim().isEmpty()) val = Double.parseDouble(n.trim()); } catch (Exception ex) { val = 0; }
+                    double clamped = Math.max(0, Math.min(val, Store.MAX_STOCK - it.getQuantity()));
+                    afterLbl.setText(String.format("%.2f %s", it.getQuantity() + clamped, it.getUnit()));
+                });
+
+                // Delete row handler
+                delBtn.setOnAction(ev -> {
+                    // hide nodes for this row
+                    nameLbl.setVisible(false); curLbl.setVisible(false); addField.setVisible(false); afterLbl.setVisible(false); delBtn.setVisible(false);
+                    inputFields.remove(it.getName());
+                    afterLabels.remove(it.getName());
+                    toAddMap.remove(it.getName());
+                });
+
+                row++;
+            }
+
+            VBox content = new VBox(8, grid);
+            content.setPadding(new Insets(6));
+
+            DialogPane pane = confirm.getDialogPane();
+            pane.setContent(content);
+            pane.setPrefWidth(760);
+            pane.setPrefHeight(Math.min(900, 160 + sel.size() * 36));
+            pane.setMinHeight(Region.USE_PREF_SIZE);
+            confirm.setResizable(true);
+
+            java.util.Optional<javafx.scene.control.ButtonType> conf = confirm.showAndWait();
+            if (conf.isPresent() && conf.get() == ButtonType.OK) {
+                // validate and apply per-field values
+                for (com.coffeeshop.model.InventoryItem it : sel) {
+                    TextField tf = inputFields.get(it.getName());
+                    if (tf == null) continue; // deleted or removed
+                    double add = 0;
+                    String s = tf.getText() == null ? "" : tf.getText().trim();
+                    if (s.isEmpty()) continue;
+                    try { add = Double.parseDouble(s); } catch (NumberFormatException ex) { add = 0; }
+                    if (add <= 0) continue;
+                    // clamp to not exceed MAX_STOCK
+                    double maxAdd = Math.max(0, Store.MAX_STOCK - it.getQuantity());
+                    double toApply = Math.min(add, maxAdd);
+                    if (toApply > 0) store.refillInventory(it.getName(), toApply);
+                }
+                showAlert("Refilled", "Selected ingredients were refilled.", Alert.AlertType.INFORMATION);
+                refreshData();
+            }
+        });
+
+        // Start realtime clock update for header time
+        if (adminTimeLabel == null) adminTimeLabel = timeLabel;
+        Timeline clock = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
+            try {
+                adminTimeLabel.setText(LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")));
+            } catch (Exception ignored) {}
+        }));
+        clock.setCycleCount(Timeline.INDEFINITE);
+        clock.play();
+        
+        return panel;
+    }
+
+    private VBox createArchivedTab() {
         VBox panel = new VBox(15);
         panel.setPadding(new Insets(20));
 
-        Label title = new Label("⚠️ Refill Status & Alerts");
+        Label title = new Label("🗄️ Archived Inventory");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
 
-        Label infoLabel = new Label("Products needing refill (stock ≤ 5):");
-        infoLabel.setFont(Font.font("Arial", 14));
+        archivedTable = new TableView<>();
+        archivedTable.setPrefHeight(400);
 
-        alertsArea = new TextArea();
-        alertsArea.setEditable(false);
-        alertsArea.setFont(Font.font("Courier New", 12));
-        alertsArea.setPrefHeight(500);
-        alertsArea.setStyle("-fx-control-inner-background: #fff3cd;");
+        TableColumn<InventoryRow, String> nameCol = new TableColumn<>("Ingredient");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameCol.setPrefWidth(300);
 
-        Button refreshButton = new Button("Refresh Alerts");
-        refreshButton.setStyle("-fx-background-color: #FFA726; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20;");
-        refreshButton.setOnAction(e -> refreshRefillAlerts());
+        TableColumn<InventoryRow, Double> quantityCol = new TableColumn<>("Quantity");
+        quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+        quantityCol.setPrefWidth(150);
 
-        panel.getChildren().addAll(title, infoLabel, alertsArea, refreshButton);
+        TableColumn<InventoryRow, String> unitCol = new TableColumn<>("Unit");
+        unitCol.setCellValueFactory(new PropertyValueFactory<>("unit"));
+        unitCol.setPrefWidth(100);
+
+        TableColumn<InventoryRow, Void> actionsCol = new TableColumn<>("Actions");
+        actionsCol.setPrefWidth(300);
+        actionsCol.setCellFactory(col -> new TableCell<>() {
+            private final HBox box = new HBox(8);
+            private final Button restoreBtn = new Button("Restore");
+            private final Button deleteBtn = new Button("Permanently Delete");
+            {
+                restoreBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold;");
+                deleteBtn.setStyle("-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-weight: bold;");
+                box.getChildren().addAll(restoreBtn, deleteBtn);
+
+                restoreBtn.setOnAction(e -> {
+                    InventoryRow row = getTableView().getItems().get(getIndex());
+                    if (row == null) return;
+                    store.restoreRemovedItem(row.getName());
+                    showAlert("Restored", "Ingredient '" + row.getName() + "' restored to inventory.", Alert.AlertType.INFORMATION);
+                    refreshData();
+                });
+
+                deleteBtn.setOnAction(e -> {
+                    InventoryRow row = getTableView().getItems().get(getIndex());
+                    if (row == null) return;
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Permanently Delete");
+                    confirm.setHeaderText("Permanently delete: " + row.getName());
+                    confirm.setContentText("This action cannot be undone. Continue?");
+                    confirm.showAndWait().ifPresent(resp -> {
+                        if (resp == ButtonType.OK) {
+                            store.permanentlyDeleteRemovedItem(row.getName());
+                            showAlert("Deleted", "Ingredient permanently deleted.", Alert.AlertType.INFORMATION);
+                            refreshData();
+                        }
+                    });
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) setGraphic(null);
+                else setGraphic(box);
+            }
+        });
+
+        archivedTable.getColumns().addAll(nameCol, quantityCol, unitCol, actionsCol);
+
+        HBox controls = new HBox(12);
+        controls.setAlignment(Pos.CENTER_LEFT);
+
+        Button restoreSelectedBtn = new Button("Restore Selected");
+        restoreSelectedBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold;");
+        restoreSelectedBtn.setOnAction(e -> {
+            java.util.List<InventoryRow> sel = archivedTable.getSelectionModel().getSelectedItems();
+            if (sel == null || sel.isEmpty()) { showAlert("No Selection", "Select one or more archived items to restore.", Alert.AlertType.WARNING); return; }
+            for (InventoryRow r : sel) store.restoreRemovedItem(r.getName());
+            showAlert("Restored", "Selected items restored.", Alert.AlertType.INFORMATION);
+            refreshData();
+        });
+
+        Button deleteSelectedBtn = new Button("Permanently Delete Selected");
+        deleteSelectedBtn.setStyle("-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-weight: bold;");
+        deleteSelectedBtn.setOnAction(e -> {
+            java.util.List<InventoryRow> sel = archivedTable.getSelectionModel().getSelectedItems();
+            if (sel == null || sel.isEmpty()) { showAlert("No Selection", "Select one or more archived items to delete.", Alert.AlertType.WARNING); return; }
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Permanently Delete");
+            confirm.setHeaderText("Permanently delete selected archived items");
+            confirm.setContentText("This action cannot be undone. Continue?");
+            confirm.showAndWait().ifPresent(resp -> {
+                if (resp == ButtonType.OK) {
+                    for (InventoryRow r : sel) store.permanentlyDeleteRemovedItem(r.getName());
+                    showAlert("Deleted", "Selected items permanently deleted.", Alert.AlertType.INFORMATION);
+                    refreshData();
+                }
+            });
+        });
+
+        Button purgeAllBtn = new Button("Purge All Archived Items");
+        purgeAllBtn.setStyle("-fx-background-color: linear-gradient(to right, #E53935, #B71C1C); -fx-text-fill: white; -fx-font-weight: bold;");
+        purgeAllBtn.setOnAction(e -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Purge All");
+            confirm.setHeaderText("Purge all archived items");
+            confirm.setContentText("This will permanently delete all archived inventory items. Continue?");
+            confirm.showAndWait().ifPresent(resp -> {
+                if (resp == ButtonType.OK) {
+                    store.purgeAllRemovedItems();
+                    showAlert("Purged", "All archived items permanently deleted.", Alert.AlertType.INFORMATION);
+                    refreshData();
+                }
+            });
+        });
+
+        controls.getChildren().addAll(restoreSelectedBtn, deleteSelectedBtn, purgeAllBtn);
+
+        panel.getChildren().addAll(title, new Separator(), archivedTable, controls);
+
+        // allow multiple selection
+        archivedTable.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+
         return panel;
+    }
+
+    private void refreshArchivedItems() {
+        if (archivedTable == null) return;
+        archivedTable.getItems().clear();
+        Map<String, InventoryItem> removed = store.getRemovedInventory();
+        for (InventoryItem it : removed.values()) {
+            archivedTable.getItems().add(new InventoryRow(it.getName(), it.getQuantity(), it.getUnit()));
+        }
+    }
+    
+    private VBox createReportsTab() {
+        // Alias to createSalesTab for the "Sales Reports" navigation item
+        return createSalesTab();
     }
 
     private void refreshData() {
@@ -1202,17 +1759,26 @@ public class AdminApp extends Application {
             }
         }
 
-        // Refresh alerts
-        refreshRefillAlerts();
+        // Refresh alerts (show all by default)
+        refreshRefillAlerts(false);
+        // Refresh archived items list if tab exists
+        try { refreshArchivedItems(); } catch (Exception ignored) {}
     }
 
-    private void refreshRefillAlerts() {
-        if (store.hasProductsNeedingRefill()) {
-            alertsArea.setText(store.getProductRefillAlerts());
-            alertsArea.setStyle("-fx-control-inner-background: #fff3cd;");
+    private void refreshRefillAlerts(boolean lowOnly) {
+        java.util.Collection<com.coffeeshop.model.InventoryItem> inv = store.getInventory().values();
+        java.util.List<com.coffeeshop.model.InventoryItem> items = new java.util.ArrayList<>(inv);
+        if (lowOnly) {
+            java.util.List<com.coffeeshop.model.InventoryItem> low = new java.util.ArrayList<>();
+            for (com.coffeeshop.model.InventoryItem it : items) {
+                if (it.getQuantity() <= Store.REFILL_THRESHOLD) low.add(it);
+            }
+            alertsListView.getItems().setAll(low);
+            if (low.isEmpty()) {
+                alertsListView.getItems().clear();
+            }
         } else {
-            alertsArea.setText("\n\n✓ All products are sufficiently stocked!\n\nNo refill alerts at this time.");
-            alertsArea.setStyle("-fx-control-inner-background: #d4edda;");
+            alertsListView.getItems().setAll(items);
         }
     }
 
@@ -1974,6 +2540,80 @@ public class AdminApp extends Application {
         });
     }
 
+    private void deductInventoryQuantity() {
+        InventoryRow selected = inventoryTable.getSelectionModel().getSelectedItem();
+        if (selected == null) { showAlert("No Selection", "Please select an ingredient to deduct.", Alert.AlertType.WARNING); return; }
+
+        TextInputDialog dlg = new TextInputDialog();
+        dlg.setTitle("Deduct Quantity");
+        dlg.setHeaderText("Deduct from: " + selected.getName());
+        dlg.setContentText("Amount to deduct (" + selected.getUnit() + "):");
+
+        dlg.showAndWait().ifPresent(s -> {
+            try {
+                double amt = Double.parseDouble(s);
+                if (amt <= 0) { showAlert("Invalid", "Please enter a positive number.", Alert.AlertType.ERROR); return; }
+                // push undo action
+                com.coffeeshop.model.InventoryItem snapshot = new com.coffeeshop.model.InventoryItem(selected.getName(), selected.getQuantity(), selected.getUnit());
+                undoStack.push(new UndoAction(UndoAction.Type.DEDUCT, snapshot, amt));
+                Store.getInstance().deductInventory(selected.getName(), amt);
+                showAlert("Success", "Quantity deducted.", Alert.AlertType.INFORMATION);
+                refreshData();
+            } catch (NumberFormatException ex) {
+                showAlert("Invalid Input", "Please enter a valid number.", Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    private void deleteInventoryItem() {
+        InventoryRow selected = inventoryTable.getSelectionModel().getSelectedItem();
+        if (selected == null) { showAlert("No Selection", "Please select an ingredient to delete.", Alert.AlertType.WARNING); return; }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Delete Ingredient");
+        confirm.setHeaderText("Delete: " + selected.getName());
+        confirm.setContentText("Are you sure you want to permanently remove this ingredient from inventory?");
+        java.util.Optional<javafx.scene.control.ButtonType> res = confirm.showAndWait();
+        if (res.isPresent() && res.get() == ButtonType.OK) {
+            // push undo action (store snapshot)
+            com.coffeeshop.model.InventoryItem snapshot = new com.coffeeshop.model.InventoryItem(selected.getName(), selected.getQuantity(), selected.getUnit());
+            undoStack.push(new UndoAction(UndoAction.Type.DELETE, snapshot, 0));
+            Store.getInstance().removeInventoryItem(selected.getName());
+            showAlert("Deleted", "Ingredient moved to archive (removed items). Use Undo to restore.", Alert.AlertType.INFORMATION);
+            refreshData();
+        }
+    }
+
+    private void undoLastAction() {
+        if (undoStack.isEmpty()) { showAlert("Nothing to Undo", "There are no recent delete/deduct actions to undo.", Alert.AlertType.INFORMATION); return; }
+        UndoAction act = undoStack.pop();
+        if (act == null) { showAlert("Nothing to Undo", "No action found.", Alert.AlertType.INFORMATION); return; }
+
+        if (act.type == UndoAction.Type.DELETE) {
+            // restore removed item
+            if (act.snapshot != null) {
+                Store.getInstance().restoreRemovedItem(act.snapshot.getName());
+                showAlert("Restored", "Deleted ingredient was restored.", Alert.AlertType.INFORMATION);
+                refreshData();
+            }
+        } else if (act.type == UndoAction.Type.DEDUCT) {
+            // add back the deducted amount
+            if (act.snapshot != null && act.amount > 0) {
+                Store.getInstance().refillInventory(act.snapshot.getName(), act.amount);
+                showAlert("Undone", "Deduction undone and quantity restored.", Alert.AlertType.INFORMATION);
+                refreshData();
+            }
+        }
+    }
+
+    private static class UndoAction {
+        enum Type { DELETE, DEDUCT }
+        Type type;
+        com.coffeeshop.model.InventoryItem snapshot;
+        double amount;
+        UndoAction(Type type, com.coffeeshop.model.InventoryItem snapshot, double amount) { this.type = type; this.snapshot = snapshot; this.amount = amount; }
+    }
+
     private void addIngredient() {
         Dialog<InventoryItem> dialog = new Dialog<>();
         dialog.setTitle("Add Ingredient");
@@ -2070,6 +2710,7 @@ public class AdminApp extends Application {
         public String getName() { return name; }
         public double getQuantity() { return quantity; }
         public String getUnit() { return unit; }
+        public void setQuantity(double q) { this.quantity = q; }
     }
 
     public static void main(String[] args) {

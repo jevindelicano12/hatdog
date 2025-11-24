@@ -16,6 +16,7 @@ public class PersistenceManager {
     private static final String DATA_DIR = "data";
     private static final String PRODUCTS_FILE = DATA_DIR + "/products.json";
     private static final String INVENTORY_FILE = DATA_DIR + "/inventory.json";
+    private static final String REMOVED_INVENTORY_FILE = DATA_DIR + "/inventory_removed.json";
     private static final String CATEGORIES_FILE = DATA_DIR + "/categories.json";
     private static final String ACCOUNTS_FILE = DATA_DIR + "/accounts.json";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -72,6 +73,15 @@ public class PersistenceManager {
         }
     }
 
+    public static void saveRemovedInventory(Map<String, InventoryItem> removed) {
+        ensureDataDirectory();
+        try (Writer writer = new FileWriter(REMOVED_INVENTORY_FILE)) {
+            gson.toJson(removed, writer);
+        } catch (IOException e) {
+            System.err.println("Error saving removed inventory: " + e.getMessage());
+        }
+    }
+
     public static void saveCategories(java.util.List<String> categories) {
         ensureDataDirectory();
         try (Writer writer = new FileWriter(CATEGORIES_FILE)) {
@@ -111,6 +121,23 @@ public class PersistenceManager {
         } catch (IOException e) {
             System.err.println("Error loading inventory: " + e.getMessage());
             return initializeDefaultInventory();
+        }
+    }
+
+    public static Map<String, InventoryItem> loadRemovedInventory() {
+        ensureDataDirectory();
+        File file = new File(REMOVED_INVENTORY_FILE);
+        if (!file.exists()) {
+            return new HashMap<>();
+        }
+
+        try (Reader reader = new FileReader(REMOVED_INVENTORY_FILE)) {
+            Type mapType = new TypeToken<HashMap<String, InventoryItem>>(){}.getType();
+            Map<String, InventoryItem> removed = gson.fromJson(reader, mapType);
+            return removed != null ? removed : new HashMap<>();
+        } catch (IOException e) {
+            System.err.println("Error loading removed inventory: " + e.getMessage());
+            return new HashMap<>();
         }
     }
 

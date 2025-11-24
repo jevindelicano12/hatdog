@@ -11,6 +11,7 @@ public class Store {
 
     private List<Product> products;
     private Map<String, InventoryItem> inventory;
+    private Map<String, InventoryItem> removedInventory = new HashMap<>();
     private java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
     private java.util.List<Runnable> categoryListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> productListeners = new java.util.ArrayList<>();
@@ -31,6 +32,10 @@ public class Store {
     private void loadData() {
         products = PersistenceManager.loadProducts();
         inventory = PersistenceManager.loadInventory();
+        try {
+            Map<String, InventoryItem> rem = PersistenceManager.loadRemovedInventory();
+            if (rem != null) removedInventory = new HashMap<>(rem);
+        } catch (Exception ignored) { removedInventory = new HashMap<>(); }
         // load cashier accounts
         try {
             cashiers = PersistenceManager.loadAccounts();
@@ -67,6 +72,7 @@ public class Store {
     public void saveData() {
         PersistenceManager.saveProducts(products);
         PersistenceManager.saveInventory(inventory);
+        try { PersistenceManager.saveRemovedInventory(removedInventory); } catch (Exception ignored) {}
         try {
             PersistenceManager.saveAccounts(cashiers);
         } catch (Exception ignored) {}
@@ -213,6 +219,53 @@ public class Store {
     public void addInventoryItem(InventoryItem item) {
         inventory.put(item.getName(), item);
         saveData();
+    }
+
+    // Move an inventory item to the removed/archive collection (soft-delete)
+    public void removeInventoryItem(String name) {
+        if (name == null) return;
+        InventoryItem it = inventory.remove(name);
+        if (it != null) {
+            removedInventory.put(name, it);
+            saveData();
+        }
+    }
+
+    // Restore an item from the removed archive back into active inventory
+    public void restoreRemovedItem(String name) {
+        if (name == null) return;
+        InventoryItem it = removedInventory.remove(name);
+        if (it != null) {
+            inventory.put(name, it);
+            saveData();
+        }
+    }
+
+    // Return a copy of removed/archived inventory
+    public Map<String, InventoryItem> getRemovedInventory() {
+        return new HashMap<>(removedInventory);
+    }
+
+    // Permanently delete an archived item
+    public void permanentlyDeleteRemovedItem(String name) {
+        if (name == null) return;
+        if (removedInventory.remove(name) != null) saveData();
+    }
+
+    // Purge all archived items
+    public void purgeAllRemovedItems() {
+        if (!removedInventory.isEmpty()) {
+            removedInventory.clear();
+            saveData();
+        }
+    }
+
+    public void deductInventory(String itemName, double amount) {
+        InventoryItem item = inventory.get(itemName);
+        if (item != null) {
+            item.deduct(amount);
+            saveData();
+        }
     }
 
     // Category management (backwards-compat helpers for AdminApp)
