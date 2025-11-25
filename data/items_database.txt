@@ -41,3 +41,4 @@ boydila|500.0|Hot|Regular|0
 boydila|500.0|Hot|Regular|0
 boydila|500.0|Hot|Regular|0
 boydila|500.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0

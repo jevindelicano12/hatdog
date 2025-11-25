@@ -517,7 +517,11 @@ public class CashierApp extends Application {
         
         for (OrderItem item : order.getItems()) {
             receipt.append(String.format("%-20s  ₱%.2f\n", 
-                item.getProduct().getName(), item.getProduct().getPrice()));
+                item.getProduct().getName(), item.getSubtotal() / item.getQuantity()));
+            
+            if (item.getSize() != null && !item.getSize().isEmpty()) {
+                receipt.append("  Size: ").append(item.getSize()).append(" (+₱").append(String.format("%.2f", item.getSizeCost())).append(")\n");
+            }
             
             if (item.getTemperature() != null && !item.getTemperature().isEmpty()) {
                 receipt.append("  Temperature: ").append(item.getTemperature()).append("\n");

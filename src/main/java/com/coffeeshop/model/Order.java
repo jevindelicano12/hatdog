@@ -79,6 +79,11 @@ public class Order {
         
         for (OrderItem item : items) {
             receipt.append(item.getProduct().getName()).append(" x").append(item.getQuantity()).append("\n");
+            
+            if (item.getSize() != null && !item.getSize().isEmpty()) {
+                receipt.append("  Size: ").append(item.getSize()).append(" (+₱").append(String.format("%.2f", item.getSizeCost())).append(")\n");
+            }
+            
             receipt.append("  Temperature: ").append(item.getTemperature()).append("\n");
             receipt.append("  Sugar: ").append(item.getSugarLevel()).append("%\n");
             if (!item.getAddOns().isEmpty()) {
