@@ -2072,7 +2072,7 @@ public class CashierApp extends Application {
         descBox.getChildren().addAll(descLabel, descArea);
         
         // Submit button
-        Button submitBtn = new Button("Submit Complaint");
+        Button submitBtn = new Button("Submit");
         submitBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;");
         submitBtn.setPrefWidth(Double.MAX_VALUE);
         submitBtn.setOnMouseEntered(e -> submitBtn.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;"));
@@ -2151,8 +2151,8 @@ public class CashierApp extends Application {
             descArea.clear();
         });
         
-        // Clear button
-        Button clearBtn = new Button("Clear Form");
+        // Cancel button (clears the form / cancels)
+        Button clearBtn = new Button("Cancel");
         clearBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 12 30; -fx-cursor: hand; -fx-font-size: 14px;");
         clearBtn.setPrefWidth(Double.MAX_VALUE);
         clearBtn.setOnAction(e -> {
