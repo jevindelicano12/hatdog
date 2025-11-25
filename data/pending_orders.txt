@@ -1,4 +1,4 @@
-9c99afdc|hahdahd|2025-11-26 00:33:30|501.0|PREPARING|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~No Whip]
-26a2093e|HEHEH|2025-11-26 00:40:18|501.0|PREPARING|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~Less Ice]
-d8b99576|ASasA|2025-11-26 00:47:37|501.0|PREPARING|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~No Whip]
-7089a5ab|JADAJDAS|2025-11-26 01:28:08|60.75|PREPARING|Dine In|[Cappuccino~60.75~1~Hot~0~Caramel Sauce~0.75~No Whip]
+9c99afdc|hahdahd|2025-11-26 00:33:30|501.0|COMPLETED|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~No Whip]
+26a2093e|HEHEH|2025-11-26 00:40:18|501.0|COMPLETED|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~Less Ice]
+d8b99576|ASasA|2025-11-26 00:47:37|501.0|COMPLETED|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~No Whip]
+7089a5ab|JADAJDAS|2025-11-26 01:28:08|60.75|COMPLETED|Dine In|[Cappuccino~60.75~1~Hot~0~Caramel Sauce~0.75~No Whip]

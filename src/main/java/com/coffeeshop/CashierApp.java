@@ -12,6 +12,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
@@ -1689,7 +1690,7 @@ public class CashierApp extends Application {
     
     // ==================== RETURNS PANEL ====================
     
-    private VBox createReturnsPanel() {
+    private ScrollPane createReturnsPanel() {
         VBox panel = new VBox(30);
         panel.setPadding(new Insets(40));
         panel.setStyle("-fx-background-color: #f8f9fa;");
@@ -1766,7 +1767,14 @@ public class CashierApp extends Application {
         card.getChildren().addAll(icon, inputBox, processBtn);
         panel.getChildren().addAll(title, subtitle, card, infoBox);
         
-        return panel;
+        // Wrap in ScrollPane for scrollability
+        ScrollPane scrollPane = new ScrollPane(panel);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: #f8f9fa; -fx-background: #f8f9fa;");
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        
+        return scrollPane;
     }
     
     private void processReturnByOrderId(String orderId) {
@@ -2200,12 +2208,210 @@ public class CashierApp extends Application {
     }
 
     private void showProductSelector(Stage parentStage, javafx.collections.ObservableList<com.coffeeshop.model.OrderItem> exchangeItems, VBox container) {
-        // This will show a simple product selection dialog
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Add Exchange Item");
-        alert.setHeaderText("Product Selection");
-        alert.setContentText("Product selector coming soon!\nFor now, exchanges must be processed manually.");
-        alert.showAndWait();
+        Stage selectorStage = new Stage();
+        selectorStage.setTitle("Select Product for Exchange");
+        selectorStage.initModality(Modality.WINDOW_MODAL);
+        selectorStage.initOwner(parentStage);
+        
+        VBox root = new VBox(15);
+        root.setPadding(new Insets(20));
+        root.setStyle("-fx-background-color: white;");
+        
+        // Category filter
+        HBox categoryBox = new HBox(10);
+        categoryBox.setAlignment(Pos.CENTER_LEFT);
+        Label categoryLabel = new Label("Category:");
+        categoryLabel.setFont(Font.font("Segoe UI", 12));
+        
+        ComboBox<String> categoryCombo = new ComboBox<>();
+        categoryCombo.setStyle("-fx-font-size: 12;");
+        categoryCombo.getItems().add("All Categories");
+        
+        Store.getInstance().getCategories().forEach(cat -> categoryCombo.getItems().add(cat));
+        categoryCombo.setValue("All Categories");
+        
+        categoryBox.getChildren().addAll(categoryLabel, categoryCombo);
+        
+        // Products table
+        TableView<Product> productsTable = new TableView<>();
+        productsTable.setPrefHeight(300);
+        
+        TableColumn<Product, String> nameCol = new TableColumn<>("Product Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameCol.setPrefWidth(200);
+        
+        TableColumn<Product, Double> priceCol = new TableColumn<>("Price");
+        priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
+        priceCol.setPrefWidth(100);
+        priceCol.setCellFactory(col -> new TableCell<Product, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? "" : String.format("₱%.2f", item));
+            }
+        });
+        
+        TableColumn<Product, Integer> stockCol = new TableColumn<>("Stock");
+        stockCol.setCellValueFactory(new PropertyValueFactory<>("stock"));
+        stockCol.setPrefWidth(80);
+        
+        productsTable.getColumns().addAll(nameCol, priceCol, stockCol);
+        
+        // Quantity and add-ons section
+        GridPane itemDetailsGrid = new GridPane();
+        itemDetailsGrid.setHgap(10);
+        itemDetailsGrid.setVgap(10);
+        itemDetailsGrid.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 15;");
+        
+        Label quantityLabel = new Label("Quantity:");
+        quantityLabel.setFont(Font.font("Segoe UI", 12));
+        Spinner<Integer> quantitySpinner = new Spinner<>(1, 100, 1);
+        quantitySpinner.setEditable(true);
+        
+        Label addOnsLabel = new Label("Add-ons:");
+        addOnsLabel.setFont(Font.font("Segoe UI", 12));
+        ComboBox<String> addOnsCombo = new ComboBox<>();
+        addOnsCombo.setStyle("-fx-font-size: 11;");
+        addOnsCombo.getItems().add("None");
+        Store.getInstance().getAddOns().forEach(addon -> addOnsCombo.getItems().add(addon.getName() + " (₱" + String.format("%.2f", addon.getPrice()) + ")"));
+        addOnsCombo.setValue("None");
+        
+        Label remarksLabel = new Label("Remarks:");
+        remarksLabel.setFont(Font.font("Segoe UI", 12));
+        TextField remarksField = new TextField();
+        remarksField.setPromptText("Special requests or notes...");
+        remarksField.setPrefWidth(300);
+        
+        itemDetailsGrid.add(quantityLabel, 0, 0);
+        itemDetailsGrid.add(quantitySpinner, 1, 0);
+        itemDetailsGrid.add(addOnsLabel, 0, 1);
+        itemDetailsGrid.add(addOnsCombo, 1, 1);
+        itemDetailsGrid.add(remarksLabel, 0, 2);
+        itemDetailsGrid.add(remarksField, 1, 2);
+        
+        // Buttons
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        Button confirmBtn = new Button("Add to Exchange");
+        confirmBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-cursor: hand;");
+        confirmBtn.setOnAction(e -> {
+            Product selected = productsTable.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                showAlert("Selection Error", "Please select a product.", Alert.AlertType.WARNING);
+                return;
+            }
+            
+            int qty = quantitySpinner.getValue();
+            if (qty <= 0) {
+                showAlert("Quantity Error", "Quantity must be at least 1.", Alert.AlertType.WARNING);
+                return;
+            }
+            
+            String addOnSelection = addOnsCombo.getValue();
+            double addOnsCost = 0;
+            String addOnsDisplay = "";
+            
+            if (!addOnSelection.equals("None")) {
+                String[] parts = addOnSelection.split(" \\(₱");
+                addOnsDisplay = parts[0];
+                try {
+                    addOnsCost = Double.parseDouble(parts[1].replace(")", ""));
+                } catch (Exception ex) { addOnsCost = 0; }
+            }
+            
+            String remarks = remarksField.getText().trim();
+            
+            // Create OrderItem for exchange
+            com.coffeeshop.model.OrderItem exchangeItem = new com.coffeeshop.model.OrderItem(selected, qty, "Hot", 50);
+            exchangeItem.setAddOns(addOnsDisplay);
+            exchangeItem.setAddOnsCost(addOnsCost);
+            
+            // Store remarks in a way we can access later (we'll add a field to OrderItem if needed)
+            // For now, we can encode it with the product name or store it separately
+            // Let's add it to add-ons display for now
+            String finalAddOns = addOnsDisplay + (remarks.isEmpty() ? "" : " | Remarks: " + remarks);
+            exchangeItem.setAddOns(finalAddOns);
+            
+            exchangeItems.add(exchangeItem);
+            
+            // Create visual representation in container
+            VBox itemBox = new VBox(5);
+            itemBox.setPadding(new Insets(10));
+            itemBox.setStyle("-fx-background-color: #f0f8ff; -fx-border-color: #4CAF50; -fx-border-width: 1; -fx-border-radius: 5;");
+            
+            Label itemLabel = new Label(selected.getName() + " x" + qty);
+            itemLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+            
+            Label costLabel = new Label(String.format("₱%.2f", exchangeItem.getSubtotal()));
+            costLabel.setFont(Font.font("Segoe UI", 11));
+            costLabel.setTextFill(Color.web("#2196F3"));
+            
+            String detailsText = "";
+            if (!addOnsDisplay.isEmpty()) {
+                detailsText += "Add-ons: " + addOnsDisplay;
+            }
+            if (!remarks.isEmpty()) {
+                if (!detailsText.isEmpty()) detailsText += " | ";
+                detailsText += "Remarks: " + remarks;
+            }
+            
+            if (!detailsText.isEmpty()) {
+                Label detailsLabel = new Label(detailsText);
+                detailsLabel.setFont(Font.font("Segoe UI", 10));
+                detailsLabel.setTextFill(Color.web("#666"));
+                detailsLabel.setWrapText(true);
+                itemBox.getChildren().addAll(itemLabel, costLabel, detailsLabel);
+            } else {
+                itemBox.getChildren().addAll(itemLabel, costLabel);
+            }
+            
+            Button removeBtn = new Button("Remove");
+            removeBtn.setStyle("-fx-background-color: #f44336; -fx-text-fill: white; -fx-font-size: 10; -fx-padding: 5 10;");
+            removeBtn.setOnAction(removeEvent -> {
+                container.getChildren().remove(itemBox);
+                exchangeItems.remove(exchangeItem);
+            });
+            itemBox.getChildren().add(removeBtn);
+            
+            container.getChildren().add(itemBox);
+            
+            selectorStage.close();
+        });
+        
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle("-fx-background-color: #757575; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-cursor: hand;");
+        cancelBtn.setOnAction(e -> selectorStage.close());
+        
+        buttonBox.getChildren().addAll(confirmBtn, cancelBtn);
+        
+        // Update products table based on category selection
+        Runnable updateProductsTable = () -> {
+            String selectedCategory = categoryCombo.getValue();
+            ObservableList<Product> products;
+            
+            if ("All Categories".equals(selectedCategory)) {
+                products = FXCollections.observableArrayList(Store.getInstance().getProducts());
+            } else {
+                java.util.List<Product> filtered = Store.getInstance().getProducts().stream()
+                    .filter(p -> p.getCategory().equals(selectedCategory))
+                    .collect(java.util.stream.Collectors.toList());
+                products = FXCollections.observableArrayList(filtered);
+            }
+            
+            productsTable.setItems(products);
+        };
+        
+        categoryCombo.setOnAction(e -> updateProductsTable.run());
+        updateProductsTable.run();
+        
+        root.getChildren().addAll(categoryBox, new Separator(), productsTable, itemDetailsGrid, buttonBox);
+        
+        ScrollPane scroll = new ScrollPane(root);
+        scroll.setFitToWidth(true);
+        Scene scene = new Scene(scroll, 800, 600);
+        selectorStage.setScene(scene);
+        selectorStage.showAndWait();
     }
 
     private void processReturnExchange(Receipt originalReceipt, java.util.List<ReturnItemControl> returnControls, 
@@ -2327,8 +2533,13 @@ public class CashierApp extends Application {
             receipt.append("EXCHANGE ITEMS:\n");
             receipt.append("───────────────────────────────────────\n");
             for (com.coffeeshop.model.OrderItem item : returnTx.getExchangeItems()) {
-                receipt.append(String.format("+ %-20s  +₱%.2f\n", 
-                    item.getProduct().getName(), item.getSubtotal()));
+                receipt.append(String.format("+ %-20s (x%d)  +₱%.2f\n", 
+                    item.getProduct().getName(), item.getQuantity(), item.getSubtotal()));
+                
+                // Show add-ons if present
+                if (!item.getAddOns().isEmpty()) {
+                    receipt.append("  Add-ons/Remarks: ").append(item.getAddOns()).append("\n");
+                }
             }
             receipt.append("\n");
         }

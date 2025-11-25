@@ -109,7 +109,7 @@
     "id": "P019",
     "name": "Cappuccino",
     "price": 60.0,
-    "stock": 6,
+    "stock": 8,
     "recipe": {
       "Water": 10.0,
       "Coffee Beans": 1.0
