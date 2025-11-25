@@ -109,12 +109,17 @@ public class CashierApp extends Application {
         ordersTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         ordersTab.setContent(createOrderQueuePanel());
         
-        // Tab 2: Receipt History
+        // Tab 2: Returns
+        Tab returnsTab = new Tab("   ↩ Returns   ");
+        returnsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
+        returnsTab.setContent(createReturnsPanel());
+        
+        // Tab 3: Receipt History
         Tab receiptHistoryTab = new Tab("   📜 Receipt History   ");
         receiptHistoryTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         receiptHistoryTab.setContent(createReceiptHistoryPanel());
         
-        // Tab 3: Reports / Dashboard
+        // Tab 4: Reports / Dashboard
         Tab reportsTab = new Tab("   📊 Dashboard   ");
         reportsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         reportsTab.setContent(createDashboardPanel());
@@ -126,7 +131,7 @@ public class CashierApp extends Application {
             }
         });
 
-        tabPane.getTabs().addAll(ordersTab, receiptHistoryTab, reportsTab);
+        tabPane.getTabs().addAll(ordersTab, returnsTab, receiptHistoryTab, reportsTab);
         
         rootPane.setCenter(tabPane);
 
@@ -1682,6 +1687,117 @@ public class CashierApp extends Application {
     
     
     
+    // ==================== RETURNS PANEL ====================
+    
+    private VBox createReturnsPanel() {
+        VBox panel = new VBox(30);
+        panel.setPadding(new Insets(40));
+        panel.setStyle("-fx-background-color: #f8f9fa;");
+        panel.setAlignment(Pos.TOP_CENTER);
+        
+        // Header
+        Label title = new Label("↩ Return / Exchange Items");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        title.setTextFill(Color.web("#ff9800"));
+        
+        Label subtitle = new Label("Enter the Order ID to process return or exchange");
+        subtitle.setFont(Font.font("Segoe UI", 16));
+        subtitle.setTextFill(Color.web("#6c757d"));
+        
+        // Main card
+        VBox card = new VBox(25);
+        card.setMaxWidth(600);
+        card.setPadding(new Insets(40));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5);");
+        card.setAlignment(Pos.CENTER);
+        
+        // Icon
+        Label icon = new Label("📋");
+        icon.setFont(Font.font(80));
+        
+        // Order ID input
+        VBox inputBox = new VBox(10);
+        inputBox.setAlignment(Pos.CENTER);
+        
+        Label inputLabel = new Label("Order ID:");
+        inputLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
+        inputLabel.setTextFill(Color.web("#374151"));
+        
+        TextField orderIdField = new TextField();
+        orderIdField.setPromptText("e.g., e10b8209 or 915a2be6");
+        orderIdField.setMaxWidth(400);
+        orderIdField.setStyle("-fx-font-size: 18px; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-width: 2; -fx-border-radius: 8;");
+        orderIdField.setOnAction(e -> processReturnByOrderId(orderIdField.getText().trim()));
+        
+        // Instructions
+        Label instructions = new Label("💡 Tip: The Order ID can be found on the customer's receipt");
+        instructions.setFont(Font.font("Segoe UI", 12));
+        instructions.setTextFill(Color.web("#9ca3af"));
+        instructions.setWrapText(true);
+        instructions.setMaxWidth(400);
+        instructions.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        
+        inputBox.getChildren().addAll(inputLabel, orderIdField, instructions);
+        
+        // Process button
+        Button processBtn = new Button("Process Return/Exchange");
+        processBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        processBtn.setOnMouseEntered(e -> processBtn.setStyle("-fx-background-color: #f57c00; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;"));
+        processBtn.setOnMouseExited(e -> processBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;"));
+        processBtn.setOnAction(e -> processReturnByOrderId(orderIdField.getText().trim()));
+        
+        // Info box
+        VBox infoBox = new VBox(10);
+        infoBox.setMaxWidth(500);
+        infoBox.setPadding(new Insets(20));
+        infoBox.setStyle("-fx-background-color: #fff3e0; -fx-background-radius: 10; -fx-border-color: #ff9800; -fx-border-width: 1; -fx-border-radius: 10;");
+        
+        Label infoTitle = new Label("⏰ Return Policy");
+        infoTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        infoTitle.setTextFill(Color.web("#e65100"));
+        
+        Label infoText = new Label("• Returns are accepted within 2 hours of purchase\n• Items must be in original condition\n• Exchange for same or different items available\n• Refund will be processed for eligible returns");
+        infoText.setFont(Font.font("Segoe UI", 12));
+        infoText.setTextFill(Color.web("#6c757d"));
+        infoText.setWrapText(true);
+        
+        infoBox.getChildren().addAll(infoTitle, infoText);
+        
+        card.getChildren().addAll(icon, inputBox, processBtn);
+        panel.getChildren().addAll(title, subtitle, card, infoBox);
+        
+        return panel;
+    }
+    
+    private void processReturnByOrderId(String orderId) {
+        if (orderId == null || orderId.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Order ID Required");
+            alert.setHeaderText("Please enter an Order ID");
+            alert.setContentText("You must provide a valid Order ID to process a return or exchange.");
+            alert.showAndWait();
+            return;
+        }
+        
+        // Find the receipt by order ID
+        Receipt receipt = receiptHistory.stream()
+            .filter(r -> r.getOrderId().equalsIgnoreCase(orderId))
+            .findFirst()
+            .orElse(null);
+        
+        if (receipt == null) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Order Not Found");
+            alert.setHeaderText("Invalid Order ID");
+            alert.setContentText("No order found with ID: " + orderId + "\n\nPlease check the Order ID and try again.");
+            alert.showAndWait();
+            return;
+        }
+        
+        // Open the return/exchange dialog
+        showReturnExchangeDialog(receipt);
+    }
+    
     // ==================== RECEIPT HISTORY PANEL ====================
     
     private VBox createReceiptHistoryPanel() {
@@ -1764,13 +1880,11 @@ public class CashierApp extends Application {
             "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
         amountCol.setPrefWidth(100);
         
-        // Add action column with view and return buttons
+        // Add action column with view button only
         TableColumn<Receipt, Void> actionCol = new TableColumn<>("");
-        actionCol.setPrefWidth(140);
+        actionCol.setPrefWidth(80);
         actionCol.setCellFactory(param -> new TableCell<>() {
-            private final HBox btnContainer = new HBox(5);
             private final Button viewBtn = new Button("›");
-            private final Button returnBtn = new Button("↩");
             {
                 viewBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5;");
                 viewBtn.setOnMouseEntered(ev -> viewBtn.setStyle("-fx-background-color: #f8f9fa; -fx-text-fill: #495057; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5; -fx-background-radius: 5;"));
@@ -1779,22 +1893,11 @@ public class CashierApp extends Application {
                     Receipt receipt = getTableView().getItems().get(getIndex());
                     displayReceiptDetails(receipt);
                 });
-                
-                returnBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 5 10; -fx-background-radius: 5; -fx-font-weight: bold;");
-                returnBtn.setOnMouseEntered(ev -> returnBtn.setStyle("-fx-background-color: #f57c00; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 5 10; -fx-background-radius: 5; -fx-font-weight: bold;"));
-                returnBtn.setOnMouseExited(ev -> returnBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 5 10; -fx-background-radius: 5; -fx-font-weight: bold;"));
-                returnBtn.setOnAction(event -> {
-                    Receipt receipt = getTableView().getItems().get(getIndex());
-                    showReturnExchangeDialog(receipt);
-                });
-                
-                btnContainer.getChildren().addAll(viewBtn, returnBtn);
-                btnContainer.setAlignment(Pos.CENTER);
             }
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : btnContainer);
+                setGraphic(empty ? null : viewBtn);
                 setAlignment(Pos.CENTER);
             }
         });
