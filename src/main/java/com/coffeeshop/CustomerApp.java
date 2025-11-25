@@ -723,13 +723,13 @@ public class CustomerApp extends Application {
         // Update footer after scene is set
         updateFooter();
 
-        // Start inactivity timer and reset on any interaction
-        startInactivityTimer();
-        scene.setOnMouseMoved(e -> resetInactivityTimer());
-        scene.setOnMouseClicked(e -> resetInactivityTimer());
-        scene.setOnKeyPressed(e -> resetInactivityTimer());
-        scene.setOnTouchPressed(e -> resetInactivityTimer());
-        scene.setOnScroll(e -> resetInactivityTimer());
+        // Inactivity timer disabled per user request (was 30s).
+        // To re-enable, call `startInactivityTimer()` and attach the reset handlers below.
+        // scene.setOnMouseMoved(e -> resetInactivityTimer());
+        // scene.setOnMouseClicked(e -> resetInactivityTimer());
+        // scene.setOnKeyPressed(e -> resetInactivityTimer());
+        // scene.setOnTouchPressed(e -> resetInactivityTimer());
+        // scene.setOnScroll(e -> resetInactivityTimer());
     }
 
     private VBox createHeader() {
