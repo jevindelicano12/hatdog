@@ -270,18 +270,30 @@ public class TextDatabase {
             return receipts;
         }
 
+        final int MAX_LINE_LENGTH = 2000;
+        int lineNumber = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(RECEIPTS_DB))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (!line.trim().isEmpty()) {
-                    try {
-                        Receipt receipt = Receipt.fromTextRecord(line);
-                        if (receipt != null) {
-                            receipts.add(receipt);
-                        }
-                    } catch (Exception e) {
-                        System.err.println("Error parsing receipt line: " + line);
+                lineNumber++;
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+
+                if (line.length() > MAX_LINE_LENGTH) {
+                    System.err.println("Skipping suspiciously long receipt line "
+                        + "(length=" + line.length() + ") at " + RECEIPTS_DB + ":" + lineNumber);
+                    continue;
+                }
+
+                try {
+                    Receipt receipt = Receipt.fromTextRecord(line);
+                    if (receipt != null) {
+                        receipts.add(receipt);
                     }
+                } catch (Exception e) {
+                    String snippet = line.length() > 200 ? line.substring(0, 200) + "..." : line;
+                    System.err.println("Error parsing receipt at " + RECEIPTS_DB + ":" + lineNumber + ". Skipping. snippet='" + snippet + "'");
                 }
             }
         } catch (IOException e) {

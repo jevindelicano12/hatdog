@@ -84,6 +84,9 @@ public class Order {
             if (!item.getAddOns().isEmpty()) {
                 receipt.append("  Add-ons: ").append(item.getAddOns()).append("\n");
             }
+            if (item.getSpecialRequest() != null && !item.getSpecialRequest().isEmpty()) {
+                receipt.append("  Remarks: ").append(item.getSpecialRequest()).append("\n");
+            }
             receipt.append("  Subtotal: ₱").append(String.format("%.2f", item.getSubtotal())).append("\n");
             receipt.append("───────────────────────────────────────\n");
         }

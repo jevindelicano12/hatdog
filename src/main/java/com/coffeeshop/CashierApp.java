@@ -50,6 +50,9 @@ public class CashierApp extends Application {
     private TableView<com.coffeeshop.model.PendingOrder> completedTable;
     private java.util.HashMap<String, String> orderCustomerNames = new java.util.HashMap<>();
     private java.util.HashMap<String, String> orderTypes = new java.util.HashMap<>(); // orderId -> orderType
+    // Last cash payment recorded from the cash dialog (so receipts include correct values)
+    private double lastCashReceived = 0.0;
+    private double lastChange = 0.0;
     
     // Receipt management
     private ObservableList<Receipt> receiptHistory = FXCollections.observableArrayList();
@@ -486,6 +489,10 @@ public class CashierApp extends Application {
     }
 
     private String generateReceiptWithOrderType(Order order, String customerName, String orderType) {
+        return generateReceiptWithOrderType(order, customerName, orderType, 0.0, 0.0);
+    }
+
+    private String generateReceiptWithOrderType(Order order, String customerName, String orderType, double cashPaid, double change) {
         StringBuilder receipt = new StringBuilder();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         
@@ -517,7 +524,10 @@ public class CashierApp extends Application {
             }
             
             if (item.getAddOns() != null && !item.getAddOns().isEmpty()) {
-                receipt.append("  Add-ons: ").append(String.join(", ", item.getAddOns())).append("\n");
+                receipt.append("  Add-ons: ").append(item.getAddOns()).append("\n");
+            }
+            if (item.getSpecialRequest() != null && !item.getSpecialRequest().isEmpty()) {
+                receipt.append("  Remarks: ").append(item.getSpecialRequest()).append("\n");
             }
             receipt.append("\n");
         }
@@ -525,6 +535,11 @@ public class CashierApp extends Application {
         receipt.append("───────────────────────────────────────\n");
         receipt.append(String.format("Subtotal:         ₱%.2f\n", order.getTotalAmount()));
         receipt.append(String.format("TOTAL:            ₱%.2f\n", order.getTotalAmount()));
+
+        // Show cash paid and change immediately below the TOTAL
+        receipt.append("───────────────────────────────────────\n");
+        receipt.append(String.format("Cash Paid: ₱%.2f\n", cashPaid));
+        receipt.append(String.format("Change:    ₱%.2f\n", change));
         receipt.append("═══════════════════════════════════════\n");
         receipt.append("       Thank you for your order!\n");
         receipt.append("═══════════════════════════════════════\n");
@@ -696,6 +711,12 @@ public class CashierApp extends Application {
             Product product = store.getProducts().stream().filter(p -> p.getName().equals(item.productName)).findFirst().orElse(null);
             if (product != null) {
                 OrderItem oi = new OrderItem(product, item.quantity, item.temperature, item.sugarLevel);
+                // propagate add-ons and special requests from pending order item data
+                try {
+                    if (item.addOns != null && !item.addOns.isEmpty()) oi.setAddOns(item.addOns);
+                    oi.setAddOnsCost(item.addOnsCost);
+                    if (item.specialRequest != null && !item.specialRequest.isEmpty()) oi.setSpecialRequest(item.specialRequest);
+                } catch (Exception ignored) {}
                 order.addItem(oi);
             }
         }
@@ -714,9 +735,11 @@ public class CashierApp extends Application {
 
         // Generate and save receipt with cashier name
         String orderType = orderTypes.getOrDefault(po.getOrderId(), "Dine In");
-        String receiptContent = generateReceiptWithOrderType(order, customerName, orderType);
+        String receiptContent = generateReceiptWithOrderType(order, customerName, orderType, lastCashReceived, lastChange);
+
         String receiptId = "RCP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        Receipt receipt = new Receipt(receiptId, order.getOrderId(), customerName, order.getTotalAmount(), order.getTotalAmount(), 0.0);
+        // Use recorded cash/payment values from the payment dialog so receipt shows real cash/change
+        Receipt receipt = new Receipt(receiptId, order.getOrderId(), customerName, order.getTotalAmount(), lastCashReceived, lastChange);
         receipt.setReceiptContent(receiptContent);
         TextDatabase.saveReceipt(receipt);
         receiptHistory.add(0, receipt);
@@ -746,6 +769,17 @@ public class CashierApp extends Application {
         
         // Step 1: Ask for customer name (optional)
         String customerName = askForCustomerName(po.getOrderId());
+        // Save the entered customer name to the PendingOrder so it persists
+        // and is visible in completed/receipt views.
+        po.setCustomerName(customerName);
+        orderCustomerNames.put(po.getOrderId(), customerName);
+        // Persist the updated PendingOrder immediately so the name is stored
+        // even if later steps fail or another thread reloads orders.
+        try {
+            TextDatabase.savePendingOrder(po);
+        } catch (Exception ex) {
+            System.err.println("Warning: failed to persist customer name for order " + po.getOrderId() + ": " + ex.getMessage());
+        }
         
         // Step 2: Show cash payment dialog
         boolean paymentSuccess = showCashPaymentDialog(po);
@@ -952,6 +986,9 @@ public class CashierApp extends Application {
                 try {
                     double cashReceived = Double.parseDouble(cashField.getText().trim());
                     if (cashReceived >= po.getTotalAmount()) {
+                        // record amounts for receipt
+                        lastCashReceived = cashReceived;
+                        lastChange = cashReceived - po.getTotalAmount();
                         return true;
                     }
                 } catch (NumberFormatException e) {
@@ -978,8 +1015,8 @@ public class CashierApp extends Application {
         // Also mark completed in helper (keeps behavior consistent)
         TextDatabase.markOrderCompleted(po.getOrderId());
         orderQueue.remove(po);
-        orderCustomerNames.remove(po.getOrderId());
-        orderTypes.remove(po.getOrderId());
+        // Keep customer name and order type mapping so completed orders still show correct customer
+        // (do not remove from orderCustomerNames/orderTypes)
         showAlert("Completed", "Order marked as completed (picked up).", Alert.AlertType.INFORMATION);
     }
 
@@ -1123,7 +1160,7 @@ public class CashierApp extends Application {
             
             StackPane iconCircle1 = new StackPane();
             iconCircle1.setPrefSize(60, 60);
-            iconCircle1.setStyle("-fx-background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
+            iconCircle1.setStyle("-fx-background-color: linear-gradient(to bottom right, #667eea, #764ba2); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
             Label icon1 = new Label("💵");
             icon1.setFont(Font.font(28));
             iconCircle1.getChildren().add(icon1);
@@ -1146,7 +1183,7 @@ public class CashierApp extends Application {
             
             StackPane iconCircle2 = new StackPane();
             iconCircle2.setPrefSize(60, 60);
-            iconCircle2.setStyle("-fx-background-color: linear-gradient(135deg, #0ba360 0%, #3cba92 100%); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
+            iconCircle2.setStyle("-fx-background-color: linear-gradient(to bottom right, #0ba360, #3cba92); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
             Label icon2 = new Label("📈");
             icon2.setFont(Font.font(28));
             iconCircle2.getChildren().add(icon2);
@@ -1174,7 +1211,7 @@ public class CashierApp extends Application {
             
             StackPane iconCircle3 = new StackPane();
             iconCircle3.setPrefSize(60, 60);
-            iconCircle3.setStyle("-fx-background-color: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
+            iconCircle3.setStyle("-fx-background-color: linear-gradient(to bottom right, #4facfe, #00f2fe); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
             Label icon3 = new Label("🛍️");
             icon3.setFont(Font.font(28));
             iconCircle3.getChildren().add(icon3);

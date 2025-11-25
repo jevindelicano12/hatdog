@@ -23,3 +23,21 @@ f566fe57|Guest|2025-11-24 14:15:59|Blueberry Muffin|Regular|Hot
 1bb89cb8|Guest|2025-11-25 13:45:39|Iced Frappe|Regular|Hot
 1bb89cb8|Guest|2025-11-25 13:45:39|Latte|Regular|Hot
 1bb89cb8|Guest|2025-11-25 13:45:39|Mango|Regular|Hot
+b9b9c0e3|JIMS|2025-11-25 22:53:04|Matcha Latte|Regular|Hot
+4badd9ac|jerwoinnnn|2025-11-25 22:54:59|Cappuccino|Regular|Hot
+0268c987|jerwin|2025-11-25 22:56:57|Croissants|Regular|Hot
+fbc482d2|glennbark|2025-11-25 23:05:16|boydila|Regular|Hot
+fbc482d2|glennbark|2025-11-25 23:05:16|Cappuccino|Regular|Hot
+fbc482d2|glennbark|2025-11-25 23:05:16|Latte|Regular|Hot
+73a7e419|hatdogseee|2025-11-25 23:07:48|Cappuccino|Regular|Hot
+73a7e419|hatdogseee|2025-11-25 23:07:48|boydila|Regular|Hot
+73a7e419|hatdogseee|2025-11-25 23:07:48|Croissants|Regular|Hot
+049aa60a|GELNIYBOY|2025-11-26 00:00:30|boydila|Regular|Hot
+17ec0672|506|2025-11-26 00:09:01|boydila|Regular|Hot
+0c6d90b6|HATAHA|2025-11-26 00:14:07|Espresso|Regular|Hot
+0c6d90b6|HATAHA|2025-11-26 00:14:07|Croissants|Regular|Hot
+a36a3440|james|2025-11-26 00:20:25|boydila|Regular|Hot
+88ab203a|kaka|2025-11-26 00:25:46|boydila|Regular|Hot
+9c99afdc|hahdahd|2025-11-26 00:34:25|boydila|Regular|Hot
+26a2093e|HEHEH|2025-11-26 00:41:11|boydila|Regular|Hot
+d8b99576|ASasA|2025-11-26 00:48:22|boydila|Regular|Hot

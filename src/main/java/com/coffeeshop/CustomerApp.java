@@ -1762,50 +1762,78 @@ public class CustomerApp extends Application {
             
             // Extract selected add-ons and special requests from the customContent VBox
             java.util.List<String> selectedAddOnNames = new java.util.ArrayList<>();
-            double addOnsTotalCost = 0.0;
-            String specialRequest = "";
+            final double[] addOnsTotalCost = {0.0};
+            final String[] specialRequest = {""};
             
-            // Traverse the customContent to find selected add-on buttons and text area
-            for (javafx.scene.Node child : customContent.getChildren()) {
-                if (child instanceof VBox) {
-                    VBox section = (VBox) child;
-                    for (javafx.scene.Node sectionChild : section.getChildren()) {
-                        if (sectionChild instanceof HBox) {
-                            HBox row = (HBox) sectionChild;
-                            for (javafx.scene.Node rowChild : row.getChildren()) {
-                                if (rowChild instanceof Button) {
-                                    Button btn = (Button) rowChild;
-                                    // Check if button is selected (has dark background style)
-                                    if (btn.getStyle().equals(getPillSelectedStyle())) {
-                                        Object userData = btn.getUserData();
-                                        if (userData instanceof com.coffeeshop.model.AddOn) {
-                                            com.coffeeshop.model.AddOn addOn = (com.coffeeshop.model.AddOn) userData;
-                                            selectedAddOnNames.add(addOn.getName());
-                                            addOnsTotalCost += addOn.getPrice();
-                                        }
-                                    }
-                                }
+            // First, find ALL TextAreas and collect their text (special requests)
+            // Use a simple recursive function to find all TextAreas
+            java.util.function.Consumer<javafx.scene.Node> findAllTextAreas = new java.util.function.Consumer<javafx.scene.Node>() {
+                @Override
+                public void accept(javafx.scene.Node node) {
+                    if (node instanceof javafx.scene.control.TextArea) {
+                        javafx.scene.control.TextArea textArea = (javafx.scene.control.TextArea) node;
+                        String text = textArea.getText();
+                        if (text != null && !text.trim().isEmpty()) {
+                            // Append all found text areas together (usually only one for special requests)
+                            if (specialRequest[0].isEmpty()) {
+                                specialRequest[0] = text.trim();
+                            } else {
+                                specialRequest[0] += ", " + text.trim();
                             }
-                        } else if (sectionChild instanceof javafx.scene.control.TextArea) {
-                            javafx.scene.control.TextArea textArea = (javafx.scene.control.TextArea) sectionChild;
-                            String text = textArea.getText();
-                            if (text != null && !text.trim().isEmpty()) {
-                                specialRequest = text.trim();
-                            }
+                        }
+                    } else if (node instanceof javafx.scene.layout.Pane) {
+                        javafx.scene.layout.Pane pane = (javafx.scene.layout.Pane) node;
+                        for (javafx.scene.Node child : pane.getChildren()) {
+                            accept(child);
                         }
                     }
                 }
+            };
+            
+            // Find all TextAreas
+            for (javafx.scene.Node child : customContent.getChildren()) {
+                findAllTextAreas.accept(child);
+            }
+            
+            // Now find ALL selected add-on buttons (looking for dark background style)
+            java.util.function.Consumer<javafx.scene.Node> findSelectedAddOns = new java.util.function.Consumer<javafx.scene.Node>() {
+                @Override
+                public void accept(javafx.scene.Node node) {
+                    if (node instanceof javafx.scene.control.Button) {
+                        javafx.scene.control.Button btn = (javafx.scene.control.Button) node;
+                        // Check if button style indicates it's selected (dark background)
+                        String style = btn.getStyle();
+                        if (style != null && (style.contains("#2C2C2C") || style.contains("2C2C2C"))) {
+                            Object userData = btn.getUserData();
+                            if (userData instanceof com.coffeeshop.model.AddOn) {
+                                com.coffeeshop.model.AddOn addOn = (com.coffeeshop.model.AddOn) userData;
+                                selectedAddOnNames.add(addOn.getName());
+                                addOnsTotalCost[0] += addOn.getPrice();
+                            }
+                        }
+                    } else if (node instanceof javafx.scene.layout.Pane) {
+                        javafx.scene.layout.Pane pane = (javafx.scene.layout.Pane) node;
+                        for (javafx.scene.Node child : pane.getChildren()) {
+                            accept(child);
+                        }
+                    }
+                }
+            };
+            
+            // Find all selected add-ons
+            for (javafx.scene.Node child : customContent.getChildren()) {
+                findSelectedAddOns.accept(child);
             }
             
             // Set add-ons on the order item
             if (!selectedAddOnNames.isEmpty()) {
                 item.setAddOns(String.join(", ", selectedAddOnNames));
-                item.setAddOnsCost(addOnsTotalCost);
+                item.setAddOnsCost(addOnsTotalCost[0]);
             }
             
             // Set special request on the order item
-            if (!specialRequest.isEmpty()) {
-                item.setSpecialRequest(specialRequest);
+            if (!specialRequest[0].isEmpty()) {
+                item.setSpecialRequest(specialRequest[0]);
             }
             
             // Add to current order
@@ -3303,7 +3331,7 @@ public class CustomerApp extends Application {
                 PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In");
                 for (OrderItem oi : currentOrder.getItems()) {
                     double price = oi.getProduct().getPrice() + oi.getAddOnsCost();
-                    p.addItem(oi.getProduct().getName(), price, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel());
+                    p.addItem(oi.getProduct().getName(), price, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel(), oi.getAddOns(), oi.getAddOnsCost(), oi.getSpecialRequest());
                 }
                 TextDatabase.savePendingOrder(p);
             } catch (Exception ex) {

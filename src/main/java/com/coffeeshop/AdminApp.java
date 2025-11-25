@@ -20,6 +20,10 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
@@ -99,7 +103,7 @@ public class AdminApp extends Application {
     }
 
     private VBox currentContentArea;
-    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent;
+    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent, transactionHistoryContent;
     private VBox archivedContent;
     private TableView<InventoryRow> archivedTable;
 
@@ -140,6 +144,7 @@ public class AdminApp extends Application {
         refillAlertsContent = createRefillAlertsTab();
         archivedContent = createArchivedTab();
         reportsContent = createReportsTab();
+        transactionHistoryContent = createTransactionHistoryTab();
         
         // Show dashboard by default
         showContent(dashboardContent);
@@ -413,9 +418,10 @@ public class AdminApp extends Application {
         
         Button dashboardBtn = createNavButton("📊", "Dashboard", true);
         Button reportsBtn = createNavButton("📈", "Sales Reports", false);
+        Button transactionsBtn = createNavButton("💳", "Transactions", false);
         
         VBox businessSection = new VBox(0);
-        businessSection.getChildren().addAll(businessHeader, dashboardBtn, reportsBtn);
+        businessSection.getChildren().addAll(businessHeader, dashboardBtn, reportsBtn, transactionsBtn);
         
         // MANAGEMENT section
         Label managementHeader = new Label("MANAGEMENT");
@@ -475,6 +481,7 @@ public class AdminApp extends Application {
         // Wire up navigation buttons
         dashboardBtn.setOnAction(e -> { setActiveNav(dashboardBtn); showContent(dashboardContent); });
         reportsBtn.setOnAction(e -> { setActiveNav(reportsBtn); showContent(reportsContent); });
+        transactionsBtn.setOnAction(e -> { setActiveNav(transactionsBtn); refreshTransactionHistoryContent(); showContent(transactionHistoryContent); });
         productsBtn.setOnAction(e -> { setActiveNav(productsBtn); showContent(productsContent); });
         inventoryBtn.setOnAction(e -> { setActiveNav(inventoryBtn); showContent(inventoryContent); });
         addOnsBtn.setOnAction(e -> { setActiveNav(addOnsBtn); refreshAddOnsContent(); showContent(addOnsContent); });
@@ -743,11 +750,15 @@ public class AdminApp extends Application {
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         title.setTextFill(Color.web("#1a1a1a"));
         Region headerSpacer = new Region(); HBox.setHgrow(headerSpacer, Priority.ALWAYS);
-        TextField search = new TextField(); 
-        search.setPromptText("Search"); 
-        search.setPrefWidth(260);
-        search.setStyle("-fx-background-color: white; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 12;");
-        header.getChildren().addAll(title, headerSpacer, search);
+        
+        // Export PDF button
+        Button exportPdfBtn = new Button("📄 Export PDF");
+        exportPdfBtn.setStyle("-fx-background-color: #3498DB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        exportPdfBtn.setOnMouseEntered(e -> exportPdfBtn.setStyle("-fx-background-color: #2980B9; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"));
+        exportPdfBtn.setOnMouseExited(e -> exportPdfBtn.setStyle("-fx-background-color: #3498DB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"));
+        exportPdfBtn.setOnAction(e -> exportDashboardToPdf(panel));
+        
+        header.getChildren().addAll(title, headerSpacer, exportPdfBtn);
 
         // Top metric cards
         HBox metricsRow = new HBox(14);
@@ -1006,11 +1017,10 @@ public class AdminApp extends Application {
         
         scoreCard.getChildren().addAll(scoreHeader, gaugeCanvas, scoreSub);
 
-        // Complaint cards
+        // Complaint cards (only showing unresolved complaints)
         VBox complaintCard1 = createComplaintCard("🔴", "Wrong Menu", "Andrew Tate", "Solve");
-        VBox complaintCard2 = createComplaintCard("🟢", "Bad Rating", "Don Ozwald", "Solve");
 
-        rightCol.getChildren().addAll(scoreCard, complaintCard1, complaintCard2);
+        rightCol.getChildren().addAll(scoreCard, complaintCard1);
 
         mainRow.getChildren().addAll(leftCol, rightCol);
 
@@ -1937,6 +1947,136 @@ public class AdminApp extends Application {
         if (card.getChildren().size() >= 2) {
             Label valueLabel = (Label) card.getChildren().get(1);
             valueLabel.setText(newValue);
+        }
+    }
+    
+    /**
+     * Export Sales Dashboard data to PDF file
+     */
+    private void exportDashboardToPdf(VBox dashboardPanel) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Sales Dashboard Report");
+        fileChooser.setInitialFileName("SalesDashboard_" + LocalDate.now().toString() + ".pdf");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
+        
+        File file = fileChooser.showSaveDialog(dashboardPanel.getScene().getWindow());
+        if (file == null) return;
+        
+        try {
+            // Gather sales data
+            List<Receipt> receipts = TextDatabase.loadAllReceipts();
+            double totalRevenue = SalesAnalytics.getTotalSales(receipts);
+            double todayRevenue = SalesAnalytics.getTotalSalesForDate(receipts, LocalDate.now());
+            long ordersToday = SalesAnalytics.getOrderCountForDate(receipts, LocalDate.now());
+            long totalOrders = receipts.size();
+            
+            // Get recent transactions
+            List<Receipt> recentReceipts = receipts.size() > 10 ? receipts.subList(0, 10) : receipts;
+            
+            // Get items performance data
+            List<OrderRecord> orders = TextDatabase.loadAllOrders();
+            Map<String, Integer> itemCounts = new LinkedHashMap<>();
+            for (OrderRecord order : orders) {
+                String itemName = order.getItemName();
+                itemCounts.put(itemName, itemCounts.getOrDefault(itemName, 0) + 1);
+            }
+            
+            // Create PDF using basic text format (simplified PDF)
+            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                // PDF Header
+                writer.println("%PDF-1.4");
+                writer.println("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj");
+                writer.println("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj");
+                writer.println("3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj");
+                writer.println("5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj");
+                
+                // Build content
+                StringBuilder content = new StringBuilder();
+                content.append("BT\n");
+                content.append("/F1 24 Tf\n");
+                content.append("50 750 Td\n");
+                content.append("(BREWISE COFFEE SHOP - Sales Dashboard Report) Tj\n");
+                
+                content.append("/F1 12 Tf\n");
+                content.append("0 -30 Td\n");
+                content.append("(Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + ") Tj\n");
+                
+                content.append("0 -40 Td\n");
+                content.append("/F1 16 Tf\n");
+                content.append("(=== SALES SUMMARY ===) Tj\n");
+                
+                content.append("/F1 12 Tf\n");
+                content.append("0 -25 Td\n");
+                content.append("(Total Revenue: P" + String.format("%.2f", totalRevenue) + ") Tj\n");
+                
+                content.append("0 -20 Td\n");
+                content.append("(Today's Revenue: P" + String.format("%.2f", todayRevenue) + ") Tj\n");
+                
+                content.append("0 -20 Td\n");
+                content.append("(Total Orders: " + totalOrders + ") Tj\n");
+                
+                content.append("0 -20 Td\n");
+                content.append("(Today's Orders: " + ordersToday + ") Tj\n");
+                
+                content.append("0 -40 Td\n");
+                content.append("/F1 16 Tf\n");
+                content.append("(=== TOP SELLING ITEMS ===) Tj\n");
+                
+                content.append("/F1 12 Tf\n");
+                int itemCount = 0;
+                for (Map.Entry<String, Integer> entry : itemCounts.entrySet()) {
+                    if (itemCount >= 10) break;
+                    content.append("0 -20 Td\n");
+                    String itemLine = entry.getKey().replaceAll("[()]", "") + " - " + entry.getValue() + " sold";
+                    content.append("(" + itemLine + ") Tj\n");
+                    itemCount++;
+                }
+                
+                content.append("0 -40 Td\n");
+                content.append("/F1 16 Tf\n");
+                content.append("(=== RECENT TRANSACTIONS ===) Tj\n");
+                
+                content.append("/F1 10 Tf\n");
+                for (Receipt receipt : recentReceipts) {
+                    content.append("0 -18 Td\n");
+                    String receiptLine = receipt.getUserName().replaceAll("[()]", "") + " | P" + String.format("%.2f", receipt.getTotalAmount()) + " | " + receipt.getReceiptTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"));
+                    content.append("(" + receiptLine + ") Tj\n");
+                }
+                
+                content.append("ET\n");
+                
+                String contentStr = content.toString();
+                writer.println("4 0 obj << /Length " + contentStr.length() + " >> stream");
+                writer.print(contentStr);
+                writer.println("endstream endobj");
+                
+                writer.println("xref");
+                writer.println("0 6");
+                writer.println("0000000000 65535 f");
+                writer.println("0000000009 00000 n");
+                writer.println("0000000058 00000 n");
+                writer.println("0000000115 00000 n");
+                writer.println("0000000270 00000 n");
+                writer.println("0000000350 00000 n");
+                writer.println("trailer << /Size 6 /Root 1 0 R >>");
+                writer.println("startxref");
+                writer.println("450");
+                writer.println("%%EOF");
+            }
+            
+            // Show success message
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Export Successful");
+            alert.setHeaderText(null);
+            alert.setContentText("Sales Dashboard report has been exported to:\n" + file.getAbsolutePath());
+            alert.showAndWait();
+            
+        } catch (Exception e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Export Failed");
+            alert.setHeaderText(null);
+            alert.setContentText("Failed to export PDF: " + e.getMessage());
+            alert.showAndWait();
         }
     }
     
@@ -3859,6 +3999,310 @@ public class AdminApp extends Application {
     }
 
     // TableView data classes
+    // ==================== TRANSACTION HISTORY TAB ====================
+
+    private void refreshTransactionHistoryContent() {
+        if (transactionHistoryContent == null) return;
+        transactionHistoryContent.getChildren().clear();
+        transactionHistoryContent.getChildren().addAll(createTransactionHistoryTab().getChildren());
+    }
+
+    private VBox createTransactionHistoryTab() {
+        VBox panel = new VBox(20);
+        panel.setPadding(new Insets(25));
+        panel.setStyle("-fx-background-color: #F3F4F6;");
+
+        // Header with filters
+        HBox header = new HBox(15);
+        header.setAlignment(Pos.CENTER_LEFT);
+        
+        Label title = new Label("💳 Transaction History & Performance");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        title.setTextFill(Color.web("#111827"));
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        // Date filter
+        ComboBox<String> dateFilter = new ComboBox<>();
+        dateFilter.getItems().addAll("Today", "This Week", "This Month", "All Time", "Custom Range");
+        dateFilter.setValue("Today");
+        dateFilter.setStyle("-fx-font-size: 13px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-border-radius: 8;");
+        
+        // Cashier filter
+        ComboBox<String> cashierFilter = new ComboBox<>();
+        cashierFilter.getItems().add("All Cashiers");
+        for (CashierAccount acc : store.getCashiers()) {
+            cashierFilter.getItems().add(acc.getUsername());
+        }
+        cashierFilter.setValue("All Cashiers");
+        cashierFilter.setStyle("-fx-font-size: 13px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-border-radius: 8;");
+        
+        // Export button
+        Button exportBtn = new Button("📥 Export CSV");
+        exportBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-cursor: hand;");
+        
+        header.getChildren().addAll(title, spacer, dateFilter, cashierFilter, exportBtn);
+
+        // Load receipts
+        List<Receipt> allReceipts = TextDatabase.loadAllReceipts();
+        
+        // Performance cards row
+        HBox perfCards = new HBox(15);
+        perfCards.setAlignment(Pos.TOP_CENTER);
+        
+        // Calculate per-cashier stats
+        Map<String, Double> cashierSales = new HashMap<>();
+        Map<String, Integer> cashierTransactions = new HashMap<>();
+        
+        for (Receipt r : allReceipts) {
+            String cashier = r.getCashierId();
+            if (cashier == null || cashier.isEmpty()) cashier = "Unknown";
+            
+            cashierSales.put(cashier, cashierSales.getOrDefault(cashier, 0.0) + r.getTotalAmount());
+            cashierTransactions.put(cashier, cashierTransactions.getOrDefault(cashier, 0) + 1);
+        }
+        
+        // Create performance cards for each cashier
+        for (String cashier : cashierSales.keySet()) {
+            double totalSales = cashierSales.get(cashier);
+            int txCount = cashierTransactions.get(cashier);
+            double avgSale = txCount > 0 ? totalSales / txCount : 0;
+            
+            VBox card = createCashierPerformanceCard(cashier, totalSales, txCount, avgSale);
+            HBox.setHgrow(card, Priority.ALWAYS);
+            perfCards.getChildren().add(card);
+        }
+        
+        // If no cashiers found, show placeholder
+        if (perfCards.getChildren().isEmpty()) {
+            Label placeholder = new Label("No transaction data available");
+            placeholder.setFont(Font.font("Segoe UI", 14));
+            placeholder.setTextFill(Color.web("#6B7280"));
+            perfCards.getChildren().add(placeholder);
+        }
+        
+        // Charts row
+        HBox chartsRow = new HBox(15);
+        
+        // Sales by Cashier Bar Chart
+        VBox salesChartCard = new VBox(12);
+        salesChartCard.setPadding(new Insets(20));
+        salesChartCard.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        HBox.setHgrow(salesChartCard, Priority.ALWAYS);
+        
+        Label salesChartTitle = new Label("📊 Sales by Cashier");
+        salesChartTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        
+        CategoryAxis xAxisSales = new CategoryAxis();
+        NumberAxis yAxisSales = new NumberAxis();
+        BarChart<String, Number> salesBarChart = new BarChart<>(xAxisSales, yAxisSales);
+        salesBarChart.setLegendVisible(false);
+        salesBarChart.setPrefHeight(250);
+        salesBarChart.setStyle("-fx-background-color: transparent;");
+        
+        XYChart.Series<String, Number> salesSeries = new XYChart.Series<>();
+        for (Map.Entry<String, Double> entry : cashierSales.entrySet()) {
+            salesSeries.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
+        }
+        salesBarChart.getData().add(salesSeries);
+        
+        salesChartCard.getChildren().addAll(salesChartTitle, salesBarChart);
+        
+        // Transactions Over Time Line Chart
+        VBox timeChartCard = new VBox(12);
+        timeChartCard.setPadding(new Insets(20));
+        timeChartCard.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        HBox.setHgrow(timeChartCard, Priority.ALWAYS);
+        
+        Label timeChartTitle = new Label("📈 Transactions Today");
+        timeChartTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        
+        CategoryAxis xAxisTime = new CategoryAxis();
+        NumberAxis yAxisTime = new NumberAxis();
+        LineChart<String, Number> timeLineChart = new LineChart<>(xAxisTime, yAxisTime);
+        timeLineChart.setLegendVisible(false);
+        timeLineChart.setPrefHeight(250);
+        timeLineChart.setStyle("-fx-background-color: transparent;");
+        timeLineChart.setCreateSymbols(true);
+        
+        // Group by hour for today
+        Map<Integer, Integer> hourlyTransactions = new HashMap<>();
+        LocalDate today = LocalDate.now();
+        for (Receipt r : allReceipts) {
+            if (r.getReceiptTime().toLocalDate().equals(today)) {
+                int hour = r.getReceiptTime().getHour();
+                hourlyTransactions.put(hour, hourlyTransactions.getOrDefault(hour, 0) + 1);
+            }
+        }
+        
+        XYChart.Series<String, Number> timeSeries = new XYChart.Series<>();
+        for (int i = 0; i < 24; i++) {
+            timeSeries.getData().add(new XYChart.Data<>(i + ":00", hourlyTransactions.getOrDefault(i, 0)));
+        }
+        timeLineChart.getData().add(timeSeries);
+        
+        timeChartCard.getChildren().addAll(timeChartTitle, timeLineChart);
+        
+        chartsRow.getChildren().addAll(salesChartCard, timeChartCard);
+        
+        // Transaction History Table
+        VBox tableCard = new VBox(12);
+        tableCard.setPadding(new Insets(20));
+        tableCard.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        
+        Label tableTitle = new Label("📋 Transaction History");
+        tableTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        
+        TableView<Receipt> transactionTable = new TableView<>();
+        transactionTable.setPrefHeight(350);
+        
+        TableColumn<Receipt, String> receiptIdCol = new TableColumn<>("Receipt ID");
+        receiptIdCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getReceiptId()));
+        receiptIdCol.setPrefWidth(120);
+        
+        TableColumn<Receipt, String> cashierCol = new TableColumn<>("Cashier");
+        cashierCol.setCellValueFactory(data -> {
+            String cashier = data.getValue().getCashierId();
+            return new javafx.beans.property.SimpleStringProperty(cashier != null && !cashier.isEmpty() ? cashier : "Unknown");
+        });
+        cashierCol.setPrefWidth(120);
+        
+        TableColumn<Receipt, String> customerCol = new TableColumn<>("Customer");
+        customerCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getUserName()));
+        customerCol.setPrefWidth(150);
+        
+        TableColumn<Receipt, String> timeCol = new TableColumn<>("Date & Time");
+        timeCol.setCellValueFactory(data -> {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM dd, yyyy hh:mm a");
+            return new javafx.beans.property.SimpleStringProperty(data.getValue().getReceiptTime().format(fmt));
+        });
+        timeCol.setPrefWidth(180);
+        
+        TableColumn<Receipt, String> amountCol = new TableColumn<>("Amount");
+        amountCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(String.format("₱%.2f", data.getValue().getTotalAmount())));
+        amountCol.setPrefWidth(120);
+        amountCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+        
+        TableColumn<Receipt, String> orderIdCol = new TableColumn<>("Order ID");
+        orderIdCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
+        orderIdCol.setPrefWidth(150);
+        
+        transactionTable.getColumns().addAll(receiptIdCol, cashierCol, customerCol, timeCol, amountCol, orderIdCol);
+        
+        // Populate table (show most recent first)
+        javafx.collections.ObservableList<Receipt> receiptData = javafx.collections.FXCollections.observableArrayList(allReceipts);
+        receiptData.sort((r1, r2) -> r2.getReceiptTime().compareTo(r1.getReceiptTime()));
+        transactionTable.setItems(receiptData);
+        
+        // Filter logic
+        Runnable applyFilters = () -> {
+            String selectedDate = dateFilter.getValue();
+            String selectedCashier = cashierFilter.getValue();
+            
+            List<Receipt> filtered = new ArrayList<>(allReceipts);
+            
+            // Date filter
+            LocalDateTime now = LocalDateTime.now();
+            if ("Today".equals(selectedDate)) {
+                filtered.removeIf(r -> !r.getReceiptTime().toLocalDate().equals(now.toLocalDate()));
+            } else if ("This Week".equals(selectedDate)) {
+                LocalDateTime weekStart = now.minusDays(7);
+                filtered.removeIf(r -> r.getReceiptTime().isBefore(weekStart));
+            } else if ("This Month".equals(selectedDate)) {
+                LocalDateTime monthStart = now.minusMonths(1);
+                filtered.removeIf(r -> r.getReceiptTime().isBefore(monthStart));
+            }
+            
+            // Cashier filter
+            if (!"All Cashiers".equals(selectedCashier)) {
+                filtered.removeIf(r -> {
+                    String c = r.getCashierId();
+                    return c == null || !c.equals(selectedCashier);
+                });
+            }
+            
+            filtered.sort((r1, r2) -> r2.getReceiptTime().compareTo(r1.getReceiptTime()));
+            transactionTable.setItems(javafx.collections.FXCollections.observableArrayList(filtered));
+        };
+        
+        dateFilter.setOnAction(e -> applyFilters.run());
+        cashierFilter.setOnAction(e -> applyFilters.run());
+        
+        // Export functionality
+        exportBtn.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Export Transactions");
+            fileChooser.setInitialFileName("transactions_" + LocalDate.now() + ".csv");
+            fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+            File file = fileChooser.showSaveDialog(null);
+            
+            if (file != null) {
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                    writer.write("Receipt ID,Cashier,Customer,Date,Time,Amount,Order ID\n");
+                    for (Receipt r : transactionTable.getItems()) {
+                        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                        DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm:ss");
+                        writer.write(String.format("%s,%s,%s,%s,%s,%.2f,%s\n",
+                            r.getReceiptId(),
+                            r.getCashierId() != null ? r.getCashierId() : "Unknown",
+                            r.getUserName(),
+                            r.getReceiptTime().format(dateFmt),
+                            r.getReceiptTime().format(timeFmt),
+                            r.getTotalAmount(),
+                            r.getOrderId()));
+                    }
+                    showAlert("Export Successful", "Transactions exported to: " + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
+                } catch (IOException ex) {
+                    showAlert("Export Failed", "Error: " + ex.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+        
+        tableCard.getChildren().addAll(tableTitle, transactionTable);
+        
+        panel.getChildren().addAll(header, perfCards, chartsRow, tableCard);
+        return panel;
+    }
+    
+    private VBox createCashierPerformanceCard(String cashierName, double totalSales, int transactionCount, double avgSale) {
+        VBox card = new VBox(10);
+        card.setPadding(new Insets(20));
+        card.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        card.setPrefWidth(250);
+        card.setMinHeight(150);
+        
+        // Cashier icon and name
+        HBox nameRow = new HBox(8);
+        nameRow.setAlignment(Pos.CENTER_LEFT);
+        Label icon = new Label("👤");
+        icon.setFont(Font.font(20));
+        Label name = new Label(cashierName);
+        name.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        name.setTextFill(Color.web("#111827"));
+        nameRow.getChildren().addAll(icon, name);
+        
+        // Total sales
+        Label salesLabel = new Label(String.format("₱%.2f", totalSales));
+        salesLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        salesLabel.setTextFill(Color.web("#10B981"));
+        
+        // Transaction count
+        Label txLabel = new Label(transactionCount + " transactions");
+        txLabel.setFont(Font.font("Segoe UI", 13));
+        txLabel.setTextFill(Color.web("#6B7280"));
+        
+        // Average sale
+        Label avgLabel = new Label("Avg: ₱" + String.format("%.2f", avgSale));
+        avgLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
+        avgLabel.setTextFill(Color.web("#3B82F6"));
+        
+        card.getChildren().addAll(nameRow, salesLabel, txLabel, avgLabel);
+        return card;
+    }
+
+    // ==================== INNER CLASSES ====================
+
     public static class ProductRow {
         private String id;
         private String name;

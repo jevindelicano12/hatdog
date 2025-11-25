@@ -45,6 +45,15 @@ public class PendingOrder {
         calculateTotal();
     }
 
+    public void addItem(String productName, double price, int quantity, String temperature, int sugarLevel, String addOns, double addOnsCost, String specialRequest) {
+        OrderItemData item = new OrderItemData(productName, price, quantity, temperature, sugarLevel);
+        item.addOns = addOns;
+        item.addOnsCost = addOnsCost;
+        item.specialRequest = specialRequest;
+        items.add(item);
+        calculateTotal();
+    }
+
     private void calculateTotal() {
         totalAmount = items.stream()
                 .mapToDouble(item -> item.price * item.quantity)
@@ -69,7 +78,10 @@ public class PendingOrder {
             sb.append(item.price).append("~");
             sb.append(item.quantity).append("~");
             sb.append(item.temperature).append("~");
-            sb.append(item.sugarLevel);
+            sb.append(item.sugarLevel).append("~");
+            sb.append(item.addOns != null ? item.addOns : "").append("~");
+            sb.append(item.addOnsCost).append("~");
+            sb.append(item.specialRequest != null ? item.specialRequest : "");
             if (i < items.size() - 1) {
                 sb.append(",");
             }
@@ -118,13 +130,20 @@ public class PendingOrder {
                         String[] itemParts = itemStr.split("~");
                         if (itemParts.length >= 5) {
                             try {
-                                order.addItem(
-                                    itemParts[0], // productName
-                                    Double.parseDouble(itemParts[1]), // price
-                                    Integer.parseInt(itemParts[2]), // quantity
-                                    itemParts[3], // temperature
-                                    Integer.parseInt(itemParts[4]) // sugarLevel
-                                );
+                                String prod = itemParts[0];
+                                double price = Double.parseDouble(itemParts[1]);
+                                int qty = Integer.parseInt(itemParts[2]);
+                                String temp = itemParts[3];
+                                int sugar = Integer.parseInt(itemParts[4]);
+                                if (itemParts.length >= 8) {
+                                    String addOns = itemParts[5];
+                                    double addOnsCost = 0.0;
+                                    try { addOnsCost = Double.parseDouble(itemParts[6]); } catch (Exception ex) {}
+                                    String special = itemParts[7];
+                                    order.addItem(prod, price, qty, temp, sugar, addOns, addOnsCost, special);
+                                } else {
+                                    order.addItem(prod, price, qty, temp, sugar);
+                                }
                             } catch (Exception ignore) {
                                 // skip malformed item
                             }
@@ -175,6 +194,9 @@ public class PendingOrder {
         this.orderType = orderType;
     }
 
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
     // paymentMethod removed in revert
 
     public boolean isPending() {
@@ -202,6 +224,9 @@ public class PendingOrder {
         public int quantity;
         public String temperature;
         public int sugarLevel;
+        public String addOns;
+        public double addOnsCost;
+        public String specialRequest;
 
         public OrderItemData(String productName, double price, int quantity, String temperature, int sugarLevel) {
             this.productName = productName;
@@ -209,10 +234,13 @@ public class PendingOrder {
             this.quantity = quantity;
             this.temperature = temperature;
             this.sugarLevel = sugarLevel;
+            this.addOns = "";
+            this.addOnsCost = 0.0;
+            this.specialRequest = "";
         }
 
         public double getSubtotal() {
-            return price * quantity;
+            return (price + addOnsCost) * quantity;
         }
     }
 }
