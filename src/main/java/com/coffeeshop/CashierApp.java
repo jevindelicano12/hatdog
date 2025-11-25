@@ -741,11 +741,7 @@ public class CashierApp extends Application {
             }
         }
 
-        // Validate stock and process checkout
-        if (!store.isStockSufficient(order)) {
-            showAlert("Stock Error", "Insufficient stock for some items.", Alert.AlertType.ERROR);
-            return "";
-        }
+        // Validate ingredients and process checkout
         if (!store.isInventorySufficient(order)) {
             showAlert("Ingredient Error", "Insufficient ingredients for some items.", Alert.AlertType.ERROR);
             return "";
@@ -2263,11 +2259,7 @@ public class CashierApp extends Application {
             }
         });
         
-        TableColumn<Product, Integer> stockCol = new TableColumn<>("Stock");
-        stockCol.setCellValueFactory(new PropertyValueFactory<>("stock"));
-        stockCol.setPrefWidth(80);
-        
-        productsTable.getColumns().addAll(nameCol, priceCol, stockCol);
+        productsTable.getColumns().addAll(nameCol, priceCol);
         
         // Quantity and add-ons section
         GridPane itemDetailsGrid = new GridPane();
@@ -2587,33 +2579,14 @@ public class CashierApp extends Application {
                 );
             returnTx.addReturnedItem(returnItem);
             
-            // Update inventory - add returned items back to stock
-            try {
-                // Find product by name
-                Product product = Store.getInstance().getProducts().stream()
-                    .filter(p -> p.getName().equals(rc.getItemData().productName))
-                    .findFirst()
-                    .orElse(null);
-                if (product != null) {
-                    Store.getInstance().refillProduct(product.getId(), rc.getItemData().quantity);
-                }
-            } catch (Exception ignored) {}
+            // Inventory update not needed for returns (ingredient-based tracking)
         }
         
         // Add exchange items
         for (com.coffeeshop.model.OrderItem exchangeItem : exchangeItems) {
             returnTx.addExchangeItem(exchangeItem);
             
-            // Update inventory - remove exchange items from stock (decrement stock)
-            try {
-                Product product = exchangeItem.getProduct();
-                if (product != null) {
-                    // Decrement by setting to current minus quantity
-                    int newStock = Math.max(0, product.getStock() - exchangeItem.getQuantity());
-                    product.setStock(newStock);
-                    Store.getInstance().saveData();
-                }
-            } catch (Exception ignored) {}
+            // Inventory update not needed for exchanges (ingredient-based tracking)
         }
         
         // Calculate totals

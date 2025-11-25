@@ -6,9 +6,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Store {
-    public static final int MAX_STOCK = 20;
-    public static final int REFILL_THRESHOLD = 5;
-
     private List<Product> products;
     private Map<String, InventoryItem> inventory;
     private Map<String, InventoryItem> removedInventory = new HashMap<>();
@@ -218,15 +215,6 @@ public class Store {
         removeProduct(productId);
     }
 
-    public void refillProduct(String productId, int amount) {
-        Product product = getProductById(productId);
-        if (product != null) {
-            int newStock = Math.min(product.getStock() + amount, MAX_STOCK);
-            product.setStock(newStock);
-            saveData();
-        }
-    }
-
     // Inventory operations
     public Map<String, InventoryItem> getInventory() {
         return new HashMap<>(inventory);
@@ -402,25 +390,6 @@ public class Store {
     }
 
     // Order validation and processing
-    public boolean isStockSufficient(Order order) {
-        // Aggregate requested quantities per product id to handle multiple order lines
-        Map<String, Integer> requiredPerProduct = new HashMap<>();
-        for (OrderItem item : order.getItems()) {
-            if (item == null || item.getProduct() == null) continue;
-            String pid = item.getProduct().getId();
-            requiredPerProduct.merge(pid, item.getQuantity(), Integer::sum);
-        }
-
-        for (Map.Entry<String, Integer> e : requiredPerProduct.entrySet()) {
-            Product product = getProductById(e.getKey());
-            int required = e.getValue();
-            if (product == null || product.getStock() < required) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     public boolean isInventorySufficient(Order order) {
         Map<String, Double> requiredIngredients = new HashMap<>();
         
@@ -470,17 +439,9 @@ public class Store {
     }
 
     public void checkoutBasket(Order order) {
-        // Recheck stock before deduction
-        if (!isStockSufficient(order) || !isInventorySufficient(order)) {
-            throw new IllegalStateException("Insufficient stock or ingredients");
-        }
-
-        // Deduct product stock
-        for (OrderItem item : order.getItems()) {
-            Product product = getProductById(item.getProduct().getId());
-            if (product != null) {
-                product.setStock(product.getStock() - item.getQuantity());
-            }
+        // Check ingredient inventory before deduction
+        if (!isInventorySufficient(order)) {
+            throw new IllegalStateException("Insufficient ingredients");
         }
 
         // Deduct ingredients
@@ -505,46 +466,6 @@ public class Store {
 
         order.setPaid(true);
         saveData();
-    }
-
-    // Refill alerts
-    public boolean hasProductsNeedingRefill() {
-        return products.stream().anyMatch(Product::needsRefill);
-    }
-
-    public List<Product> getProductsNeedingRefill() {
-        return products.stream()
-                .filter(Product::needsRefill)
-                .collect(Collectors.toList());
-    }
-
-    public String getProductRefillAlerts() {
-        StringBuilder alerts = new StringBuilder();
-        alerts.append("\n╔═══════════════════════════════════════════════════════╗\n");
-        alerts.append("║            PRODUCT REFILL STATUS                     ║\n");
-        alerts.append("╠═══════════════════════════════════════════════════════╣\n");
-        alerts.append(String.format("║ %-20s | %-10s | %-15s ║\n", "Product", "Stock", "Refill Needed"));
-        alerts.append("╠═══════════════════════════════════════════════════════╣\n");
-
-        for (Product product : products) {
-            String severity;
-            if (product.getStock() == 0) {
-                severity = "🔴 CRITICAL";
-            } else if (product.getStock() <= REFILL_THRESHOLD) {
-                severity = "🟡 WARNING";
-            } else {
-                continue; // Skip products that don't need refill
-            }
-
-            alerts.append(String.format("║ %-20s | %-10d | %-15d ║ %s\n", 
-                product.getName(), 
-                product.getStock(), 
-                product.getRefillNeeded(),
-                severity));
-        }
-
-        alerts.append("╚═══════════════════════════════════════════════════════╝\n");
-        return alerts.toString();
     }
 
     // Add-on management methods

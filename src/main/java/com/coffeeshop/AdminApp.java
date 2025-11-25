@@ -67,14 +67,11 @@ public class AdminApp extends Application {
     private TableView<ProductRow> productTable;
     private TableView<InventoryRow> inventoryTable;
     private java.util.Deque<UndoAction> undoStack = new java.util.ArrayDeque<>();
-    private javafx.scene.control.ListView<com.coffeeshop.model.InventoryItem> alertsListView;
     private Label adminTimeLabel;
     private Label netSalesLabel;
     private Label pendingOrdersLabel;
     private Label completedOrdersLabel;
-    private Label lowStockLabel;
     private javafx.scene.control.ListView<String> categoriesListView;
-    private TextArea dashboardAlertsArea;
     private javafx.scene.control.ListView<String> productsInCategoryListView;
 
     // Modern button styling helpers
@@ -103,7 +100,7 @@ public class AdminApp extends Application {
     }
 
     private VBox currentContentArea;
-    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent, transactionHistoryContent;
+    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, reportsContent, transactionHistoryContent;
     private VBox archivedContent;
     private TableView<InventoryRow> archivedTable;
 
@@ -141,7 +138,6 @@ public class AdminApp extends Application {
         specialRequestsContent = createSpecialRequestsTab();
         categoriesContent = createCategoriesTab();
         accountsContent = createAccountsTab();
-        refillAlertsContent = createRefillAlertsTab();
         archivedContent = createArchivedTab();
         reportsContent = createReportsTab();
         transactionHistoryContent = createTransactionHistoryTab();
@@ -445,11 +441,10 @@ public class AdminApp extends Application {
         systemHeader.setTextFill(Color.web("#6B7280"));
         systemHeader.setPadding(new Insets(5, 20, 5, 20));
         
-        Button refillBtn = createNavButton("🔔", "Refill Alerts", false);
         Button archivedBtn = createNavButton("🗄️", "Archived Items", false);
         
         VBox systemSection = new VBox(0);
-        systemSection.getChildren().addAll(systemHeader, refillBtn);
+        systemSection.getChildren().add(systemHeader);
         
         navContainer.getChildren().addAll(businessSection, managementSection, systemSection);
         
@@ -488,7 +483,6 @@ public class AdminApp extends Application {
         specialReqBtn.setOnAction(e -> { setActiveNav(specialReqBtn); refreshSpecialRequestsContent(); showContent(specialRequestsContent); });
         categoriesBtn.setOnAction(e -> { setActiveNav(categoriesBtn); showContent(categoriesContent); });
         accountsBtn.setOnAction(e -> { setActiveNav(accountsBtn); showContent(accountsContent); });
-        refillBtn.setOnAction(e -> { setActiveNav(refillBtn); showContent(refillAlertsContent); });
         archivedBtn.setOnAction(e -> { setActiveNav(archivedBtn); refreshArchivedItems(); showContent(archivedContent); });
         
         return sidebar;
@@ -1833,50 +1827,14 @@ public class AdminApp extends Application {
         completedOrdersLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
         completedOrdersLabel.setTextFill(Color.web("#111827"));
 
-        lowStockLabel = new Label();
-        lowStockLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
-        lowStockLabel.setTextFill(Color.web("#111827"));
-
         // Create modern stat cards
         VBox salesCard = createModernStatCard("💵", "NET SALES (MONTH)", netSalesLabel, "#10B981");
         VBox pendingCard = createModernStatCard("🕐", "PENDING ORDERS", pendingOrdersLabel, "#F59E0B");
         VBox completedCard = createModernStatCard("✓", "COMPLETED ORDERS", completedOrdersLabel, "#3B82F6");
-        VBox alertCard = createModernStatCard("⚠", "LOW STOCK ALERTS", lowStockLabel, "#EF4444");
 
-        statsRow.getChildren().addAll(salesCard, pendingCard, completedCard, alertCard);
+        statsRow.getChildren().addAll(salesCard, pendingCard, completedCard);
 
-        // Refill Alerts Section
-        VBox alertsSection = new VBox(15);
-        alertsSection.setPadding(new Insets(25));
-        alertsSection.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        
-        HBox alertsHeader = new HBox();
-        alertsHeader.setAlignment(Pos.CENTER_LEFT);
-        
-        Label alertsTitle = new Label("⚠ Refill Alerts");
-        alertsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
-        alertsTitle.setTextFill(Color.web("#111827"));
-        
-        Region alertsSpacer = new Region();
-        HBox.setHgrow(alertsSpacer, Priority.ALWAYS);
-        
-        Button refreshBtn = new Button("🔄 Refresh");
-        refreshBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6B7280; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 600;");
-        refreshBtn.setOnMouseEntered(e -> refreshBtn.setStyle("-fx-background-color: #F9FAFB; -fx-text-fill: #6B7280; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 600;"));
-        refreshBtn.setOnMouseExited(e -> refreshBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6B7280; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: 600;"));
-        refreshBtn.setOnAction(e -> refreshDashboard());
-        
-        alertsHeader.getChildren().addAll(alertsTitle, alertsSpacer, refreshBtn);
-
-        dashboardAlertsArea = new TextArea();
-        dashboardAlertsArea.setEditable(false);
-        dashboardAlertsArea.setPrefHeight(150);
-        dashboardAlertsArea.setWrapText(true);
-        dashboardAlertsArea.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 13px; -fx-control-inner-background: #F9FAFB; -fx-background-color: #F9FAFB; -fx-border-color: #E5E7EB; -fx-border-radius: 8; -fx-background-radius: 8;");
-
-        alertsSection.getChildren().addAll(alertsHeader, dashboardAlertsArea);
-
-        panel.getChildren().addAll(header, statsRow, alertsSection);
+        panel.getChildren().addAll(header, statsRow);
         // Initial data load
         updateDashboardData();
 
@@ -2495,12 +2453,6 @@ public class AdminApp extends Application {
         netSalesLabel.setText(String.format("₱%.2f", netSales));
         pendingOrdersLabel.setText(String.valueOf(pendingCount));
         completedOrdersLabel.setText(String.valueOf(completedCount));
-        // Low-stock counter/alerts removed per configuration: keep UI neutral
-        lowStockLabel.setText("—");
-
-        // Dashboard alerts: no refill/low-stock alerts shown here anymore.
-        dashboardAlertsArea.setText("✓ All products are well-stocked!");
-        dashboardAlertsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 12px; -fx-text-fill: #2E7D32;");
     }
 
     private void refreshDashboard() {
@@ -2656,250 +2608,6 @@ public class AdminApp extends Application {
         return panel;
     }
 
-    private VBox createRefillAlertsTab() {
-        VBox panel = new VBox(25);
-        panel.setPadding(new Insets(30));
-        panel.setStyle("-fx-background-color: #F3F4F6;");
-
-        // Header
-        HBox header = new HBox();
-        header.setAlignment(Pos.CENTER_LEFT);
-        
-        Label title = new Label("Refill Alerts");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
-        title.setTextFill(Color.web("#111827"));
-        
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        
-        Label timeLabel = new Label(LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")));
-        timeLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
-        timeLabel.setTextFill(Color.web("#6B7280"));
-        
-        VBox dateBox = new VBox(2);
-        dateBox.setAlignment(Pos.TOP_RIGHT);
-        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd")));
-        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
-        dateLabel.setTextFill(Color.web("#9CA3AF"));
-        dateBox.getChildren().addAll(timeLabel, dateLabel);
-        
-        header.getChildren().addAll(title, spacer, dateBox);
-
-        // Filter buttons
-        HBox filterBox = new HBox(10);
-        filterBox.setAlignment(Pos.CENTER_LEFT);
-        
-        Button allBtn = new Button("All Ingredients");
-        allBtn.setStyle("-fx-background-color: #1F2937; -fx-text-fill: #FFFFFF; -fx-font-size: 14px; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
-        
-        Button lowStockBtn = new Button("⚠ Low Stock");
-        lowStockBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: #FFFFFF; -fx-font-size: 14px; -fx-font-weight: 600; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
-        
-        filterBox.getChildren().addAll(allBtn, lowStockBtn);
-
-        // Alerts content (selectable list)
-        VBox alertsSection = new VBox(15);
-        alertsSection.setPadding(new Insets(25));
-        alertsSection.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-
-        alertsListView = new javafx.scene.control.ListView<>();
-        alertsListView.setPrefHeight(500);
-        alertsListView.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
-        alertsListView.setCellFactory(lv -> new javafx.scene.control.ListCell<>() {
-            @Override
-            protected void updateItem(com.coffeeshop.model.InventoryItem item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    String txt = String.format("%s — %.2f %s", item.getName(), item.getQuantity(), item.getUnit());
-                    setText(txt);
-                    // Visual cue only for out-of-stock items (low-stock notifications removed)
-                    if (item.getQuantity() == 0) {
-                        setStyle("-fx-background-color: rgba(254,226,226,0.6);");
-                    } else {
-                        setStyle("");
-                    }
-                }
-            }
-        });
-
-        HBox buttonBox = new HBox(10);
-        buttonBox.setAlignment(Pos.CENTER_LEFT);
-
-        Button refillSelectedBtn = new Button("🔄 Refill Selected");
-        refillSelectedBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
-
-        // 'Add Ingredient' removed as requested (no Add button)
-
-        buttonBox.getChildren().addAll(refillSelectedBtn);
-
-        alertsSection.getChildren().addAll(alertsListView, buttonBox);
-
-        panel.getChildren().addAll(header, filterBox, alertsSection);
-        
-        // Wire up refresh
-        allBtn.setOnAction(e -> refreshRefillAlerts(false));
-        lowStockBtn.setOnAction(e -> refreshRefillAlerts(true));
-
-        // Refill selected action: prompt for amount and confirm before applying
-        refillSelectedBtn.setOnAction(e -> {
-            java.util.List<com.coffeeshop.model.InventoryItem> sel = new java.util.ArrayList<>(alertsListView.getSelectionModel().getSelectedItems());
-            if (sel.isEmpty()) {
-                showAlert("No Selection", "Please select one or more ingredients to refill.", Alert.AlertType.WARNING);
-                return;
-            }
-
-            TextInputDialog amountDlg = new TextInputDialog();
-            amountDlg.setTitle("Refill Amount");
-            amountDlg.setHeaderText("Enter amount to add per selected ingredient");
-            amountDlg.setContentText("Amount (numeric). Leave blank to top up to " + Store.MAX_STOCK + ":");
-
-            java.util.Optional<String> result = amountDlg.showAndWait();
-            if (!result.isPresent()) return; // user cancelled
-            String txt = result.get().trim();
-            boolean topUp = txt.isEmpty();
-            double fixedAmount = 0;
-            if (!topUp) {
-                try {
-                    fixedAmount = Double.parseDouble(txt);
-                    if (fixedAmount <= 0) { showAlert("Invalid", "Amount must be a positive number.", Alert.AlertType.ERROR); return; }
-                } catch (NumberFormatException ex) {
-                    showAlert("Invalid", "Please enter a valid numeric amount or leave blank to top up.", Alert.AlertType.ERROR);
-                    return;
-                }
-            }
-
-            // Build confirmation content
-            StringBuilder sb = new StringBuilder();
-            sb.append(String.format("%-30s %-12s %-12s %-12s\n", "Ingredient", "Current", "To Add", "After"));
-            sb.append("---------------------------------------------------------------\n");
-            java.util.Map<String, Double> toAddMap = new java.util.HashMap<>();
-            for (com.coffeeshop.model.InventoryItem it : sel) {
-                double add;
-                if (topUp) {
-                    add = Math.max(0, Store.MAX_STOCK - it.getQuantity());
-                } else {
-                    add = fixedAmount;
-                }
-                toAddMap.put(it.getName(), add);
-                double after = it.getQuantity() + add;
-                sb.append(String.format("%-30s %-12.2f %-12.2f %-12.2f\n", it.getName(), it.getQuantity(), add, after));
-            }
-
-            boolean nothingToDo = true;
-            for (double v : toAddMap.values()) if (v > 0) { nothingToDo = false; break; }
-            if (nothingToDo) {
-                showAlert("Nothing to Refill", "All selected items are already at or above the target level.", Alert.AlertType.INFORMATION);
-                return;
-            }
-
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Confirm Refill");
-            confirm.setHeaderText("Please confirm the refill amounts for the selected ingredients:");
-
-            // Build an editable grid: Ingredient | Current | To Add (editable) | After | Delete
-            GridPane grid = new GridPane();
-            grid.setHgap(12);
-            grid.setVgap(8);
-            grid.setPadding(new Insets(8));
-
-            // Header row
-            grid.add(new Label("Ingredient"), 0, 0);
-            grid.add(new Label("Current"), 1, 0);
-            grid.add(new Label("To Add"), 2, 0);
-            grid.add(new Label("After"), 3, 0);
-            grid.add(new Label(""), 4, 0);
-
-            java.util.Map<String, TextField> inputFields = new java.util.HashMap<>();
-            java.util.Map<String, Label> afterLabels = new java.util.HashMap<>();
-            java.util.List<com.coffeeshop.model.InventoryItem> workingList = new java.util.ArrayList<>(sel);
-
-            int row = 1;
-            for (com.coffeeshop.model.InventoryItem it : workingList) {
-                double defaultAdd = toAddMap.getOrDefault(it.getName(), 0.0);
-
-                Label nameLbl = new Label(it.getName());
-                Label curLbl = new Label(String.format("%.2f %s", it.getQuantity(), it.getUnit()));
-                TextField addField = new TextField(String.format("%.2f", defaultAdd));
-                addField.setPrefWidth(100);
-                Label afterLbl = new Label(String.format("%.2f %s", it.getQuantity() + defaultAdd, it.getUnit()));
-                Button delBtn = new Button("Delete");
-
-                grid.add(nameLbl, 0, row);
-                grid.add(curLbl, 1, row);
-                grid.add(addField, 2, row);
-                grid.add(afterLbl, 3, row);
-                grid.add(delBtn, 4, row);
-
-                inputFields.put(it.getName(), addField);
-                afterLabels.put(it.getName(), afterLbl);
-
-                // Update 'after' when user edits the addField
-                addField.textProperty().addListener((obs, o, n) -> {
-                    double val = 0;
-                    try { if (n != null && !n.trim().isEmpty()) val = Double.parseDouble(n.trim()); } catch (Exception ex) { val = 0; }
-                    double clamped = Math.max(0, Math.min(val, Store.MAX_STOCK - it.getQuantity()));
-                    afterLbl.setText(String.format("%.2f %s", it.getQuantity() + clamped, it.getUnit()));
-                });
-
-                // Delete row handler
-                delBtn.setOnAction(ev -> {
-                    // hide nodes for this row
-                    nameLbl.setVisible(false); curLbl.setVisible(false); addField.setVisible(false); afterLbl.setVisible(false); delBtn.setVisible(false);
-                    inputFields.remove(it.getName());
-                    afterLabels.remove(it.getName());
-                    toAddMap.remove(it.getName());
-                });
-
-                row++;
-            }
-
-            VBox content = new VBox(8, grid);
-            content.setPadding(new Insets(6));
-
-            DialogPane pane = confirm.getDialogPane();
-            pane.setContent(content);
-            pane.setPrefWidth(760);
-            pane.setPrefHeight(Math.min(900, 160 + sel.size() * 36));
-            pane.setMinHeight(Region.USE_PREF_SIZE);
-            confirm.setResizable(true);
-
-            java.util.Optional<javafx.scene.control.ButtonType> conf = confirm.showAndWait();
-            if (conf.isPresent() && conf.get() == ButtonType.OK) {
-                // validate and apply per-field values
-                for (com.coffeeshop.model.InventoryItem it : sel) {
-                    TextField tf = inputFields.get(it.getName());
-                    if (tf == null) continue; // deleted or removed
-                    double add = 0;
-                    String s = tf.getText() == null ? "" : tf.getText().trim();
-                    if (s.isEmpty()) continue;
-                    try { add = Double.parseDouble(s); } catch (NumberFormatException ex) { add = 0; }
-                    if (add <= 0) continue;
-                    // clamp to not exceed MAX_STOCK
-                    double maxAdd = Math.max(0, Store.MAX_STOCK - it.getQuantity());
-                    double toApply = Math.min(add, maxAdd);
-                    if (toApply > 0) store.refillInventory(it.getName(), toApply);
-                }
-                showAlert("Refilled", "Selected ingredients were refilled.", Alert.AlertType.INFORMATION);
-                refreshData();
-            }
-        });
-
-        // Start realtime clock update for header time
-        if (adminTimeLabel == null) adminTimeLabel = timeLabel;
-        Timeline clock = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
-            try {
-                adminTimeLabel.setText(LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")));
-            } catch (Exception ignored) {}
-        }));
-        clock.setCycleCount(Timeline.INDEFINITE);
-        clock.play();
-        
-        return panel;
-    }
-
     private VBox createArchivedTab() {
         VBox panel = new VBox(15);
         panel.setPadding(new Insets(20));
@@ -3043,13 +2751,7 @@ public class AdminApp extends Application {
         // Refresh products table
         productTable.getItems().clear();
         for (Product p : store.getProducts()) {
-            String status;
-            if (p.getStock() == 0) {
-                status = "🔴 OUT OF STOCK";
-            } else {
-                status = "✓ OK";
-            }
-            productTable.getItems().add(new ProductRow(p.getId(), p.getName(), p.getPrice(), status));
+            productTable.getItems().add(new ProductRow(p.getId(), p.getName(), p.getPrice(), "✓ OK"));
         }
 
         // Refresh inventory table
@@ -3079,32 +2781,9 @@ public class AdminApp extends Application {
             }
         }
 
-        // Refresh alerts (show all by default)
-        refreshRefillAlerts(false);
         // Refresh archived items list if tab exists
         try { refreshArchivedItems(); } catch (Exception ignored) {}
     }
-
-    private void refreshRefillAlerts(boolean lowOnly) {
-        java.util.Collection<com.coffeeshop.model.InventoryItem> inv = store.getInventory().values();
-        java.util.List<com.coffeeshop.model.InventoryItem> items = new java.util.ArrayList<>(inv);
-        if (lowOnly) {
-            // Show only out-of-stock ingredients when filtering for 'Low Stock'
-            java.util.List<com.coffeeshop.model.InventoryItem> low = new java.util.ArrayList<>();
-            for (com.coffeeshop.model.InventoryItem it : items) {
-                if (it.getQuantity() == 0) low.add(it);
-            }
-            alertsListView.getItems().setAll(low);
-            if (low.isEmpty()) {
-                alertsListView.getItems().clear();
-            }
-        } else {
-            // Show all ingredients (no low-stock prioritization)
-            alertsListView.getItems().setAll(items);
-        }
-    }
-
-    // Refill product UI removed — use inventory management workflow instead.
 
     private void removeProduct() {
         ProductRow selected = productTable.getSelectionModel().getSelectedItem();
@@ -3415,7 +3094,7 @@ public class AdminApp extends Application {
                         }
                     }
 
-                    return new Product(id, name, price, 20, cleaned, category);
+                    return new Product(id, name, price, cleaned, category);
                 } catch (NumberFormatException ex) {
                     showAlert("Error", "Invalid price format. Please enter a valid number.", Alert.AlertType.ERROR);
                     return null;

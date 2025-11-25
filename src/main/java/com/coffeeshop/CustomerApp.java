@@ -1356,7 +1356,7 @@ public class CustomerApp extends Application {
 
         // Click handler - open customization on card click
         card.setOnMouseClicked(e -> {
-            if (product.getStock() > 0 && e.getTarget() != addBtn) {
+            if (e.getTarget() != addBtn) {
                 resetInactivityTimer();
                 showCustomizationPage(product);
             }
@@ -1364,15 +1364,11 @@ public class CustomerApp extends Application {
 
         // Subtle hover effects
         card.setOnMouseEntered(e -> {
-            if (product.getStock() > 0) {
-                card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.10), 6, 0, 0, 2); -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 12;");
-            }
+            card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.10), 6, 0, 0, 2); -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 12;");
         });
         
         card.setOnMouseExited(e -> {
-            if (product.getStock() > 0) {
-                card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 1); -fx-cursor: hand; -fx-border-color: #F0F0F0; -fx-border-width: 1; -fx-border-radius: 12;");
-            }
+            card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 1); -fx-cursor: hand; -fx-border-color: #F0F0F0; -fx-border-width: 1; -fx-border-radius: 12;");
         });
 
         return card;
@@ -2310,10 +2306,8 @@ public class CustomerApp extends Application {
             }
         });
         plusBtn.setOnAction(e -> {
-            if (quantity[0] < product.getStock()) {
-                quantity[0]++;
-                qtyValueLabel.setText(String.valueOf(quantity[0]));
-            }
+            quantity[0]++;
+            qtyValueLabel.setText(String.valueOf(quantity[0]));
         });
         
         qtySection.getChildren().addAll(qtyLabel, minusBtn, qtyValueLabel, plusBtn);
@@ -2369,11 +2363,9 @@ public class CustomerApp extends Application {
 
         // quantity changes should also recompute
         plusBtn.setOnAction(e -> {
-            if (quantity[0] < product.getStock()) {
-                quantity[0]++;
-                qtyValueLabel.setText(String.valueOf(quantity[0]));
-                recompute.run();
-            }
+            quantity[0]++;
+            qtyValueLabel.setText(String.valueOf(quantity[0]));
+            recompute.run();
         });
         minusBtn.setOnAction(e -> {
             if (quantity[0] > 1) {
@@ -2621,7 +2613,6 @@ public class CustomerApp extends Application {
         for (Product p : store.getProducts()) {
             if (added >= 3) break;
             if (p.getName().equals(currentProduct.getName())) continue;
-            if (p.getStock() <= 0) continue;
 
             HBox cardRow = new HBox(12);
             cardRow.setPadding(new Insets(10));
@@ -2724,15 +2715,13 @@ public class CustomerApp extends Application {
                 }
             });
             plus.setOnAction(ev -> {
-                if (qty[0] < p.getStock()) {
-                    qty[0]++;
-                    qtyLabel.setText(String.valueOf(qty[0]));
-                    if (addChk.isSelected()) {
-                        double delta = p.getPrice();
-                        suggestionsExtra.set(suggestionsExtra.get() + delta);
-                    }
-                    totalPriceLabel.setText(String.format("₱%.2f", p.getPrice() * qty[0]));
+                qty[0]++;
+                qtyLabel.setText(String.valueOf(qty[0]));
+                if (addChk.isSelected()) {
+                    double delta = p.getPrice();
+                    suggestionsExtra.set(suggestionsExtra.get() + delta);
                 }
+                totalPriceLabel.setText(String.format("₱%.2f", p.getPrice() * qty[0]));
             });
 
             qtyBox.getChildren().addAll(minus, qtyLabel, plus);
@@ -3307,16 +3296,6 @@ public class CustomerApp extends Application {
             alert.setTitle("Empty Order");
             alert.setHeaderText(null);
             alert.setContentText("Please add items to your order before checkout.");
-            alert.showAndWait();
-            return;
-        }
-
-        // Validate stock
-        if (!store.isStockSufficient(currentOrder)) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Insufficient Stock");
-            alert.setHeaderText("Cannot Process Order");
-            alert.setContentText("Some items in your order are out of stock. Please modify your order.");
             alert.showAndWait();
             return;
         }

@@ -7,33 +7,29 @@ public class Product {
     private String id;
     private String name;
     private double price;
-    private int stock;
     private Map<String, Double> recipe; // ingredient name -> quantity needed per serving
     private String category;
 
-    public Product(String id, String name, double price, int stock) {
+    public Product(String id, String name, double price) {
         this.id = id;
         this.name = name;
         this.price = price;
-        this.stock = stock;
         this.recipe = new HashMap<>();
         this.category = "Uncategorized";
     }
 
-    public Product(String id, String name, double price, int stock, Map<String, Double> recipe) {
+    public Product(String id, String name, double price, Map<String, Double> recipe) {
         this.id = id;
         this.name = name;
         this.price = price;
-        this.stock = stock;
         this.recipe = recipe;
         this.category = "Uncategorized";
     }
 
-    public Product(String id, String name, double price, int stock, Map<String, Double> recipe, String category) {
+    public Product(String id, String name, double price, Map<String, Double> recipe, String category) {
         this.id = id;
         this.name = name;
         this.price = price;
-        this.stock = stock;
         this.recipe = recipe != null ? recipe : new HashMap<>();
         this.category = category != null ? category : "Uncategorized";
     }
@@ -63,14 +59,6 @@ public class Product {
         this.price = price;
     }
 
-    public int getStock() {
-        return stock;
-    }
-
-    public void setStock(int stock) {
-        this.stock = stock;
-    }
-
     public Map<String, Double> getRecipe() {
         return recipe;
     }
@@ -91,20 +79,8 @@ public class Product {
         this.recipe.put(ingredientName, quantity);
     }
 
-    public boolean isAvailable() {
-        return stock > 0;
-    }
-
-    public boolean needsRefill() {
-        return stock <= 5;
-    }
-
-    public int getRefillNeeded() {
-        return Math.max(0, 20 - stock);
-    }
-
     @Override
     public String toString() {
-        return name + " - ₱" + String.format("%.2f", price) + " (Stock: " + stock + ")";
+        return name + " - ₱" + String.format("%.2f", price);
     }
 }
