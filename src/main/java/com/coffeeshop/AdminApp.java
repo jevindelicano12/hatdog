@@ -30,6 +30,9 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.util.Duration;
@@ -38,6 +41,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 import com.coffeeshop.service.SalesAnalytics;
 import com.coffeeshop.model.Receipt;
 import com.coffeeshop.model.ItemRecord;
@@ -50,6 +58,8 @@ import java.time.format.DateTimeFormatter;
 
 public class AdminApp extends Application {
     private Store store;
+    // current sales chart granularity (Day/Month/Year/All/Custom)
+    private String salesGranularity = "Day";
     private TableView<ProductRow> productTable;
     private TableView<InventoryRow> inventoryTable;
     private java.util.Deque<UndoAction> undoStack = new java.util.ArrayDeque<>();
@@ -89,7 +99,7 @@ public class AdminApp extends Application {
     }
 
     private VBox currentContentArea;
-    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent;
+    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent;
     private VBox archivedContent;
     private TableView<InventoryRow> archivedTable;
 
@@ -124,6 +134,7 @@ public class AdminApp extends Application {
         productsContent = createProductsTab();
         inventoryContent = createInventoryTab();
         addOnsContent = createAddOnsTab();
+        specialRequestsContent = createSpecialRequestsTab();
         categoriesContent = createCategoriesTab();
         accountsContent = createAccountsTab();
         refillAlertsContent = createRefillAlertsTab();
@@ -415,11 +426,12 @@ public class AdminApp extends Application {
         Button productsBtn = createNavButton("📦", "Products", false);
         Button inventoryBtn = createNavButton("📋", "Inventory", false);
         Button addOnsBtn = createNavButton("➕", "Add-ons", false);
+        Button specialReqBtn = createNavButton("💬", "Special Requests", false);
         Button categoriesBtn = createNavButton("🗂️", "Categories", false);
         Button accountsBtn = createNavButton("👥", "Accounts", false);
         
         VBox managementSection = new VBox(0);
-        managementSection.getChildren().addAll(managementHeader, productsBtn, inventoryBtn, addOnsBtn, categoriesBtn, accountsBtn);
+        managementSection.getChildren().addAll(managementHeader, productsBtn, inventoryBtn, addOnsBtn, specialReqBtn, categoriesBtn, accountsBtn);
         
         // SYSTEM section
         Label systemHeader = new Label("SYSTEM");
@@ -466,6 +478,7 @@ public class AdminApp extends Application {
         productsBtn.setOnAction(e -> { setActiveNav(productsBtn); showContent(productsContent); });
         inventoryBtn.setOnAction(e -> { setActiveNav(inventoryBtn); showContent(inventoryContent); });
         addOnsBtn.setOnAction(e -> { setActiveNav(addOnsBtn); refreshAddOnsContent(); showContent(addOnsContent); });
+        specialReqBtn.setOnAction(e -> { setActiveNav(specialReqBtn); refreshSpecialRequestsContent(); showContent(specialRequestsContent); });
         categoriesBtn.setOnAction(e -> { setActiveNav(categoriesBtn); showContent(categoriesContent); });
         accountsBtn.setOnAction(e -> { setActiveNav(accountsBtn); showContent(accountsContent); });
         refillBtn.setOnAction(e -> { setActiveNav(refillBtn); showContent(refillAlertsContent); });
@@ -719,89 +732,325 @@ public class AdminApp extends Application {
     }
 
     private VBox createSalesTab() {
-        VBox panel = new VBox(16);
-        panel.setPadding(new Insets(20));
+        VBox panel = new VBox(18);
+        panel.setPadding(new Insets(24));
+        panel.setStyle("-fx-background-color: #F0F2F0;");
 
-        Label title = new Label("📈 Sales Reports & Analytics");
-        title.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+        // Header
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
+        Label title = new Label("Sales Dashboard");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        title.setTextFill(Color.web("#1a1a1a"));
+        Region headerSpacer = new Region(); HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        TextField search = new TextField(); 
+        search.setPromptText("Search"); 
+        search.setPrefWidth(260);
+        search.setStyle("-fx-background-color: white; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 12;");
+        header.getChildren().addAll(title, headerSpacer, search);
 
-        // Metrics
-        Label totalSales = new Label();
-        totalSales.setFont(Font.font("Arial", FontWeight.BOLD, 20));
-        Label todaySales = new Label();
-        todaySales.setFont(Font.font("Arial", FontWeight.BOLD, 18));
-        Label ordersToday = new Label();
-        ordersToday.setFont(Font.font("Arial", FontWeight.BOLD, 18));
+        // Top metric cards
+        HBox metricsRow = new HBox(14);
+        metricsRow.setPadding(new Insets(6,0,6,0));
 
-        VBox metricsBox = new VBox(8);
-        metricsBox.setPadding(new Insets(10));
-        metricsBox.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-radius: 8; -fx-background-radius: 8;");
-        metricsBox.getChildren().addAll(new Label("Total Sales (All time):"), totalSales,
-                                        new Label("Sales Today:"), todaySales,
-                                        new Label("Orders Today:"), ordersToday);
+        // Create cards with icons and proper styling
+        VBox cardTotal = createMetricCardWithIcon("💵", "Total Revenue", "₱0.00", "+2%", "#E8F8F5");
+        VBox cardOnProgress = createMetricCardWithIcon("⏱", "On Progress", "10", "Orders", "#FEF6E6");
+        VBox cardPerformance = createMetricCardWithIcon("✓", "Performance", "Good", "2/24", "#E8F5E9");
+        VBox cardToday = createMetricCardWithIcon("📊", "Today Sales", "234", "+2%", "#E8F5E9");
+        VBox cardOnProgress2 = createMetricCardWithIcon("📈", "On Progress", "10", "Orders", "#E3F2FD");
 
-        // Top products bar chart
+        HBox.setHgrow(cardTotal, Priority.ALWAYS);
+        HBox.setHgrow(cardOnProgress, Priority.ALWAYS);
+        HBox.setHgrow(cardPerformance, Priority.ALWAYS);
+        HBox.setHgrow(cardToday, Priority.ALWAYS);
+        HBox.setHgrow(cardOnProgress2, Priority.ALWAYS);
+
+        metricsRow.getChildren().addAll(cardTotal, cardOnProgress, cardPerformance, cardToday, cardOnProgress2);
+
+        // Main content: left (charts) and right (score + recent transactions)
+        HBox mainRow = new HBox(18);
+
+        // Left: sales statistic (large) + items performance + recent transactions
+        VBox leftCol = new VBox(12);
+        leftCol.setPrefWidth(900);
+        HBox.setHgrow(leftCol, Priority.ALWAYS);
+
+        // Sales statistic card with controls
+        VBox salesStatCard = new VBox(10);
+        salesStatCard.setPadding(new Insets(18));
+        salesStatCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
+        
+        // Chart header with title and controls
+        HBox chartHeader = new HBox(12);
+        chartHeader.setAlignment(Pos.CENTER_LEFT);
+        Label chartTitle = new Label("📊 Sales Statistic");
+        chartTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        
+        Region chartSpacer = new Region();
+        HBox.setHgrow(chartSpacer, Priority.ALWAYS);
+        
+        // Filter buttons
+        HBox filterButtons = new HBox(5);
+        Button dayBtn = createFilterButton("Day", true);
+        Button monthBtn = createFilterButton("Month", false);
+        Button yearBtn = createFilterButton("Year", false);
+        Button allBtn = createFilterButton("All", false);
+        Button customBtn = createFilterButton("Custom", false);
+        filterButtons.getChildren().addAll(dayBtn, monthBtn, yearBtn, allBtn, customBtn);
+        
+        Label maxLabel = new Label("≈ ₱120,00.00");
+        maxLabel.setFont(Font.font("Segoe UI", 11));
+        maxLabel.setTextFill(Color.web("#6c757d"));
+        
+        chartHeader.getChildren().addAll(chartTitle, chartSpacer, filterButtons, maxLabel);
+        
+        // Multi-line chart with legend
         CategoryAxis xAxis = new CategoryAxis();
         NumberAxis yAxis = new NumberAxis();
-        BarChart<String, Number> topChart = new BarChart<>(xAxis, yAxis);
-        topChart.setTitle("Top Products (by units sold)");
-        xAxis.setLabel("Product");
-        yAxis.setLabel("Units Sold");
-        topChart.setLegendVisible(false);
-        topChart.setPrefHeight(300);
+        LineChart<String, Number> salesChart = new LineChart<>(xAxis, yAxis);
+        salesChart.setLegendVisible(true);
+        salesChart.setLegendSide(javafx.geometry.Side.TOP);
+        salesChart.setPrefHeight(280);
+        salesChart.setCreateSymbols(true);
+        salesChart.setStyle("-fx-background-color: transparent;");
+        xAxis.setLabel("");
+        yAxis.setLabel("");
 
-        // Sales trend line chart (last 7 days)
-        CategoryAxis trendX = new CategoryAxis();
-        NumberAxis trendY = new NumberAxis();
-        LineChart<String, Number> trendChart = new LineChart<>(trendX, trendY);
-        trendChart.setTitle("Sales Trend (Last 7 days)");
-        trendX.setLabel("Date");
-        trendY.setLabel("Sales (₱)");
-        trendChart.setPrefHeight(300);
+        salesStatCard.getChildren().addAll(chartHeader, salesChart);
 
-        Button refreshBtn = new Button("Refresh Reports");
-        refreshBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white; -fx-font-weight: bold;");
+        // Wire filter buttons to update the chart when clicked and toggle active styling
+        dayBtn.setOnAction(e -> {
+            salesGranularity = "Day";
+            setActiveFilterButtons(dayBtn, monthBtn, yearBtn, allBtn, customBtn);
+            updateSalesChart(salesChart, salesGranularity);
+        });
+        monthBtn.setOnAction(e -> {
+            salesGranularity = "Month";
+            setActiveFilterButtons(monthBtn, dayBtn, yearBtn, allBtn, customBtn);
+            updateSalesChart(salesChart, salesGranularity);
+        });
+        yearBtn.setOnAction(e -> {
+            salesGranularity = "Year";
+            setActiveFilterButtons(yearBtn, dayBtn, monthBtn, allBtn, customBtn);
+            updateSalesChart(salesChart, salesGranularity);
+        });
+        allBtn.setOnAction(e -> {
+            salesGranularity = "All";
+            setActiveFilterButtons(allBtn, dayBtn, monthBtn, yearBtn, customBtn);
+            updateSalesChart(salesChart, salesGranularity);
+        });
+        customBtn.setOnAction(e -> {
+            salesGranularity = "Custom";
+            setActiveFilterButtons(customBtn, dayBtn, monthBtn, yearBtn, allBtn);
+            updateSalesChart(salesChart, salesGranularity);
+        });
 
-        // Loader function
+        // Initial chart load
+        setActiveFilterButtons(dayBtn, monthBtn, yearBtn, allBtn, customBtn);
+        updateSalesChart(salesChart, salesGranularity);
+
+        // Small hover affordance: slight lift so users notice interactivity
+        salesStatCard.setOnMouseEntered(e -> {
+            salesStatCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 14,0,0,3);");
+            salesStatCard.setTranslateY(-4);
+        });
+        salesStatCard.setOnMouseExited(e -> {
+            salesStatCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
+            salesStatCard.setTranslateY(0);
+        });
+        
+        // Bottom row: Items Performance and Recent Transaction
+        HBox bottomRow = new HBox(12);
+        
+        // Items Performance with radar-style placeholder
+        VBox itemsPerfCard = new VBox(10);
+        itemsPerfCard.setPadding(new Insets(18));
+        itemsPerfCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
+        HBox.setHgrow(itemsPerfCard, Priority.ALWAYS);
+        
+        Label ipTitle = new Label("📦 Items Performance");
+        ipTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        
+        // Radar chart placeholder - for now show a canvas with simple visualization
+        Canvas radarCanvas = new Canvas(400, 250);
+        drawRadarChart(radarCanvas);
+        
+        itemsPerfCard.getChildren().addAll(ipTitle, radarCanvas);
+        
+        // Recent Transaction table
+        VBox recentCard = new VBox(10);
+        recentCard.setPadding(new Insets(18));
+        recentCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
+        HBox.setHgrow(recentCard, Priority.ALWAYS);
+        
+        HBox recentHeader = new HBox(10);
+        recentHeader.setAlignment(Pos.CENTER_LEFT);
+        Label recentTitle = new Label("🔄 Recent Transaction");
+        recentTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        Region recentSpacer = new Region();
+        HBox.setHgrow(recentSpacer, Priority.ALWAYS);
+        
+        // Create table first so it can be referenced in button handlers
+        final TableView<Receipt> recentTable = new TableView<>();
+        
+        HBox filterBtns = new HBox(8);
+        Button allTxBtn = new Button("All");
+        allTxBtn.setStyle("-fx-background-color: #f0f0f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+        Button teaBtn = new Button("Tea");
+        teaBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+        Button coffeeBtn = new Button("Coffee");
+        coffeeBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+        Button snackBtn = new Button("Snack");
+        snackBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+        
+        // Filter button click handlers
+        allTxBtn.setOnAction(e -> {
+            allTxBtn.setStyle("-fx-background-color: #f0f0f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            teaBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            coffeeBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            snackBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            filterTransactionTable(recentTable, null);
+        });
+        
+        teaBtn.setOnAction(e -> {
+            allTxBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            teaBtn.setStyle("-fx-background-color: #f0f0f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            coffeeBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            snackBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            filterTransactionTable(recentTable, "Tea");
+        });
+        
+        coffeeBtn.setOnAction(e -> {
+            allTxBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            teaBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            coffeeBtn.setStyle("-fx-background-color: #f0f0f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            snackBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            filterTransactionTable(recentTable, "Coffee");
+        });
+        
+        snackBtn.setOnAction(e -> {
+            allTxBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            teaBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            coffeeBtn.setStyle("-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            snackBtn.setStyle("-fx-background-color: #f0f0f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11; -fx-cursor: hand;");
+            filterTransactionTable(recentTable, "Snack");
+        });
+        
+        filterBtns.getChildren().addAll(allTxBtn, teaBtn, coffeeBtn, snackBtn);
+        
+        recentHeader.getChildren().addAll(recentTitle, recentSpacer, filterBtns);
+        
+        // Configure table properties
+        recentTable.setPrefHeight(250);
+        recentTable.setStyle("-fx-background-color: transparent;");
+        
+        TableColumn<Receipt, String> custCol = new TableColumn<>("Customer Name");
+        custCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getUserName()));
+        custCol.setPrefWidth(180);
+        
+        TableColumn<Receipt, String> itemsCol = new TableColumn<>("Items");
+        itemsCol.setCellValueFactory(data -> {
+            String orderId = data.getValue().getOrderId();
+            List<OrderRecord> orders = TextDatabase.loadAllOrders();
+            StringBuilder items = new StringBuilder();
+            for (OrderRecord order : orders) {
+                if (order.getOrderId().equals(orderId)) {
+                    if (items.length() > 0) items.append(", ");
+                    items.append(order.getItemName());
+                }
+            }
+            return new javafx.beans.property.SimpleStringProperty(items.length() > 0 ? items.toString() : "N/A");
+        });
+        itemsCol.setPrefWidth(320);
+        
+        TableColumn<Receipt, String> valueCol = new TableColumn<>("Value");
+        valueCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(String.format("₱%.2f", data.getValue().getTotalAmount())));
+        valueCol.setPrefWidth(100);
+        
+        recentTable.getColumns().addAll(custCol, itemsCol, valueCol);
+        recentCard.getChildren().addAll(recentHeader, recentTable);
+        
+        bottomRow.getChildren().addAll(itemsPerfCard, recentCard);
+        
+        leftCol.getChildren().addAll(salesStatCard, bottomRow);
+
+        // Right column: score gauge + complaint cards
+        VBox rightCol = new VBox(12);
+        rightCol.setPrefWidth(350);
+        rightCol.setMinWidth(350);
+
+        // Score card with gauge visualization
+        VBox scoreCard = new VBox(12);
+        scoreCard.setPadding(new Insets(18));
+        scoreCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
+        
+        HBox scoreHeader = new HBox();
+        scoreHeader.setAlignment(Pos.CENTER_LEFT);
+        Label scoreTitle = new Label("⭐ Score");
+        scoreTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        Region scoreSpacer = new Region();
+        HBox.setHgrow(scoreSpacer, Priority.ALWAYS);
+        Label moreIcon = new Label("⋯");
+        moreIcon.setFont(Font.font(20));
+        scoreHeader.getChildren().addAll(scoreTitle, scoreSpacer, moreIcon);
+        
+        // Score gauge
+        Canvas gaugeCanvas = new Canvas(320, 180);
+        drawScoreGauge(gaugeCanvas, 98);
+        
+        Label scoreSub = new Label("2/98 order Complains");
+        scoreSub.setFont(Font.font("Segoe UI", 12));
+        scoreSub.setTextFill(Color.web("#6c757d"));
+        scoreSub.setAlignment(Pos.CENTER);
+        
+        scoreCard.getChildren().addAll(scoreHeader, gaugeCanvas, scoreSub);
+
+        // Complaint cards
+        VBox complaintCard1 = createComplaintCard("🔴", "Wrong Menu", "Andrew Tate", "Solve");
+        VBox complaintCard2 = createComplaintCard("🟢", "Bad Rating", "Don Ozwald", "Solve");
+
+        rightCol.getChildren().addAll(scoreCard, complaintCard1, complaintCard2);
+
+        mainRow.getChildren().addAll(leftCol, rightCol);
+
+        // Build loader to populate charts and lists
         Runnable load = () -> {
             List<Receipt> receipts = TextDatabase.loadAllReceipts();
             List<ItemRecord> items = TextDatabase.loadAllItems();
 
-            double total = SalesAnalytics.getTotalSales(receipts);
+            // Populate metric cards - update the value labels
+            double totalAll = SalesAnalytics.getTotalSales(receipts);
             double today = SalesAnalytics.getTotalSalesForDate(receipts, LocalDate.now());
-            long orders = SalesAnalytics.getOrderCountForDate(receipts, LocalDate.now());
+            long ordersToday = SalesAnalytics.getOrderCountForDate(receipts, LocalDate.now());
+            
+            updateMetricCardValue(cardTotal, String.format("₱%.2f", totalAll));
+            updateMetricCardValue(cardOnProgress, String.valueOf(ordersToday));
+            updateMetricCardValue(cardToday, String.valueOf(ordersToday));
 
-            totalSales.setText(String.format("₱%.2f", total));
-            todaySales.setText(String.format("₱%.2f", today));
-            ordersToday.setText(String.valueOf(orders));
+            // Update the sales chart using actual receipts/orders aggregation
+            // Use the current granularity (set when filters are clicked)
+            updateSalesChart(salesChart, salesGranularity);
 
-            // Top products
-            topChart.getData().clear();
-            XYChart.Series<String, Number> s = new XYChart.Series<>();
-            List<Map.Entry<String,Integer>> top = SalesAnalytics.getTopProducts(items, 8);
-            for (Map.Entry<String,Integer> e : top) {
-                s.getData().add(new XYChart.Data<>(e.getKey(), e.getValue()));
-            }
-            topChart.getData().add(s);
-
-            // Trend - last 7 days
-            trendChart.getData().clear();
-            XYChart.Series<String, Number> series = new XYChart.Series<>();
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM-dd");
-            for (int i = 6; i >= 0; i--) {
-                LocalDate d = LocalDate.now().minusDays(i);
-                double salesForDay = SalesAnalytics.getTotalSalesForDate(receipts, d);
-                series.getData().add(new XYChart.Data<>(d.format(fmt), salesForDay));
-            }
-            trendChart.getData().add(series);
+            // Recent transactions
+            recentTable.getItems().clear();
+            int max = Math.min(4, receipts.size());
+            for (int i = 0; i < max; i++) recentTable.getItems().add(receipts.get(i));
         };
-
-        refreshBtn.setOnAction(e -> load.run());
 
         // initial load
         load.run();
 
-        panel.getChildren().addAll(title, new Separator(), metricsBox, new Separator(), topChart, trendChart, refreshBtn);
+        // Periodically refresh sales data so the chart tracks live sales/receipts
+        Timeline salesRefresher = new Timeline(new KeyFrame(Duration.seconds(5), ev -> {
+            try {
+                load.run();
+            } catch (Exception ignored) {}
+        }));
+        salesRefresher.setCycleCount(Timeline.INDEFINITE);
+        salesRefresher.play();
+
+        panel.getChildren().addAll(header, metricsRow, mainRow);
         return panel;
     }
 
@@ -845,24 +1094,58 @@ public class AdminApp extends Application {
         statusCol.setPrefWidth(100);
 
         javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> productsCol = new javafx.scene.control.TableColumn<>("Assigned Products");
-        productsCol.setCellValueFactory(data -> {
-            java.util.List<String> ids = data.getValue().getApplicableProductIds();
-            if (ids.isEmpty()) return new javafx.beans.property.SimpleStringProperty("All in category");
-            return new javafx.beans.property.SimpleStringProperty(ids.size() + " product(s)");
-        });
         productsCol.setPrefWidth(150);
+        productsCol.setCellFactory(col -> new javafx.scene.control.TableCell<com.coffeeshop.model.AddOn, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setText(null);
+                    setTooltip(null);
+                    return;
+                }
+                com.coffeeshop.model.AddOn addOn = (com.coffeeshop.model.AddOn) getTableRow().getItem();
+                java.util.List<String> ids = addOn.getApplicableProductIds();
+                String category = addOn.getCategory();
+
+                if (ids == null || ids.isEmpty()) {
+                    String txt = (category == null || "All".equalsIgnoreCase(category)) ? "All in category" : category;
+                    setText(txt);
+                    setTooltip(null);
+                } else {
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    for (String pid : ids) {
+                        Product p = store.getProductById(pid);
+                        if (p != null) names.add(p.getName());
+                        else names.add(pid);
+                    }
+                    String shortDisplay = names.size() > 3 ? String.join(", ", names.subList(0, 3)) + "... (" + names.size() + ")" : String.join(", ", names);
+                    setText(shortDisplay);
+                    Tooltip tt = new Tooltip(String.join("\n", names));
+                    setTooltip(tt);
+                }
+            }
+        });
 
         javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, Void> actionsCol = new javafx.scene.control.TableColumn<>("Actions");
         actionsCol.setPrefWidth(200);
         actionsCol.setCellFactory(param -> new javafx.scene.control.TableCell<>() {
+            private final Button assignBtn = new Button("Assign");
             private final Button editBtn = new Button("Edit");
             private final Button toggleBtn = new Button("Toggle");
             private final Button deleteBtn = new Button("Delete");
 
             {
+                assignBtn.setStyle("-fx-background-color: #06b6d4; -fx-text-fill: white; -fx-font-size: 11;");
                 editBtn.setStyle("-fx-background-color: #3B82F6; -fx-text-fill: white; -fx-font-size: 11;");
                 toggleBtn.setStyle("-fx-background-color: #F59E0B; -fx-text-fill: white; -fx-font-size: 11;");
                 deleteBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 11;");
+
+                assignBtn.setOnAction(e -> {
+                    com.coffeeshop.model.AddOn addOn = getTableView().getItems().get(getIndex());
+                    // reuse add-on dialog to assign products/categories
+                    showAddOnDialog(addOn);
+                });
 
                 editBtn.setOnAction(e -> {
                     com.coffeeshop.model.AddOn addOn = getTableView().getItems().get(getIndex());
@@ -896,7 +1179,7 @@ public class AdminApp extends Application {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    HBox buttons = new HBox(5, editBtn, toggleBtn, deleteBtn);
+                    HBox buttons = new HBox(5, assignBtn, editBtn, toggleBtn, deleteBtn);
                     setGraphic(buttons);
                 }
             }
@@ -914,6 +1197,253 @@ public class AdminApp extends Application {
     private void refreshAddOnsContent() {
         addOnsContent.getChildren().clear();
         addOnsContent.getChildren().addAll(createAddOnsTab().getChildren());
+    }
+
+    private void refreshSpecialRequestsContent() {
+        if (specialRequestsContent == null) return;
+        specialRequestsContent.getChildren().clear();
+        specialRequestsContent.getChildren().addAll(createSpecialRequestsTab().getChildren());
+    }
+
+    private VBox createSpecialRequestsTab() {
+        VBox panel = new VBox(12);
+        panel.setPadding(new Insets(20));
+
+        Label title = new Label("💬 Manage Special Requests");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+
+        HBox header = new HBox(12);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getChildren().add(title);
+
+        Button addNewBtn = new Button("+ Add New Special Request");
+        addNewBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16;");
+        addNewBtn.setOnAction(e -> showSpecialRequestDialog(null));
+        header.getChildren().add(addNewBtn);
+
+        javafx.scene.control.TableView<com.coffeeshop.model.SpecialRequest> table = new javafx.scene.control.TableView<>();
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.SpecialRequest, String> idCol = new javafx.scene.control.TableColumn<>("ID");
+        idCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getId()));
+        idCol.setPrefWidth(100);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.SpecialRequest, String> textCol = new javafx.scene.control.TableColumn<>("Text");
+        textCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getText()));
+        textCol.setPrefWidth(300);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.SpecialRequest, String> statusCol = new javafx.scene.control.TableColumn<>("Status");
+        statusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().isActive() ? "Active" : "Inactive"));
+        statusCol.setPrefWidth(100);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.SpecialRequest, String> assignedCol = new javafx.scene.control.TableColumn<>("Assigned To");
+        assignedCol.setPrefWidth(220);
+        assignedCol.setCellFactory(col -> new javafx.scene.control.TableCell<com.coffeeshop.model.SpecialRequest, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setText(null);
+                    setTooltip(null);
+                    setGraphic(null);
+                    return;
+                }
+                com.coffeeshop.model.SpecialRequest req = (com.coffeeshop.model.SpecialRequest) getTableRow().getItem();
+                java.util.List<String> ids = req.getApplicableProductIds();
+                String category = req.getCategory();
+
+                if (ids == null || ids.isEmpty()) {
+                    String txt = (category == null || "All".equalsIgnoreCase(category)) ? "All Products" : category;
+                    setText(txt);
+                    setTooltip(null);
+                    // add small view button to allow copyable view
+                    Button viewBtn = new Button("👁");
+                    viewBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+                    viewBtn.setOnAction(e -> showAssignedProductsDialog(req));
+                    HBox box = new HBox(6, new Label(txt), viewBtn);
+                    box.setAlignment(Pos.CENTER_LEFT);
+                    setGraphic(box);
+                } else {
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    for (String pid : ids) {
+                        Product p = store.getProductById(pid);
+                        if (p != null) names.add(p.getName());
+                        else names.add(pid);
+                    }
+                    String shortDisplay = names.size() > 3 ? String.join(", ", names.subList(0, 3)) + "... (" + names.size() + ")" : String.join(", ", names);
+                    setText(shortDisplay);
+                    Tooltip tt = new Tooltip(String.join("\n", names));
+                    setTooltip(tt);
+                    Button viewBtn = new Button("👁");
+                    viewBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
+                    viewBtn.setOnAction(e -> showAssignedProductsDialog(req));
+                    HBox box = new HBox(6, new Label(shortDisplay), viewBtn);
+                    box.setAlignment(Pos.CENTER_LEFT);
+                    setGraphic(box);
+                }
+            }
+        });
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.SpecialRequest, Void> actionsCol = new javafx.scene.control.TableColumn<>("Actions");
+        actionsCol.setPrefWidth(260);
+        actionsCol.setCellFactory(param -> new javafx.scene.control.TableCell<>() {
+            private final Button assignBtn = new Button("Assign");
+            private final Button editBtn = new Button("Edit");
+            private final Button toggleBtn = new Button("Toggle");
+            private final Button deleteBtn = new Button("Delete");
+
+            {
+                assignBtn.setStyle("-fx-background-color: #06b6d4; -fx-text-fill: white; -fx-font-size: 11;");
+                editBtn.setStyle("-fx-background-color: #3B82F6; -fx-text-fill: white; -fx-font-size: 11;");
+                toggleBtn.setStyle("-fx-background-color: #F59E0B; -fx-text-fill: white; -fx-font-size: 11;");
+                deleteBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 11;");
+
+                assignBtn.setOnAction(e -> {
+                    com.coffeeshop.model.SpecialRequest r = getTableView().getItems().get(getIndex());
+                    // reuse the edit dialog to allow assigning category/products
+                    showSpecialRequestDialog(r);
+                });
+
+                editBtn.setOnAction(e -> {
+                    com.coffeeshop.model.SpecialRequest r = getTableView().getItems().get(getIndex());
+                    showSpecialRequestDialog(r);
+                });
+
+                toggleBtn.setOnAction(e -> {
+                    com.coffeeshop.model.SpecialRequest r = getTableView().getItems().get(getIndex());
+                    store.toggleSpecialRequestActive(r.getId());
+                    refreshSpecialRequestsContent();
+                });
+
+                deleteBtn.setOnAction(e -> {
+                    com.coffeeshop.model.SpecialRequest r = getTableView().getItems().get(getIndex());
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Delete Special Request");
+                    confirm.setHeaderText("Are you sure you want to delete this special request?");
+                    confirm.setContentText(r.getText());
+                    confirm.showAndWait().ifPresent(response -> {
+                        if (response == javafx.scene.control.ButtonType.OK) {
+                            store.deleteSpecialRequest(r.getId());
+                            refreshSpecialRequestsContent();
+                        }
+                    });
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) setGraphic(null);
+                else setGraphic(new HBox(6, assignBtn, editBtn, toggleBtn, deleteBtn));
+            }
+        });
+
+        table.getColumns().addAll(idCol, textCol, statusCol, assignedCol, actionsCol);
+        table.setItems(javafx.collections.FXCollections.observableArrayList(store.getSpecialRequests()));
+
+        VBox.setVgrow(table, Priority.ALWAYS);
+        panel.getChildren().addAll(header, table);
+        return panel;
+    }
+
+    private void showSpecialRequestDialog(com.coffeeshop.model.SpecialRequest existing) {
+        Dialog<com.coffeeshop.model.SpecialRequest> dialog = new Dialog<>();
+        dialog.setTitle(existing == null ? "Add Special Request" : "Edit Special Request");
+        dialog.setHeaderText(existing == null ? "Create a new special request" : "Edit special request");
+
+        javafx.scene.control.ButtonType saveButtonType = new javafx.scene.control.ButtonType("Save", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, javafx.scene.control.ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField textField = new TextField();
+        textField.setPromptText("e.g., Less Ice");
+        javafx.scene.control.CheckBox activeCheck = new javafx.scene.control.CheckBox("Active");
+
+        if (existing != null) {
+            textField.setText(existing.getText());
+            activeCheck.setSelected(existing.isActive());
+        } else {
+            activeCheck.setSelected(true);
+        }
+
+        grid.add(new Label("Text:"), 0, 0);
+        grid.add(textField, 1, 0);
+        grid.add(activeCheck, 1, 1);
+
+        // Product assignment section
+        Label productLabel = new Label("Assign to specific products (optional):");
+        javafx.scene.control.ListView<javafx.scene.control.CheckBox> productList = new javafx.scene.control.ListView<>();
+        productList.setPrefHeight(200);
+        javafx.collections.ObservableList<javafx.scene.control.CheckBox> productCheckBoxes = javafx.collections.FXCollections.observableArrayList();
+        for (Product p : store.getProducts()) {
+            javafx.scene.control.CheckBox cb = new javafx.scene.control.CheckBox(p.getName() + " (" + p.getCategory() + ")");
+            cb.setUserData(p.getId());
+            if (existing != null && existing.getApplicableProductIds().contains(p.getId())) cb.setSelected(true);
+            productCheckBoxes.add(cb);
+        }
+        productList.setItems(productCheckBoxes);
+
+        // Category selector
+        javafx.scene.control.ComboBox<String> categoryCombo = new javafx.scene.control.ComboBox<>();
+        try {
+            java.util.List<String> cats = new java.util.ArrayList<>(store.getCategories());
+            if (!cats.contains("All")) cats.add(0, "All");
+            categoryCombo.getItems().addAll(cats);
+        } catch (Exception ex) {
+            categoryCombo.getItems().addAll("All");
+        }
+        if (existing != null && existing.getCategory() != null) categoryCombo.setValue(existing.getCategory());
+        else categoryCombo.setValue("All");
+
+        grid.add(new Label("Category:"), 0, 2);
+        grid.add(categoryCombo, 1, 2);
+        grid.add(productLabel, 0, 3);
+        grid.add(productList, 0, 4, 2, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                String txt = textField.getText();
+                if (txt == null || txt.trim().isEmpty()) {
+                    showAlert("Invalid", "Text cannot be empty.", Alert.AlertType.ERROR);
+                    return null;
+                }
+                if (existing != null) {
+                    existing.setText(txt.trim());
+                    existing.setActive(activeCheck.isSelected());
+                    existing.setCategory(categoryCombo.getValue());
+                    java.util.List<String> sel = new java.util.ArrayList<>();
+                    for (javafx.scene.control.CheckBox cb : productCheckBoxes) if (cb.isSelected()) sel.add((String) cb.getUserData());
+                    existing.setApplicableProductIds(sel);
+                    return existing;
+                } else {
+                    // generate new ID (Rxxx sequence)
+                    int maxId = 0;
+                    for (com.coffeeshop.model.SpecialRequest r : store.getSpecialRequests()) {
+                        try {
+                            String num = r.getId().replaceAll("[^0-9]", "");
+                            if (!num.isEmpty()) maxId = Math.max(maxId, Integer.parseInt(num));
+                        } catch (Exception ignored) {}
+                    }
+                    String newId = "R" + String.format("%03d", maxId + 1);
+                    java.util.List<String> sel = new java.util.ArrayList<>();
+                    for (javafx.scene.control.CheckBox cb : productCheckBoxes) if (cb.isSelected()) sel.add((String) cb.getUserData());
+                    String cat = categoryCombo.getValue() == null ? "All" : categoryCombo.getValue();
+                    return new com.coffeeshop.model.SpecialRequest(newId, txt.trim(), activeCheck.isSelected(), cat, sel);
+                }
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(res -> {
+            if (existing != null) store.updateSpecialRequest(res);
+            else store.addSpecialRequest(res);
+            refreshSpecialRequestsContent();
+        });
     }
 
     private void showAddOnDialog(com.coffeeshop.model.AddOn existingAddOn) {
@@ -934,7 +1464,15 @@ public class AdminApp extends Application {
         TextField priceField = new TextField();
         priceField.setPromptText("Price (e.g., 1.00)");
         javafx.scene.control.ComboBox<String> categoryCombo = new javafx.scene.control.ComboBox<>();
-        categoryCombo.getItems().addAll("Coffee", "Milk Tea", "All");
+        // Populate category choices from store so all categories are available
+        try {
+            java.util.List<String> cats = new java.util.ArrayList<>(store.getCategories());
+            // Ensure 'All' option is present
+            if (!cats.contains("All")) cats.add(0, "All");
+            categoryCombo.getItems().addAll(cats);
+        } catch (Exception ex) {
+            categoryCombo.getItems().addAll("Coffee", "Milk Tea", "All");
+        }
         javafx.scene.control.CheckBox activeCheck = new javafx.scene.control.CheckBox("Active");
 
         if (existingAddOn != null) {
@@ -1024,6 +1562,49 @@ public class AdminApp extends Application {
             }
             refreshAddOnsContent();
         });
+    }
+
+    // Show a dialog listing assigned products for a SpecialRequest (copyable)
+    private void showAssignedProductsDialog(com.coffeeshop.model.SpecialRequest req) {
+        Dialog<Void> dlg = new Dialog<>();
+        dlg.setTitle("Assigned Products");
+        dlg.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+
+        TextArea ta = new TextArea();
+        ta.setEditable(false);
+        ta.setWrapText(true);
+        ta.setPrefWidth(480);
+        ta.setPrefHeight(320);
+
+        java.util.List<String> ids = req.getApplicableProductIds();
+        String category = req.getCategory();
+
+        if (ids == null || ids.isEmpty()) {
+            if (category == null || "All".equalsIgnoreCase(category)) {
+                ta.setText("All Products");
+            } else {
+                StringBuilder sb = new StringBuilder();
+                for (Product p : store.getProducts()) {
+                    if (category.equals(p.getCategory())) {
+                        sb.append(p.getId()).append(" - ").append(p.getName()).append("\n");
+                    }
+                }
+                if (sb.length() == 0) ta.setText("All in category: " + category);
+                else ta.setText(sb.toString());
+            }
+        } else {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            for (String pid : ids) {
+                Product p = store.getProductById(pid);
+                if (p != null) names.add(p.getId() + " - " + p.getName());
+                else names.add(pid);
+            }
+            ta.setText(String.join("\n", names));
+        }
+
+        dlg.getDialogPane().setContent(ta);
+        dlg.setResizable(true);
+        dlg.showAndWait();
     }
 
     private VBox createCategoriesTab() {
@@ -1317,6 +1898,392 @@ public class AdminApp extends Application {
         titleLabel.setWrapText(true);
         
         card.getChildren().addAll(iconCircle, titleLabel, valueLabel);
+        return card;
+    }
+
+    // Helper for metric cards with icons and badges
+    private VBox createMetricCardWithIcon(String icon, String title, String value, String badge, String bgColor) {
+        VBox card = new VBox(8);
+        card.setPadding(new Insets(18));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 2);");
+        
+        HBox topRow = new HBox(8);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(16));
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        titleLabel.setTextFill(Color.web("#6c757d"));
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label detailsLabel = new Label("Details");
+        detailsLabel.setFont(Font.font(10));
+        detailsLabel.setTextFill(Color.web("#9ca3af"));
+        topRow.getChildren().addAll(iconLabel, titleLabel, spacer, detailsLabel);
+        
+        Label valueLabel = new Label(value);
+        valueLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        valueLabel.setTextFill(Color.web("#111827"));
+        
+        Label badgeLabel = new Label(badge);
+        badgeLabel.setFont(Font.font("Segoe UI", 11));
+        badgeLabel.setTextFill(Color.web("#10B981"));
+        
+        card.getChildren().addAll(topRow, valueLabel, badgeLabel);
+        return card;
+    }
+    
+    private void updateMetricCardValue(VBox card, String newValue) {
+        if (card.getChildren().size() >= 2) {
+            Label valueLabel = (Label) card.getChildren().get(1);
+            valueLabel.setText(newValue);
+        }
+    }
+    
+    private Button createFilterButton(String text, boolean active) {
+        Button btn = new Button(text);
+        String activeStyle = "-fx-background-color: #1a1a1a; -fx-text-fill: white; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11;";
+        String inactiveStyle = "-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11;";
+        String hoverStyle = "-fx-background-color: #f3f4f6; -fx-border-color: #e5e7eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11;";
+
+        btn.setStyle(active ? activeStyle : inactiveStyle);
+        btn.setCursor(Cursor.HAND);
+        btn.setFocusTraversable(true);
+
+        // Hover effects
+        btn.setOnMouseEntered(e -> btn.setStyle(hoverStyle));
+        btn.setOnMouseExited(e -> btn.setStyle(active ? activeStyle : inactiveStyle));
+
+        return btn;
+    }
+    
+    private void drawRadarChart(Canvas canvas) {
+        javafx.scene.canvas.GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        
+        double centerX = canvas.getWidth() / 2;
+        double centerY = canvas.getHeight() / 2;
+        double radius = 80;
+        
+        // Draw radar background
+        gc.setStroke(Color.web("#e5e7eb"));
+        gc.setLineWidth(1);
+        for (int i = 1; i <= 4; i++) {
+            double r = radius * i / 4;
+            gc.strokeOval(centerX - r, centerY - r, r * 2, r * 2);
+        }
+        
+        // Draw axes
+        String[] labels = {"Espresso", "Ice Coffee", "Americano", "Latte", "Mocha", "Flat White"};
+        int points = labels.length;
+        for (int i = 0; i < points; i++) {
+            double angle = Math.PI / 2 - (2 * Math.PI * i / points);
+            double x = centerX + radius * Math.cos(angle);
+            double y = centerY - radius * Math.sin(angle);
+            gc.strokeLine(centerX, centerY, x, y);
+            
+            // Draw labels
+            double labelX = centerX + (radius + 30) * Math.cos(angle);
+            double labelY = centerY - (radius + 30) * Math.sin(angle);
+            gc.setFill(Color.web("#6c757d"));
+            gc.setFont(Font.font(10));
+            gc.fillText(labels[i], labelX - 20, labelY);
+        }
+        
+        // Draw data polygon
+        gc.setStroke(Color.web("#FFC107"));
+        gc.setFill(Color.web("#FFC107", 0.2));
+        gc.setLineWidth(2);
+        
+        double[] xPoints = new double[points];
+        double[] yPoints = new double[points];
+        double[] values = {0.7, 0.8, 0.6, 0.5, 0.9, 0.4};
+        
+        for (int i = 0; i < points; i++) {
+            double angle = Math.PI / 2 - (2 * Math.PI * i / points);
+            xPoints[i] = centerX + radius * values[i] * Math.cos(angle);
+            yPoints[i] = centerY - radius * values[i] * Math.sin(angle);
+        }
+        
+        gc.beginPath();
+        gc.moveTo(xPoints[0], yPoints[0]);
+        for (int i = 1; i < points; i++) {
+            gc.lineTo(xPoints[i], yPoints[i]);
+        }
+        gc.closePath();
+        gc.fill();
+        gc.stroke();
+    }
+    
+    private void drawScoreGauge(Canvas canvas, int score) {
+        javafx.scene.canvas.GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+        
+        double centerX = canvas.getWidth() / 2;
+        double centerY = canvas.getHeight() - 30;
+        double radius = 100;
+        
+        // Draw gauge background arcs
+        gc.setLineWidth(12);
+        gc.setStroke(Color.web("#e5e7eb"));
+        gc.strokeArc(centerX - radius, centerY - radius, radius * 2, radius * 2, 0, 180, javafx.scene.shape.ArcType.OPEN);
+        
+        // Draw score arc with gradient effect (yellow-green)
+        double scoreAngle = 180 * score / 100.0;
+        gc.setStroke(Color.web("#FFC107"));
+        gc.strokeArc(centerX - radius, centerY - radius, radius * 2, radius * 2, 180, -scoreAngle, javafx.scene.shape.ArcType.OPEN);
+        
+        // Draw tick marks
+        for (int i = 0; i <= 10; i++) {
+            double angle = Math.toRadians(180 - i * 18);
+            double x1 = centerX + (radius - 6) * Math.cos(angle);
+            double y1 = centerY - (radius - 6) * Math.sin(angle);
+            double x2 = centerX + (radius + 6) * Math.cos(angle);
+            double y2 = centerY - (radius + 6) * Math.sin(angle);
+            
+            if (i * 10 <= score) {
+                gc.setStroke(Color.web("#FFC107"));
+            } else {
+                gc.setStroke(Color.web("#e5e7eb"));
+            }
+            gc.setLineWidth(3);
+            gc.strokeLine(x1, y1, x2, y2);
+        }
+        
+        // Draw score value
+        gc.setFill(Color.web("#16A34A"));
+        gc.setFont(Font.font("Segoe UI", FontWeight.BOLD, 56));
+        String scoreText = String.valueOf(score);
+        gc.fillText(scoreText, centerX - 35, centerY - 10);
+    }
+    
+    private void filterTransactionTable(TableView<Receipt> table, String category) {
+        List<Receipt> allReceipts = TextDatabase.loadAllReceipts();
+        table.getItems().clear();
+        
+        if (category == null) {
+            // Show all transactions
+            int max = Math.min(4, allReceipts.size());
+            for (int i = 0; i < max; i++) {
+                table.getItems().add(allReceipts.get(i));
+            }
+        } else {
+            // Filter by category based on order items
+            List<OrderRecord> allOrders = TextDatabase.loadAllOrders();
+            int count = 0;
+            for (Receipt receipt : allReceipts) {
+                if (count >= 4) break;
+                String orderId = receipt.getOrderId();
+                
+                // Check if this order contains items from the selected category
+                boolean hasCategory = false;
+                for (OrderRecord order : allOrders) {
+                    if (order.getOrderId().equals(orderId)) {
+                        String typeOfDrink = order.getTypeOfDrink();
+                        if (typeOfDrink != null && typeOfDrink.equalsIgnoreCase(category)) {
+                            hasCategory = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (hasCategory) {
+                    table.getItems().add(receipt);
+                    count++;
+                }
+            }
+        }
+    }
+
+    // Helper to toggle active styling for the filter buttons
+    private void setActiveFilterButtons(Button active, Button b1, Button b2, Button b3, Button b4) {
+        String activeStyle = "-fx-background-color: #1a1a1a; -fx-text-fill: white; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11;";
+        String inactiveStyle = "-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 4 12; -fx-font-size: 11;";
+        active.setStyle(activeStyle);
+        b1.setStyle(inactiveStyle);
+        b2.setStyle(inactiveStyle);
+        b3.setStyle(inactiveStyle);
+        b4.setStyle(inactiveStyle);
+    }
+
+    // Update the sales chart data based on selected granularity using real order records
+    private void updateSalesChart(LineChart<String, Number> chart, String granularity) {
+        chart.getData().clear();
+
+        List<OrderRecord> orders = TextDatabase.loadAllOrders();
+        List<Receipt> receipts = TextDatabase.loadAllReceipts();
+        LocalDate today = LocalDate.now();
+
+        // map orderId -> list of order records (items)
+        Map<String, List<OrderRecord>> ordersById = new HashMap<>();
+        for (OrderRecord or : orders) {
+            ordersById.computeIfAbsent(or.getOrderId(), k -> new ArrayList<>()).add(or);
+        }
+
+        List<String> labels = new ArrayList<>();
+        // Map label -> total sales amount
+        Map<String, Double> salesAmounts = new LinkedHashMap<>();
+
+        if ("Day".equalsIgnoreCase(granularity)) {
+            for (int h = 10; h <= 16; h++) {
+                String label = String.format("%02d:00%s", (h <= 12 ? h : h - 12), (h < 12 ? "AM" : "PM"));
+                labels.add(label);
+                salesAmounts.put(label, 0.0);
+            }
+
+            for (Receipt r : receipts) {
+                if (!r.getReceiptTime().toLocalDate().equals(today)) continue;
+                int hour = r.getReceiptTime().getHour();
+                if (hour < 10 || hour > 16) continue;
+                String label = String.format("%02d:00%s", (hour <= 12 ? hour : hour - 12), (hour < 12 ? "AM" : "PM"));
+                double prev = salesAmounts.getOrDefault(label, 0.0);
+                salesAmounts.put(label, prev + r.getTotalAmount());
+            }
+
+        } else if ("Month".equalsIgnoreCase(granularity)) {
+            for (int i = 6; i >= 0; i--) {
+                LocalDate d = today.minusDays(i);
+                String label = d.getMonthValue() + "/" + d.getDayOfMonth();
+                labels.add(label);
+                salesAmounts.put(label, 0.0);
+            }
+            for (Receipt r : receipts) {
+                String label = r.getReceiptTime().getMonthValue() + "/" + r.getReceiptTime().getDayOfMonth();
+                // accumulate only if this label is part of the displayed labels
+                if (!salesAmounts.containsKey(label)) continue;
+                double prev = salesAmounts.getOrDefault(label, 0.0);
+                salesAmounts.put(label, prev + r.getTotalAmount());
+            }
+
+        } else if ("Year".equalsIgnoreCase(granularity)) {
+            LocalDate start = today.minusMonths(5);
+            for (int i = 0; i < 6; i++) {
+                LocalDate d = start.plusMonths(i);
+                String label = d.getMonth().toString().substring(0,3);
+                labels.add(label);
+                salesAmounts.put(label, 0.0);
+            }
+            for (Receipt r : receipts) {
+                String label = r.getReceiptTime().getMonth().toString().substring(0,3);
+                if (!salesAmounts.containsKey(label)) continue;
+                double prev = salesAmounts.getOrDefault(label, 0.0);
+                salesAmounts.put(label, prev + r.getTotalAmount());
+            }
+
+        } else {
+            // All/Custom: use years from receipts
+            Set<Integer> years = receipts.stream().map(rc -> rc.getReceiptTime().getYear()).collect(Collectors.toCollection(TreeSet::new));
+            List<Integer> ylist = new ArrayList<>(years);
+            if (ylist.isEmpty()) {
+                labels.add(String.valueOf(today.getYear()));
+                salesAmounts.put(String.valueOf(today.getYear()), 0.0);
+            } else {
+                int startIdx = Math.max(0, ylist.size() - 4);
+                for (int i = startIdx; i < ylist.size(); i++) {
+                    String label = String.valueOf(ylist.get(i));
+                    labels.add(label);
+                    salesAmounts.put(label, 0.0);
+                }
+                for (Receipt r : receipts) {
+                    String label = String.valueOf(r.getReceiptTime().getYear());
+                    if (!salesAmounts.containsKey(label)) continue;
+                    double prev = salesAmounts.getOrDefault(label, 0.0);
+                    salesAmounts.put(label, prev + r.getTotalAmount());
+                }
+            }
+        }
+
+        // Build total sales series (revenue) using receipts
+        XYChart.Series<String, Number> salesSeries = new XYChart.Series<>();
+        salesSeries.setName("Total Sales");
+        for (String lbl : labels) {
+            double amt = salesAmounts.getOrDefault(lbl, 0.0);
+            salesSeries.getData().add(new XYChart.Data<>(lbl, amt));
+        }
+
+        chart.getData().addAll(salesSeries);
+
+        // Attach tooltips to the data nodes after layout
+        Platform.runLater(() -> {
+            for (XYChart.Series<String, Number> s : chart.getData()) {
+                for (XYChart.Data<String, Number> d : s.getData()) {
+                    Node node = d.getNode();
+                    if (node != null) {
+                        String seriesName = s.getName();
+                        String tip;
+                        if ("Total Sales".equals(seriesName)) {
+                            tip = seriesName + " — " + d.getXValue() + ": ₱" + String.format("%.2f", d.getYValue().doubleValue());
+                        } else {
+                            tip = seriesName + " — " + d.getXValue() + ": " + d.getYValue();
+                        }
+                        Tooltip.install(node, new Tooltip(tip));
+                        node.setCursor(Cursor.HAND);
+                    }
+                }
+            }
+        });
+    }
+
+    private String inferType(OrderRecord o) {
+        String type = o.getTypeOfDrink();
+        if (type != null && !type.trim().isEmpty()) return type.trim();
+        String name = o.getItemName() == null ? "" : o.getItemName().toLowerCase();
+        if (name.contains("tea")) return "Tea";
+        if (name.contains("coffee") || name.contains("espresso") || name.contains("latte") || name.contains("americano")) return "Coffee";
+        if (name.contains("snack") || name.contains("cake") || name.contains("cookie") || name.contains("sandwich")) return "Snack";
+        return "Other";
+    }
+
+    private void incrementCount(String label, String type, Map<String,Integer> tea, Map<String,Integer> coffee, Map<String,Integer> snack) {
+        if (type == null) return;
+        switch (type.toLowerCase()) {
+            case "tea":
+                tea.put(label, tea.getOrDefault(label,0) + 1);
+                break;
+            case "coffee":
+                coffee.put(label, coffee.getOrDefault(label,0) + 1);
+                break;
+            case "snack":
+                snack.put(label, snack.getOrDefault(label,0) + 1);
+                break;
+            default:
+                // ignore other types for chart
+                break;
+        }
+    }
+    
+    private VBox createComplaintCard(String iconColor, String title, String subtitle, String actionText) {
+        VBox card = new VBox(8);
+        card.setPadding(new Insets(15));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
+        
+        HBox topRow = new HBox(10);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+        
+        Label icon = new Label(iconColor);
+        icon.setFont(Font.font(14));
+        
+        VBox textBox = new VBox(2);
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+        Label subtitleLabel = new Label(subtitle);
+        subtitleLabel.setFont(Font.font("Segoe UI", 11));
+        subtitleLabel.setTextFill(Color.web("#6c757d"));
+        textBox.getChildren().addAll(titleLabel, subtitleLabel);
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Button solveBtn = new Button(actionText);
+        solveBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 6 16; -fx-font-size: 11; -fx-font-weight: bold;");
+        
+        Label moreIcon = new Label("⋮");
+        moreIcon.setFont(Font.font(16));
+        moreIcon.setTextFill(Color.web("#EF4444"));
+        
+        topRow.getChildren().addAll(icon, textBox, spacer, solveBtn, moreIcon);
+        card.getChildren().add(topRow);
+        
         return card;
     }
 

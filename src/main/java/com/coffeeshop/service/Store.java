@@ -15,8 +15,11 @@ public class Store {
     private java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
     private java.util.List<Runnable> categoryListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> productListeners = new java.util.ArrayList<>();
+    private java.util.List<Runnable> specialRequestListeners = new java.util.ArrayList<>();
+    private java.util.List<Runnable> addOnListeners = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.CashierAccount> cashiers = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.AddOn> addOns = new java.util.ArrayList<>();
+    private java.util.List<com.coffeeshop.model.SpecialRequest> specialRequests = new java.util.ArrayList<>();
     private static Store instance;
 
     private Store() {
@@ -48,6 +51,12 @@ public class Store {
             addOns = PersistenceManager.loadAddOns();
         } catch (Exception ignored) {
             addOns = new java.util.ArrayList<>();
+        }
+        // load special requests
+        try {
+            specialRequests = PersistenceManager.loadSpecialRequests();
+        } catch (Exception ignored) {
+            specialRequests = new java.util.ArrayList<>();
         }
         // initialize categories: prefer explicit categories file if present, otherwise infer from products
         categories.clear();
@@ -90,7 +99,15 @@ public class Store {
         // save add-ons
         try {
             PersistenceManager.saveAddOns(addOns);
+            // notify add-on listeners
+            notifyAddOnListeners();
         } catch (Exception ignored) {}
+        // save special requests
+        try {
+            PersistenceManager.saveSpecialRequests(specialRequests);
+        } catch (Exception ignored) {}
+        // notify listeners specifically interested in special-request changes
+        notifySpecialRequestListeners();
         // Notify listeners that products (or categories/inventory) may have changed
         notifyProductListeners();
     }
@@ -336,6 +353,18 @@ public class Store {
         }
     }
 
+    private void notifySpecialRequestListeners() {
+        for (Runnable r : new java.util.ArrayList<>(specialRequestListeners)) {
+            try { r.run(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void notifyAddOnListeners() {
+        for (Runnable r : new java.util.ArrayList<>(addOnListeners)) {
+            try { r.run(); } catch (Exception ignored) {}
+        }
+    }
+
     public void addCategoryChangeListener(Runnable r) {
         if (r == null) return;
         categoryListeners.add(r);
@@ -344,6 +373,24 @@ public class Store {
     public void addProductChangeListener(Runnable r) {
         if (r == null) return;
         productListeners.add(r);
+    }
+
+    public void addSpecialRequestChangeListener(Runnable r) {
+        if (r == null) return;
+        specialRequestListeners.add(r);
+    }
+
+    public void removeSpecialRequestChangeListener(Runnable r) {
+        specialRequestListeners.remove(r);
+    }
+
+    public void addAddOnChangeListener(Runnable r) {
+        if (r == null) return;
+        addOnListeners.add(r);
+    }
+
+    public void removeAddOnChangeListener(Runnable r) {
+        addOnListeners.remove(r);
     }
 
     public void removeProductChangeListener(Runnable r) {
@@ -503,6 +550,60 @@ public class Store {
     // Add-on management methods
     public java.util.List<com.coffeeshop.model.AddOn> getAddOns() {
         return new java.util.ArrayList<>(addOns);
+    }
+
+    // Special requests management
+    public java.util.List<com.coffeeshop.model.SpecialRequest> getSpecialRequests() {
+        return new java.util.ArrayList<>(specialRequests);
+    }
+
+    public java.util.List<com.coffeeshop.model.SpecialRequest> getActiveSpecialRequests() {
+        return specialRequests.stream().filter(com.coffeeshop.model.SpecialRequest::isActive).collect(java.util.stream.Collectors.toList());
+    }
+
+    public java.util.List<com.coffeeshop.model.SpecialRequest> getActiveSpecialRequestsForProduct(String productId) {
+        if (productId == null) return getActiveSpecialRequests();
+        Product p = getProductById(productId);
+        String prodCat = p == null ? "" : (p.getCategory() == null ? "" : p.getCategory());
+        java.util.List<com.coffeeshop.model.SpecialRequest> out = new java.util.ArrayList<>();
+        for (com.coffeeshop.model.SpecialRequest r : specialRequests) {
+            if (!r.isActive()) continue;
+            String cat = r.getCategory() == null ? "All" : r.getCategory();
+            // if category is All or matches product category, and product-specific list either empty or contains productId
+            boolean categoryMatch = "All".equalsIgnoreCase(cat) || (!prodCat.isEmpty() && cat.equalsIgnoreCase(prodCat));
+            if (!categoryMatch) continue;
+            java.util.List<String> apps = r.getApplicableProductIds();
+            if (apps == null || apps.isEmpty() || apps.contains(productId)) {
+                out.add(r);
+            }
+        }
+        return out;
+    }
+
+    public void addSpecialRequest(com.coffeeshop.model.SpecialRequest r) {
+        specialRequests.add(r);
+        saveData();
+    }
+
+    public void updateSpecialRequest(com.coffeeshop.model.SpecialRequest r) {
+        for (int i = 0; i < specialRequests.size(); i++) {
+            if (specialRequests.get(i).getId().equals(r.getId())) {
+                specialRequests.set(i, r);
+                saveData();
+                return;
+            }
+        }
+    }
+
+    public void deleteSpecialRequest(String id) {
+        specialRequests.removeIf(s -> s.getId().equals(id));
+        saveData();
+    }
+
+    public void toggleSpecialRequestActive(String id) {
+        for (com.coffeeshop.model.SpecialRequest r : specialRequests) {
+            if (r.getId().equals(id)) { r.setActive(!r.isActive()); saveData(); return; }
+        }
     }
 
     public java.util.List<com.coffeeshop.model.AddOn> getActiveAddOns() {

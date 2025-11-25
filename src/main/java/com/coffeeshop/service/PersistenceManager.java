@@ -20,6 +20,7 @@ public class PersistenceManager {
     private static final String CATEGORIES_FILE = DATA_DIR + "/categories.json";
     private static final String ACCOUNTS_FILE = DATA_DIR + "/accounts.json";
     private static final String ADDONS_FILE = DATA_DIR + "/addons.json";
+    private static final String SPECIAL_REQUESTS_FILE = DATA_DIR + "/special_requests.json";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public static void ensureDataDirectory() {
@@ -340,5 +341,44 @@ public class PersistenceManager {
 
         saveAddOns(addOns);
         return addOns;
+    }
+
+    // Special requests persistence
+    public static void saveSpecialRequests(java.util.List<com.coffeeshop.model.SpecialRequest> requests) {
+        ensureDataDirectory();
+        try (Writer writer = new FileWriter(SPECIAL_REQUESTS_FILE)) {
+            gson.toJson(requests, writer);
+        } catch (IOException e) {
+            System.err.println("Error saving special requests: " + e.getMessage());
+        }
+    }
+
+    public static java.util.List<com.coffeeshop.model.SpecialRequest> loadSpecialRequests() {
+        ensureDataDirectory();
+        File file = new File(SPECIAL_REQUESTS_FILE);
+        if (!file.exists()) {
+            return initializeDefaultSpecialRequests();
+        }
+
+        try (Reader reader = new FileReader(SPECIAL_REQUESTS_FILE)) {
+            Type listType = new TypeToken<java.util.ArrayList<com.coffeeshop.model.SpecialRequest>>(){}.getType();
+            java.util.List<com.coffeeshop.model.SpecialRequest> items = gson.fromJson(reader, listType);
+            return items != null ? items : initializeDefaultSpecialRequests();
+        } catch (IOException e) {
+            System.err.println("Error loading special requests: " + e.getMessage());
+            return initializeDefaultSpecialRequests();
+        }
+    }
+
+    private static java.util.List<com.coffeeshop.model.SpecialRequest> initializeDefaultSpecialRequests() {
+        java.util.List<com.coffeeshop.model.SpecialRequest> defaults = new java.util.ArrayList<>();
+        defaults.add(new com.coffeeshop.model.SpecialRequest("R001", "Less Ice"));
+        defaults.add(new com.coffeeshop.model.SpecialRequest("R002", "No Ice"));
+        defaults.add(new com.coffeeshop.model.SpecialRequest("R003", "Less Sweet"));
+        defaults.add(new com.coffeeshop.model.SpecialRequest("R004", "No Sugar"));
+        defaults.add(new com.coffeeshop.model.SpecialRequest("R005", "Extra Hot"));
+        defaults.add(new com.coffeeshop.model.SpecialRequest("R006", "No Whip"));
+        saveSpecialRequests(defaults);
+        return defaults;
     }
 }

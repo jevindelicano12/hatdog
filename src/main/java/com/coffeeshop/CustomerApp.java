@@ -43,6 +43,8 @@ import java.nio.file.*;
 
 public class CustomerApp extends Application {
     private Store store;
+    // Track currently open customization product so it can be refreshed when admin updates special requests
+    private Product currentCustomizationProduct = null;
     private Order currentOrder;
     private OrderItem customizingOrderItem = null; // Track item being customized from cart
     private Stage primaryStage;
@@ -86,6 +88,27 @@ public class CustomerApp extends Application {
                         try { imageCache.clear(); } catch (Exception ignored) {}
                         imageFileIndex = null; // force rebuild of index on next image load
                         refreshProductGrid();
+                    } catch (Exception ignored) {}
+                });
+            });
+            // Listen for special-request changes so open customization dialogs update their quick-buttons
+            Store.getInstance().addSpecialRequestChangeListener(() -> {
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        if (currentCustomizationProduct != null) {
+                            // reopen the customization modal for the same product to refresh quick-buttons
+                            showCustomizationPage(currentCustomizationProduct);
+                        }
+                    } catch (Exception ignored) {}
+                });
+            });
+            // Listen for add-on changes so open customization dialogs update their add-on pills
+            Store.getInstance().addAddOnChangeListener(() -> {
+                javafx.application.Platform.runLater(() -> {
+                    try {
+                        if (currentCustomizationProduct != null) {
+                            showCustomizationPage(currentCustomizationProduct);
+                        }
                     } catch (Exception ignored) {}
                 });
             });
@@ -1356,6 +1379,8 @@ public class CustomerApp extends Application {
     }
     
     private void showCustomizationPage(Product product) {
+        // track currently-customizing product so listeners can refresh this modal
+        this.currentCustomizationProduct = product;
         // Create modal-style dialog
         StackPane modalRoot = new StackPane();
         modalRoot.setStyle("-fx-background-color: rgba(0, 0, 0, 0.5);");
@@ -1413,7 +1438,10 @@ public class CustomerApp extends Application {
         closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand; -fx-padding: 0;");
         closeBtn.setOnMouseEntered(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-cursor: hand;"));
         closeBtn.setOnMouseExited(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand;"));
-        closeBtn.setOnAction(e -> showMenuScreen());
+        closeBtn.setOnAction(e -> {
+            this.currentCustomizationProduct = null;
+            showMenuScreen();
+        });
         
         headerRow.getChildren().addAll(leftHeader, spacer1, closeBtn);
         
@@ -1660,18 +1688,19 @@ public class CustomerApp extends Application {
         requestsTitle.setTextFill(Color.web("#999999"));
         requestsTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
         
-        // Quick select buttons for common requests
+        // Quick select buttons for common requests (loaded from admin-configured list)
         HBox quickButtons = new HBox(8);
         quickButtons.setAlignment(Pos.CENTER_LEFT);
         
-        String[] commonRequests = {"Less Ice", "No Ice", "Less Sweet", "No Sugar", "Extra Hot", "No Whip"};
+        java.util.List<com.coffeeshop.model.SpecialRequest> commonRequests = store.getActiveSpecialRequestsForProduct(product.getId());
         javafx.scene.control.TextArea requestTextArea = new javafx.scene.control.TextArea();
         requestTextArea.setPromptText("Add special instructions here...");
         requestTextArea.setPrefRowCount(2);
         requestTextArea.setWrapText(true);
         requestTextArea.setStyle("-fx-font-size: 12px; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-background-radius: 6;");
         
-        for (String request : commonRequests) {
+        for (com.coffeeshop.model.SpecialRequest sr : commonRequests) {
+            String request = sr.getText();
             Button quickBtn = new Button(request);
             quickBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
             quickBtn.setPadding(new Insets(6, 12, 6, 12));
@@ -2448,6 +2477,7 @@ public class CustomerApp extends Application {
                     alert.setContentText(product.getName() + " has been updated in your cart!");
                     alert.showAndWait();
                     
+                    this.currentCustomizationProduct = null;
                     showCartPage();
                 } else {
                     // Adding new item to cart
@@ -2489,6 +2519,7 @@ public class CustomerApp extends Application {
                     alert.setContentText(quantity[0] + "x " + product.getName() + " added to your order!");
                     alert.showAndWait();
                     
+                    this.currentCustomizationProduct = null;
                     showMenuScreen();
                 }
             } catch (Exception ex) {

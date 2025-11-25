@@ -90,7 +90,7 @@
     "id": "P017",
     "name": "Croissants",
     "price": 100.0,
-    "stock": 17,
+    "stock": 16,
     "recipe": {},
     "category": "Pastries"
   },
@@ -109,11 +109,19 @@
     "id": "P019",
     "name": "Cappuccino",
     "price": 60.0,
-    "stock": 12,
+    "stock": 11,
     "recipe": {
       "Water": 10.0,
       "Coffee Beans": 1.0
     },
     "category": "Coffee"
+  },
+  {
+    "id": "P020",
+    "name": "boydila",
+    "price": 500.0,
+    "stock": 20,
+    "recipe": {},
+    "category": "Pastries"
   }
 ]
