@@ -4,6 +4,7 @@ import com.coffeeshop.model.ItemRecord;
 import com.coffeeshop.model.OrderRecord;
 import com.coffeeshop.model.Receipt;
 import com.coffeeshop.model.PendingOrder;
+import com.coffeeshop.model.ReturnTransaction;
 
 import java.io.*;
 import java.time.LocalDateTime;
@@ -17,6 +18,7 @@ public class TextDatabase {
     private static final String ORDERS_DB = DATA_DIR + "/orders_database.txt";
     private static final String RECEIPTS_DB = DATA_DIR + "/receipts_database.txt";
     private static final String PENDING_ORDERS_DB = DATA_DIR + "/pending_orders.txt";
+    private static final String RETURNS_DB = DATA_DIR + "/returns_database.txt";
 
     // Ensure data directory exists
     public static void ensureDataDirectory() {
@@ -466,7 +468,7 @@ public class TextDatabase {
     }
 
     /**
-     * Get pending order by ID
+     * Get a specific pending order by ID
      */
     public static PendingOrder getPendingOrderById(String orderId) {
         List<PendingOrder> allOrders = loadAllPendingOrders();
@@ -477,5 +479,49 @@ public class TextDatabase {
             }
         }
         return null;
+    }
+
+    // ==================== RETURNS DATABASE ====================
+
+    /**
+     * Save a return transaction to the returns database
+     */
+    public static void saveReturnTransaction(ReturnTransaction returnTx) {
+        ensureDataDirectory();
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(RETURNS_DB, true))) {
+            writer.write(returnTx.toTextRecord());
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error saving return transaction: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Load all return transactions from the returns database
+     */
+    public static List<ReturnTransaction> loadAllReturns() {
+        List<ReturnTransaction> returns = new ArrayList<>();
+        File file = new File(RETURNS_DB);
+        
+        if (!file.exists()) {
+            return returns;
+        }
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.isEmpty()) {
+                    ReturnTransaction rt = ReturnTransaction.fromTextRecord(line);
+                    if (rt != null) {
+                        returns.add(rt);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading return transactions: " + e.getMessage());
+        }
+        
+        return returns;
     }
 }

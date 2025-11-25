@@ -19,6 +19,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.stage.Modality;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.BarChart;
@@ -1763,11 +1764,13 @@ public class CashierApp extends Application {
             "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
         amountCol.setPrefWidth(100);
         
-        // Add view column with arrow
+        // Add action column with view and return buttons
         TableColumn<Receipt, Void> actionCol = new TableColumn<>("");
-        actionCol.setPrefWidth(80);
+        actionCol.setPrefWidth(140);
         actionCol.setCellFactory(param -> new TableCell<>() {
+            private final HBox btnContainer = new HBox(5);
             private final Button viewBtn = new Button("›");
+            private final Button returnBtn = new Button("↩");
             {
                 viewBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5;");
                 viewBtn.setOnMouseEntered(ev -> viewBtn.setStyle("-fx-background-color: #f8f9fa; -fx-text-fill: #495057; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5; -fx-background-radius: 5;"));
@@ -1776,11 +1779,22 @@ public class CashierApp extends Application {
                     Receipt receipt = getTableView().getItems().get(getIndex());
                     displayReceiptDetails(receipt);
                 });
+                
+                returnBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 5 10; -fx-background-radius: 5; -fx-font-weight: bold;");
+                returnBtn.setOnMouseEntered(ev -> returnBtn.setStyle("-fx-background-color: #f57c00; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 5 10; -fx-background-radius: 5; -fx-font-weight: bold;"));
+                returnBtn.setOnMouseExited(ev -> returnBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-padding: 5 10; -fx-background-radius: 5; -fx-font-weight: bold;"));
+                returnBtn.setOnAction(event -> {
+                    Receipt receipt = getTableView().getItems().get(getIndex());
+                    showReturnExchangeDialog(receipt);
+                });
+                
+                btnContainer.getChildren().addAll(viewBtn, returnBtn);
+                btnContainer.setAlignment(Pos.CENTER);
             }
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : viewBtn);
+                setGraphic(empty ? null : btnContainer);
                 setAlignment(Pos.CENTER);
             }
         });
@@ -1887,6 +1901,451 @@ public class CashierApp extends Application {
             details.append("═══════════════════════════════════════\n");
             
             receiptDetailArea.setText(details.toString());
+        }
+    }
+
+    private void showReturnExchangeDialog(Receipt receipt) {
+        // Check if return is within time limit (2 hours)
+        java.time.Duration timeSincePurchase = java.time.Duration.between(
+            receipt.getReceiptTime(), 
+            java.time.LocalDateTime.now()
+        );
+        
+        if (timeSincePurchase.toHours() > 2) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Return Not Allowed");
+            alert.setHeaderText("Time Limit Exceeded");
+            alert.setContentText("Returns are only accepted within 2 hours of purchase.\nThis receipt is " + 
+                timeSincePurchase.toHours() + " hours old.");
+            alert.showAndWait();
+            return;
+        }
+
+        // Get original order
+        PendingOrder originalOrder = TextDatabase.getPendingOrderById(receipt.getOrderId());
+        if (originalOrder == null || originalOrder.getItems() == null || originalOrder.getItems().isEmpty()) {
+            showAlert("Error", "Could not find original order details.", Alert.AlertType.ERROR);
+            return;
+        }
+
+        Stage dialogStage = new Stage();
+        dialogStage.setTitle("Return / Exchange - Receipt #" + receipt.getReceiptId());
+        dialogStage.initModality(Modality.APPLICATION_MODAL);
+        
+        BorderPane root = new BorderPane();
+        root.setStyle("-fx-background-color: #f5f5f5;");
+        
+        // Header
+        VBox header = new VBox(10);
+        header.setPadding(new Insets(20));
+        header.setStyle("-fx-background-color: #ff9800;");
+        
+        Label title = new Label("↩ Return / Exchange Items");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        title.setTextFill(Color.WHITE);
+        
+        Label subtitle = new Label("Receipt #" + receipt.getReceiptId() + " | Customer: " + receipt.getUserName());
+        subtitle.setFont(Font.font("Segoe UI", 14));
+        subtitle.setTextFill(Color.web("#FFE0B2"));
+        
+        header.getChildren().addAll(title, subtitle);
+        root.setTop(header);
+        
+        // Main content
+        SplitPane mainContent = new SplitPane();
+        mainContent.setDividerPositions(0.6);
+        
+        // Left: Original items
+        VBox leftPanel = new VBox(15);
+        leftPanel.setPadding(new Insets(20));
+        leftPanel.setStyle("-fx-background-color: white;");
+        
+        Label leftTitle = new Label("Original Order Items");
+        leftTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        
+        ScrollPane itemsScroll = new ScrollPane();
+        itemsScroll.setFitToWidth(true);
+        itemsScroll.setStyle("-fx-background-color: transparent;");
+        
+        VBox itemsContainer = new VBox(10);
+        java.util.List<ReturnItemControl> returnControls = new java.util.ArrayList<>();
+        
+        // Convert PendingOrder.OrderItemData to display format
+        for (PendingOrder.OrderItemData itemData : originalOrder.getItems()) {
+            ReturnItemControl control = new ReturnItemControl(itemData);
+            returnControls.add(control);
+            itemsContainer.getChildren().add(control.getRoot());
+        }
+        
+        itemsScroll.setContent(itemsContainer);
+        leftPanel.getChildren().addAll(leftTitle, new Separator(), itemsScroll);
+        
+        // Right: Exchange items
+        VBox rightPanel = new VBox(15);
+        rightPanel.setPadding(new Insets(20));
+        rightPanel.setStyle("-fx-background-color: white;");
+        
+        Label rightTitle = new Label("Exchange Items");
+        rightTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        
+        Label exchangeInfo = new Label("Select products to exchange returned items with:");
+        exchangeInfo.setFont(Font.font("Segoe UI", 12));
+        exchangeInfo.setTextFill(Color.web("#666"));
+        exchangeInfo.setWrapText(true);
+        
+        ScrollPane exchangeScroll = new ScrollPane();
+        exchangeScroll.setFitToWidth(true);
+        exchangeScroll.setStyle("-fx-background-color: transparent;");
+        
+        VBox exchangeContainer = new VBox(10);
+        javafx.collections.ObservableList<com.coffeeshop.model.OrderItem> exchangeItems = 
+            javafx.collections.FXCollections.observableArrayList();
+        
+        Button addExchangeBtn = new Button("+ Add Exchange Item");
+        addExchangeBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 10 20;");
+        addExchangeBtn.setOnAction(e -> showProductSelector(dialogStage, exchangeItems, exchangeContainer));
+        
+        exchangeScroll.setContent(exchangeContainer);
+        rightPanel.getChildren().addAll(rightTitle, new Separator(), exchangeInfo, addExchangeBtn, exchangeScroll);
+        
+        mainContent.getItems().addAll(leftPanel, rightPanel);
+        root.setCenter(mainContent);
+        
+        // Footer with summary and actions
+        VBox footer = new VBox(15);
+        footer.setPadding(new Insets(20));
+        footer.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-width: 1 0 0 0;");
+        
+        GridPane summaryGrid = new GridPane();
+        summaryGrid.setHgap(20);
+        summaryGrid.setVgap(10);
+        
+        Label returnCreditLabel = new Label("Return Credit:");
+        returnCreditLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        Label returnCreditValue = new Label("₱0.00");
+        returnCreditValue.setFont(Font.font("Segoe UI", 14));
+        returnCreditValue.setTextFill(Color.web("#4CAF50"));
+        
+        Label exchangeTotalLabel = new Label("Exchange Total:");
+        exchangeTotalLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        Label exchangeTotalValue = new Label("₱0.00");
+        exchangeTotalValue.setFont(Font.font("Segoe UI", 14));
+        
+        Label refundLabel = new Label("Net Refund:");
+        refundLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        Label refundValue = new Label("₱0.00");
+        refundValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        refundValue.setTextFill(Color.web("#F44336"));
+        
+        summaryGrid.add(returnCreditLabel, 0, 0);
+        summaryGrid.add(returnCreditValue, 1, 0);
+        summaryGrid.add(exchangeTotalLabel, 0, 1);
+        summaryGrid.add(exchangeTotalValue, 1, 1);
+        summaryGrid.add(new Separator(), 0, 2, 2, 1);
+        summaryGrid.add(refundLabel, 0, 3);
+        summaryGrid.add(refundValue, 1, 3);
+        
+        HBox buttonBox = new HBox(15);
+        buttonBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle("-fx-background-color: #9E9E9E; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30; -fx-cursor: hand;");
+        cancelBtn.setOnAction(e -> dialogStage.close());
+        
+        Button processBtn = new Button("Process Return/Exchange");
+        processBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30; -fx-cursor: hand;");
+        processBtn.setOnAction(e -> {
+            processReturnExchange(receipt, returnControls, exchangeItems, dialogStage);
+        });
+        
+        buttonBox.getChildren().addAll(cancelBtn, processBtn);
+        footer.getChildren().addAll(summaryGrid, buttonBox);
+        root.setBottom(footer);
+        
+        // Update totals when items change
+        Runnable updateTotals = () -> {
+            double returnCredit = returnControls.stream()
+                .filter(rc -> rc.getAction() == ReturnAction.REFUND || rc.getAction() == ReturnAction.EXCHANGE)
+                .mapToDouble(rc -> rc.getItemData().getSubtotal())
+                .sum();
+            
+            double exchangeTotal = exchangeItems.stream()
+                .mapToDouble(com.coffeeshop.model.OrderItem::getSubtotal)
+                .sum();
+            
+            double netRefund = returnCredit - exchangeTotal;
+            
+            returnCreditValue.setText("₱" + String.format("%.2f", returnCredit));
+            exchangeTotalValue.setText("₱" + String.format("%.2f", exchangeTotal));
+            refundValue.setText((netRefund >= 0 ? "₱" : "-₱") + String.format("%.2f", Math.abs(netRefund)));
+            refundValue.setTextFill(netRefund >= 0 ? Color.web("#4CAF50") : Color.web("#F44336"));
+            
+            if (netRefund >= 0) {
+                refundLabel.setText("Net Refund:");
+            } else {
+                refundLabel.setText("Additional Payment:");
+            }
+        };
+        
+        // Listen to changes
+        returnControls.forEach(rc -> rc.setOnActionChanged(updateTotals));
+        exchangeItems.addListener((javafx.collections.ListChangeListener.Change<? extends com.coffeeshop.model.OrderItem> c) -> updateTotals.run());
+        
+        Scene scene = new Scene(root, 1200, 700);
+        dialogStage.setScene(scene);
+        dialogStage.showAndWait();
+    }
+
+    private void showProductSelector(Stage parentStage, javafx.collections.ObservableList<com.coffeeshop.model.OrderItem> exchangeItems, VBox container) {
+        // This will show a simple product selection dialog
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Add Exchange Item");
+        alert.setHeaderText("Product Selection");
+        alert.setContentText("Product selector coming soon!\nFor now, exchanges must be processed manually.");
+        alert.showAndWait();
+    }
+
+    private void processReturnExchange(Receipt originalReceipt, java.util.List<ReturnItemControl> returnControls, 
+                                      javafx.collections.ObservableList<com.coffeeshop.model.OrderItem> exchangeItems, Stage dialogStage) {
+        // Collect returned items
+        java.util.List<ReturnItemControl> itemsToReturn = returnControls.stream()
+            .filter(rc -> rc.getAction() != ReturnAction.KEEP)
+            .collect(java.util.stream.Collectors.toList());
+        
+        if (itemsToReturn.isEmpty() && exchangeItems.isEmpty()) {
+            showAlert("No Changes", "No items selected for return or exchange.", Alert.AlertType.WARNING);
+            return;
+        }
+        
+        // Create return transaction
+        String returnId = "RTN-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        com.coffeeshop.model.ReturnTransaction returnTx = new com.coffeeshop.model.ReturnTransaction(
+            returnId, 
+            originalReceipt.getReceiptId(),
+            currentCashierId != null ? currentCashierId : "CASHIER"
+        );
+        
+        returnTx.setOriginalTotal(originalReceipt.getTotalAmount());
+        
+        // Add returned items
+        for (ReturnItemControl rc : itemsToReturn) {
+            com.coffeeshop.model.ReturnTransaction.ReturnItem returnItem = 
+                new com.coffeeshop.model.ReturnTransaction.ReturnItem(
+                    rc.getItemData().productName,
+                    rc.getItemData().quantity,
+                    rc.getReason(),
+                    rc.getItemData().getSubtotal()
+                );
+            returnTx.addReturnedItem(returnItem);
+            
+            // Update inventory - add returned items back to stock
+            try {
+                // Find product by name
+                Product product = Store.getInstance().getProducts().stream()
+                    .filter(p -> p.getName().equals(rc.getItemData().productName))
+                    .findFirst()
+                    .orElse(null);
+                if (product != null) {
+                    Store.getInstance().refillProduct(product.getId(), rc.getItemData().quantity);
+                }
+            } catch (Exception ignored) {}
+        }
+        
+        // Add exchange items
+        for (com.coffeeshop.model.OrderItem exchangeItem : exchangeItems) {
+            returnTx.addExchangeItem(exchangeItem);
+            
+            // Update inventory - remove exchange items from stock (decrement stock)
+            try {
+                Product product = exchangeItem.getProduct();
+                if (product != null) {
+                    // Decrement by setting to current minus quantity
+                    int newStock = Math.max(0, product.getStock() - exchangeItem.getQuantity());
+                    product.setStock(newStock);
+                    Store.getInstance().saveData();
+                }
+            } catch (Exception ignored) {}
+        }
+        
+        // Calculate totals
+        returnTx.calculateTotals();
+        
+        // Save return transaction
+        TextDatabase.saveReturnTransaction(returnTx);
+        
+        // Generate return receipt
+        generateReturnReceipt(returnTx, originalReceipt);
+        
+        dialogStage.close();
+        
+        Alert success = new Alert(Alert.AlertType.INFORMATION);
+        success.setTitle("Success");
+        success.setHeaderText("Return/Exchange Processed");
+        success.setContentText(String.format(
+            "Return ID: %s\n" +
+            "Return Credit: ₱%.2f\n" +
+            "Exchange Total: ₱%.2f\n" +
+            "%s: ₱%.2f",
+            returnId,
+            returnTx.getReturnCredit(),
+            returnTx.getExchangeTotal(),
+            returnTx.getRefundAmount() >= 0 ? "Refund Amount" : "Additional Collected",
+            Math.abs(returnTx.getRefundAmount())
+        ));
+        success.showAndWait();
+    }
+
+    private void generateReturnReceipt(com.coffeeshop.model.ReturnTransaction returnTx, Receipt originalReceipt) {
+        StringBuilder receipt = new StringBuilder();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        
+        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("         BREWISE COFFEE SHOP\n");
+        receipt.append("        RETURN/EXCHANGE RECEIPT\n");
+        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("Return ID: ").append(returnTx.getReturnId()).append("\n");
+        receipt.append("Original Receipt: ").append(originalReceipt.getReceiptId()).append("\n");
+        receipt.append("Customer: ").append(originalReceipt.getUserName()).append("\n");
+        receipt.append("Cashier: ").append(returnTx.getCashierId()).append("\n");
+        receipt.append("Date: ").append(returnTx.getReturnTime().format(formatter)).append("\n");
+        receipt.append("═══════════════════════════════════════\n\n");
+        
+        if (!returnTx.getReturnedItems().isEmpty()) {
+            receipt.append("RETURNED ITEMS:\n");
+            receipt.append("───────────────────────────────────────\n");
+            for (com.coffeeshop.model.ReturnTransaction.ReturnItem item : returnTx.getReturnedItems()) {
+                receipt.append(String.format("- %-20s  -₱%.2f\n", item.getProductName(), item.getItemSubtotal()));
+                receipt.append("  Reason: ").append(item.getReason()).append("\n");
+            }
+            receipt.append("\n");
+        }
+        
+        if (!returnTx.getExchangeItems().isEmpty()) {
+            receipt.append("EXCHANGE ITEMS:\n");
+            receipt.append("───────────────────────────────────────\n");
+            for (com.coffeeshop.model.OrderItem item : returnTx.getExchangeItems()) {
+                receipt.append(String.format("+ %-20s  +₱%.2f\n", 
+                    item.getProduct().getName(), item.getSubtotal()));
+            }
+            receipt.append("\n");
+        }
+        
+        receipt.append("═══════════════════════════════════════\n");
+        receipt.append(String.format("Original Total:       ₱%.2f\n", returnTx.getOriginalTotal()));
+        receipt.append(String.format("Return Credit:       -₱%.2f\n", returnTx.getReturnCredit()));
+        receipt.append(String.format("Exchange Total:      +₱%.2f\n", returnTx.getExchangeTotal()));
+        receipt.append("───────────────────────────────────────\n");
+        if (returnTx.getRefundAmount() >= 0) {
+            receipt.append(String.format("REFUND DUE:          ₱%.2f\n", returnTx.getRefundAmount()));
+        } else {
+            receipt.append(String.format("PAYMENT COLLECTED:   ₱%.2f\n", Math.abs(returnTx.getRefundAmount())));
+        }
+        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("       Thank you for your patronage!\n");
+        receipt.append("═══════════════════════════════════════\n");
+        
+        System.out.println(receipt.toString());
+    }
+
+    // Helper enum and class for return dialog
+    private enum ReturnAction {
+        KEEP, REFUND, EXCHANGE
+    }
+
+    private class ReturnItemControl {
+        private VBox root;
+        private PendingOrder.OrderItemData itemData;
+        private ReturnAction action = ReturnAction.KEEP;
+        private String reason = "";
+        private Runnable onActionChanged;
+        
+        public ReturnItemControl(PendingOrder.OrderItemData itemData) {
+            this.itemData = itemData;
+            buildUI();
+        }
+        
+        private void buildUI() {
+            root = new VBox(10);
+            root.setPadding(new Insets(15));
+            root.setStyle("-fx-background-color: #f9f9f9; -fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8;");
+            
+            // Item info
+            Label itemName = new Label(itemData.productName);
+            itemName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+            
+            Label itemDetails = new Label(String.format("Qty: %d | Total: ₱%.2f", 
+                itemData.quantity, itemData.getSubtotal()));
+            itemDetails.setFont(Font.font("Segoe UI", 12));
+            itemDetails.setTextFill(Color.web("#666"));
+            
+            // Action selection
+            HBox actionBox = new HBox(10);
+            actionBox.setAlignment(Pos.CENTER_LEFT);
+            
+            ToggleGroup actionGroup = new ToggleGroup();
+            
+            RadioButton keepBtn = new RadioButton("Keep");
+            keepBtn.setToggleGroup(actionGroup);
+            keepBtn.setSelected(true);
+            keepBtn.setOnAction(e -> {
+                action = ReturnAction.KEEP;
+                if (onActionChanged != null) onActionChanged.run();
+            });
+            
+            RadioButton refundBtn = new RadioButton("Refund");
+            refundBtn.setToggleGroup(actionGroup);
+            refundBtn.setOnAction(e -> {
+                action = ReturnAction.REFUND;
+                showReasonDialog();
+                if (onActionChanged != null) onActionChanged.run();
+            });
+            
+            RadioButton exchangeBtn = new RadioButton("Exchange");
+            exchangeBtn.setToggleGroup(actionGroup);
+            exchangeBtn.setOnAction(e -> {
+                action = ReturnAction.EXCHANGE;
+                showReasonDialog();
+                if (onActionChanged != null) onActionChanged.run();
+            });
+            
+            actionBox.getChildren().addAll(keepBtn, refundBtn, exchangeBtn);
+            root.getChildren().addAll(itemName, itemDetails, actionBox);
+        }
+        
+        private void showReasonDialog() {
+            ChoiceDialog<String> dialog = new ChoiceDialog<>("Wrong item ordered", 
+                "Wrong item ordered",
+                "Defective/Quality issue",
+                "Wrong size/temperature",
+                "Customer changed mind",
+                "Wrong customization",
+                "Other"
+            );
+            dialog.setTitle("Return Reason");
+            dialog.setHeaderText("Select reason for return:");
+            dialog.setContentText("Reason:");
+            
+            dialog.showAndWait().ifPresent(r -> reason = r);
+        }
+        
+        public VBox getRoot() {
+            return root;
+        }
+        
+        public PendingOrder.OrderItemData getItemData() {
+            return itemData;
+        }
+        
+        public ReturnAction getAction() {
+            return action;
+        }
+        
+        public String getReason() {
+            return reason;
+        }
+        
+        public void setOnActionChanged(Runnable callback) {
+            this.onActionChanged = callback;
         }
     }
 
