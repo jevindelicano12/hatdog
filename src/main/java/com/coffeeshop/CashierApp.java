@@ -548,8 +548,13 @@ public class CashierApp extends Application {
         }
         
         receipt.append("───────────────────────────────────────\n");
-        receipt.append(String.format("Subtotal:         ₱%.2f\n", order.getTotalAmount()));
-        receipt.append(String.format("TOTAL:            ₱%.2f\n", order.getTotalAmount()));
+        // Calculate VAT breakdown (assume order.getTotalAmount() includes VAT)
+        double total = order.getTotalAmount();
+        double subtotal = total / 1.12; // remove 12% VAT to get base
+        double vat = total - subtotal;
+        receipt.append(String.format("Subtotal:         ₱%.2f\n", subtotal));
+        receipt.append(String.format("VAT (12%%):        ₱%.2f\n", vat));
+        receipt.append(String.format("TOTAL:            ₱%.2f\n", total));
 
         // Show cash paid and change immediately below the TOTAL
         receipt.append("───────────────────────────────────────\n");
@@ -877,145 +882,312 @@ public class CashierApp extends Application {
     private boolean showCashPaymentDialog(PendingOrder po) {
         Dialog<Boolean> dialog = new Dialog<>();
         dialog.setTitle("Cash Payment");
-        dialog.setHeaderText("Process Payment for Order: " + po.getOrderId());
+        dialog.setHeaderText(null);
         
-        // Dialog content
-        GridPane grid = new GridPane();
-        grid.setHgap(18);
-        grid.setVgap(18);
-        grid.setPadding(new Insets(25));
-        grid.setStyle("-fx-background-color: linear-gradient(to bottom, #FFFFFF, #F8F9FA); -fx-background-radius: 12;");
+        // Calculate VAT (12%)
+        double subtotal = po.getTotalAmount() / 1.12; // Remove VAT to get subtotal
+        double vatAmount = po.getTotalAmount() - subtotal;
+        double totalWithVat = po.getTotalAmount();
         
-        // Total amount label
-        Label totalLabel = new Label("💰 Total Amount:");
-        totalLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        totalLabel.setTextFill(Color.web("#2C3E50"));
+        // Main container with split layout
+        HBox mainContainer = new HBox(0);
+        mainContainer.setPrefSize(700, 500);
+        mainContainer.setStyle("-fx-background-color: white;");
         
-        Label totalValue = new Label("₱" + String.format("%.2f", po.getTotalAmount()));
-        totalValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
-        totalValue.setTextFill(Color.web("#E74C3C"));
-        totalValue.setStyle("-fx-padding: 10; -fx-background-color: #FADBD8; -fx-background-radius: 8;");
+        // LEFT PANEL - Payment Details
+        VBox leftPanel = new VBox(20);
+        leftPanel.setPrefWidth(350);
+        leftPanel.setPadding(new Insets(40, 30, 40, 30));
+        leftPanel.setStyle("-fx-background-color: white;");
         
-        // Cash received field
-        Label cashLabel = new Label("💵 Cash Received:");
-        cashLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        cashLabel.setTextFill(Color.web("#2C3E50"));
+        // Back arrow
+        Label backArrow = new Label("← PAYMENT DETAILS");
+        backArrow.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        backArrow.setTextFill(Color.web("#6B7280"));
+        backArrow.setCursor(javafx.scene.Cursor.HAND);
         
-        TextField cashField = new TextField();
-        cashField.setPromptText("Enter cash amount");
-        cashField.setPrefWidth(250);
-        cashField.setStyle("-fx-font-size: 18px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8;");
+        // Total amount section
+        Label totalAmountLabel = new Label("₱" + String.format("%.2f", totalWithVat));
+        totalAmountLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 48));
+        totalAmountLabel.setTextFill(Color.web("#111827"));
         
-        // Change label
-        Label changeLabel = new Label("💸 Change:");
-        changeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        changeLabel.setTextFill(Color.web("#2C3E50"));
+        Label totalDueLabel = new Label("Total Amount Due");
+        totalDueLabel.setFont(Font.font("Segoe UI", 16));
+        totalDueLabel.setTextFill(Color.web("#6B7280"));
         
+        VBox totalSection = new VBox(8);
+        totalSection.getChildren().addAll(totalAmountLabel, totalDueLabel);
+        
+        // Breakdown section
+        VBox breakdownBox = new VBox(12);
+        breakdownBox.setPadding(new Insets(20));
+        breakdownBox.setStyle("-fx-background-color: #F9FAFB; -fx-background-radius: 12;");
+        
+        HBox itemsRow = new HBox();
+        HBox.setHgrow(itemsRow, Priority.ALWAYS);
+        Label itemsLabel = new Label("Items (" + po.getItems().size() + ")");
+        itemsLabel.setFont(Font.font("Segoe UI", 14));
+        itemsLabel.setTextFill(Color.web("#374151"));
+        Region spacer1 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        Label itemsValue = new Label("₱" + String.format("%.2f", subtotal));
+        itemsValue.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        itemsValue.setTextFill(Color.web("#111827"));
+        itemsRow.getChildren().addAll(itemsLabel, spacer1, itemsValue);
+        
+        HBox vatRow = new HBox();
+        HBox.setHgrow(vatRow, Priority.ALWAYS);
+        Label vatLabel = new Label("VAT (12%)");
+        vatLabel.setFont(Font.font("Segoe UI", 14));
+        vatLabel.setTextFill(Color.web("#374151"));
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+        Label vatValue = new Label("₱" + String.format("%.2f", vatAmount));
+        vatValue.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        vatValue.setTextFill(Color.web("#111827"));
+        vatRow.getChildren().addAll(vatLabel, spacer2, vatValue);
+        
+        Separator separator = new Separator();
+        separator.setPadding(new Insets(8, 0, 8, 0));
+        
+        HBox totalRow = new HBox();
+        HBox.setHgrow(totalRow, Priority.ALWAYS);
+        Label totalLabel = new Label("Total");
+        totalLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        totalLabel.setTextFill(Color.web("#111827"));
+        Region spacer3 = new Region();
+        HBox.setHgrow(spacer3, Priority.ALWAYS);
+        Label totalValue = new Label("₱" + String.format("%.2f", totalWithVat));
+        totalValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        totalValue.setTextFill(Color.web("#4F46E5"));
+        totalRow.getChildren().addAll(totalLabel, spacer3, totalValue);
+        
+        breakdownBox.getChildren().addAll(itemsRow, vatRow, separator, totalRow);
+
+        // Change display (updates live) with short/notes
+        HBox changeRow = new HBox();
+        changeRow.setPadding(new Insets(12, 0, 0, 0));
+        changeRow.setAlignment(Pos.CENTER_LEFT);
+        
+        // Left: 'Change' label and small note (for "Short")
+        VBox changeBoxLeft = new VBox(4);
+        Label changeLabel = new Label("Change");
+        changeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        changeLabel.setTextFill(Color.web("#374151"));
+        Label changeNote = new Label("");
+        changeNote.setFont(Font.font("Segoe UI", 11));
+        changeNote.setTextFill(Color.web("#DC2626"));
+        changeBoxLeft.getChildren().addAll(changeLabel, changeNote);
+
+        Region changeSpacer = new Region();
+        HBox.setHgrow(changeSpacer, Priority.ALWAYS);
         Label changeValue = new Label("₱0.00");
-        changeValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
-        changeValue.setTextFill(Color.web("#27AE60"));
-        changeValue.setStyle("-fx-padding: 10; -fx-background-color: #D5F4E6; -fx-background-radius: 8;");
+        changeValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        changeValue.setTextFill(Color.web("#10B981"));
+        changeRow.getChildren().addAll(changeBoxLeft, changeSpacer, changeValue);
+
+        // Payment required notice
+        HBox noticeBox = new HBox(10);
+        noticeBox.setPadding(new Insets(12, 16, 12, 16));
+        noticeBox.setAlignment(Pos.CENTER_LEFT);
+        noticeBox.setStyle("-fx-background-color: #FEF3C7; -fx-background-radius: 8;");
+        Label noticeIcon = new Label("💵");
+        noticeIcon.setFont(Font.font(16));
+        Label noticeText = new Label("Payment Required\nPlease enter cash amount received.");
+        noticeText.setFont(Font.font("Segoe UI", 12));
+        noticeText.setTextFill(Color.web("#92400E"));
+        noticeBox.getChildren().addAll(noticeIcon, noticeText);
+
+        leftPanel.getChildren().addAll(backArrow, totalSection, breakdownBox, changeRow, noticeBox);
         
-        // Error message label
-        Label errorLabel = new Label("");
-        errorLabel.setFont(Font.font("Segoe UI", 12));
-        errorLabel.setTextFill(Color.web("#D32F2F"));
-        errorLabel.setVisible(false);
+        // RIGHT PANEL - Amount Input and Numpad
+        VBox rightPanel = new VBox(20);
+        rightPanel.setPrefWidth(350);
+        rightPanel.setPadding(new Insets(40, 30, 40, 30));
+        rightPanel.setStyle("-fx-background-color: #F9FAFB;");
         
-        // Calculate change when cash amount changes
-        cashField.textProperty().addListener((obs, oldVal, newVal) -> {
-            try {
-                if (newVal == null || newVal.trim().isEmpty()) {
-                    changeValue.setText("₱0.00");
-                    errorLabel.setVisible(false);
-                    return;
-                }
+        Label amountTenderedLabel = new Label("AMOUNT TENDERED");
+        amountTenderedLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        amountTenderedLabel.setTextFill(Color.web("#9CA3AF"));
+        
+        TextField amountField = new TextField("0.00");
+        amountField.setFont(Font.font("Segoe UI", FontWeight.BOLD, 40));
+        amountField.setStyle("-fx-background-color: transparent; -fx-text-fill: #D1D5DB; -fx-border-width: 0; -fx-padding: 0;");
+        amountField.setPrefHeight(60);
+        amountField.setEditable(false);
+        
+        // Quick amount buttons
+        HBox quickAmounts = new HBox(10);
+        String[] amounts = {"₱5", "₱10", "₱20", "₱50"};
+        for (String amt : amounts) {
+            Button btn = new Button(amt);
+            btn.setPrefSize(70, 36);
+            btn.setStyle("-fx-background-color: #E0E7FF; -fx-text-fill: #4F46E5; -fx-font-weight: 600; -fx-font-size: 13px; -fx-background-radius: 8; -fx-border-width: 0; -fx-cursor: hand;");
+            btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #C7D2FE; -fx-text-fill: #4F46E5; -fx-font-weight: 600; -fx-font-size: 13px; -fx-background-radius: 8; -fx-border-width: 0; -fx-cursor: hand;"));
+            btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #E0E7FF; -fx-text-fill: #4F46E5; -fx-font-weight: 600; -fx-font-size: 13px; -fx-background-radius: 8; -fx-border-width: 0; -fx-cursor: hand;"));
+            int value = Integer.parseInt(amt.substring(1));
+            btn.setOnAction(e -> {
+                String current = amountField.getText().equals("0.00") ? "" : amountField.getText();
+                double newAmount = (current.isEmpty() ? 0 : Double.parseDouble(current)) + value;
+                amountField.setText(String.format("%.2f", newAmount));
+                amountField.setStyle("-fx-background-color: transparent; -fx-text-fill: #111827; -fx-border-width: 0; -fx-padding: 0; -fx-font-size: 40px; -fx-font-weight: bold;");
+            });
+            quickAmounts.getChildren().add(btn);
+        }
+        
+        // Numpad
+        GridPane numpad = new GridPane();
+        numpad.setHgap(12);
+        numpad.setVgap(12);
+        numpad.setAlignment(Pos.CENTER);
+        
+        String[][] keys = {
+            {"1", "2", "3"},
+            {"4", "5", "6"},
+            {"7", "8", "9"},
+            {".", "0", "⌫"}
+        };
+        
+        for (int row = 0; row < keys.length; row++) {
+            for (int col = 0; col < keys[row].length; col++) {
+                String key = keys[row][col];
+                Button btn = new Button(key);
+                btn.setPrefSize(80, 60);
                 
-                double cashReceived = Double.parseDouble(newVal.trim());
-                double total = po.getTotalAmount();
-                double change = cashReceived - total;
-                
-                if (change < 0) {
-                    changeValue.setText("₱0.00");
-                    changeValue.setTextFill(Color.web("#D32F2F"));
-                    errorLabel.setText("Insufficient cash amount!");
-                    errorLabel.setVisible(true);
+                if (key.equals("⌫")) {
+                    btn.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #DC2626; -fx-font-size: 22px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;");
+                    btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #FECACA; -fx-text-fill: #DC2626; -fx-font-size: 22px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;"));
+                    btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #DC2626; -fx-font-size: 22px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;"));
                 } else {
-                    changeValue.setText("₱" + String.format("%.2f", change));
-                    changeValue.setTextFill(Color.web("#4CAF50"));
-                    errorLabel.setVisible(false);
+                    btn.setStyle("-fx-background-color: #E5E7EB; -fx-text-fill: #1F2937; -fx-font-size: 20px; -fx-font-weight: 600; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;");
+                    btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #D1D5DB; -fx-text-fill: #1F2937; -fx-font-size: 20px; -fx-font-weight: 600; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;"));
+                    btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #E5E7EB; -fx-text-fill: #1F2937; -fx-font-size: 20px; -fx-font-weight: 600; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;"));
                 }
-            } catch (NumberFormatException e) {
-                changeValue.setText("₱0.00");
-                errorLabel.setText("Invalid amount!");
-                errorLabel.setVisible(true);
-            }
-        });
-        
-        // Add components to grid
-        grid.add(totalLabel, 0, 0);
-        grid.add(totalValue, 1, 0);
-        grid.add(new Separator(), 0, 1, 2, 1);
-        grid.add(cashLabel, 0, 2);
-        grid.add(cashField, 1, 2);
-        grid.add(changeLabel, 0, 3);
-        grid.add(changeValue, 1, 3);
-        grid.add(errorLabel, 0, 4, 2, 1);
-        
-        dialog.getDialogPane().setContent(grid);
-        
-        // Add buttons
-        ButtonType confirmButtonType = new ButtonType("Confirm Payment", ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-        dialog.getDialogPane().getButtonTypes().addAll(confirmButtonType, cancelButtonType);
-        
-        // Style the buttons
-        Button confirmButton = (Button) dialog.getDialogPane().lookupButton(confirmButtonType);
-        confirmButton.setStyle("-fx-background-color: linear-gradient(to right, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12 30; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
-        
-        Button cancelButton = (Button) dialog.getDialogPane().lookupButton(cancelButtonType);
-        cancelButton.setStyle("-fx-background-color: linear-gradient(to right, #95A5A6, #7F8C8D); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 12 30; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
-        
-        // Disable confirm button initially
-        confirmButton.setDisable(true);
-        
-        // Enable confirm button only when cash is sufficient
-        cashField.textProperty().addListener((obs, oldVal, newVal) -> {
-            try {
-                if (newVal == null || newVal.trim().isEmpty()) {
-                    confirmButton.setDisable(true);
-                    return;
-                }
-                double cashReceived = Double.parseDouble(newVal.trim());
-                confirmButton.setDisable(cashReceived < po.getTotalAmount());
-            } catch (NumberFormatException e) {
-                confirmButton.setDisable(true);
-            }
-        });
-        
-        // Focus on cash field
-        Platform.runLater(() -> cashField.requestFocus());
-        
-        // Result converter
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == confirmButtonType) {
-                try {
-                    double cashReceived = Double.parseDouble(cashField.getText().trim());
-                    if (cashReceived >= po.getTotalAmount()) {
-                        // record amounts for receipt
-                        lastCashReceived = cashReceived;
-                        lastChange = cashReceived - po.getTotalAmount();
-                        return true;
+                
+                btn.setOnAction(e -> {
+                    String current = amountField.getText();
+                    if (current.equals("0.00")) current = "";
+                    
+                    if (key.equals("⌫")) {
+                        if (!current.isEmpty()) {
+                            current = current.substring(0, current.length() - 1);
+                            if (current.isEmpty()) current = "0.00";
+                        }
+                    } else if (key.equals(".")) {
+                        if (!current.contains(".")) {
+                            current += ".";
+                        }
+                    } else {
+                        current += key;
                     }
-                } catch (NumberFormatException e) {
-                    return false;
-                }
+                    
+                    amountField.setText(current.isEmpty() ? "0.00" : current);
+                    if (!amountField.getText().equals("0.00")) {
+                        amountField.setStyle("-fx-background-color: transparent; -fx-text-fill: #111827; -fx-border-width: 0; -fx-padding: 0; -fx-font-size: 40px; -fx-font-weight: bold;");
+                    }
+                });
+                
+                numpad.add(btn, col, row);
             }
-            return false;
+        }
+        
+        // Exact Amount button
+        Button exactBtn = new Button("Exact Amount");
+        exactBtn.setPrefSize(272, 50);
+        exactBtn.setStyle("-fx-background-color: #1F2937; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;");
+        exactBtn.setOnMouseEntered(e -> exactBtn.setStyle("-fx-background-color: #111827; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;"));
+        exactBtn.setOnMouseExited(e -> exactBtn.setStyle("-fx-background-color: #1F2937; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;"));
+        exactBtn.setOnAction(e -> {
+            amountField.setText(String.format("%.2f", totalWithVat));
+            amountField.setStyle("-fx-background-color: transparent; -fx-text-fill: #111827; -fx-border-width: 0; -fx-padding: 0; -fx-font-size: 40px; -fx-font-weight: bold;");
         });
         
-        // Show dialog and return result
-        return dialog.showAndWait().orElse(false);
+        // Complete Transaction button
+        Button completeBtn = new Button("Complete\nTRANSACTION");
+        completeBtn.setPrefSize(272, 60);
+        completeBtn.setStyle("-fx-background-color: #D1D5DB; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;");
+        completeBtn.setDisable(true);
+        
+        // Update complete button state and live change display
+        amountField.textProperty().addListener((obs, oldVal, newVal) -> {
+            try {
+                double entered = 0;
+                if (newVal != null && !newVal.trim().isEmpty() && !newVal.equals("0.00")) {
+                    // sanitize trailing dot
+                    String sanitized = newVal.endsWith(".") ? newVal.substring(0, newVal.length()-1) : newVal;
+                    entered = Double.parseDouble(sanitized);
+                }
+                double change = entered - totalWithVat;
+                if (change < 0) {
+                    // Insufficient: show short note and zero change
+                    changeValue.setText("₱0.00");
+                    changeValue.setTextFill(Color.web("#DC2626"));
+                    changeNote.setText("Short ₱" + String.format("%.2f", Math.abs(change)));
+                    changeNote.setTextFill(Color.web("#DC2626"));
+                } else {
+                    // Sufficient: show positive change and clear short note
+                    changeValue.setText("₱" + String.format("%.2f", change));
+                    changeValue.setTextFill(Color.web("#10B981"));
+                    changeNote.setText("");
+                }
+
+                if (entered >= totalWithVat) {
+                    completeBtn.setDisable(false);
+                    completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;");
+                } else {
+                    completeBtn.setDisable(true);
+                    completeBtn.setStyle("-fx-background-color: #D1D5DB; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;");
+                }
+            } catch (Exception ex) {
+                completeBtn.setDisable(true);
+                completeBtn.setStyle("-fx-background-color: #D1D5DB; -fx-text-fill: white; -fx-font-size: 13px; -fx-font-weight: 600; -fx-background-radius: 10; -fx-cursor: hand;");
+                changeValue.setText("₱0.00");
+                changeValue.setTextFill(Color.web("#10B981"));
+            }
+        });
+        
+        rightPanel.getChildren().addAll(amountTenderedLabel, amountField, quickAmounts, numpad, exactBtn, completeBtn);
+        
+        mainContainer.getChildren().addAll(leftPanel, rightPanel);
+        dialog.getDialogPane().setContent(mainContainer);
+        
+        // Add buttons (hidden, controlled by custom buttons)
+        ButtonType okType = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(okType, cancelType);
+        
+        // Hide default buttons
+        dialog.getDialogPane().lookupButton(okType).setVisible(false);
+        dialog.getDialogPane().lookupButton(cancelType).setVisible(false);
+        
+        // Wire up custom buttons
+        final boolean[] result = {false};
+        completeBtn.setOnAction(e -> {
+            try {
+                double cashReceived = Double.parseDouble(amountField.getText());
+                if (cashReceived >= totalWithVat) {
+                    lastCashReceived = cashReceived;
+                    lastChange = cashReceived - totalWithVat;
+                    result[0] = true;
+                    dialog.setResult(true);
+                    dialog.close();
+                }
+            } catch (Exception ex) {
+                // Invalid input
+            }
+        });
+        
+        backArrow.setOnMouseClicked(e -> {
+            result[0] = false;
+            dialog.close();
+        });
+        
+        // Remove default dialog styling
+        dialog.getDialogPane().setStyle("-fx-background-color: white; -fx-padding: 0;");
+        dialog.setResizable(false);
+        
+        dialog.showAndWait();
+        return result[0];
     }
 
     private void markReady(PendingOrder po) {
@@ -2005,9 +2177,15 @@ public class CashierApp extends Application {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             details.append("Date: ").append(receipt.getReceiptTime().format(formatter)).append("\n");
             details.append("───────────────────────────────────────\n");
-            details.append("Total Amount: ₱").append(String.format("%.2f", receipt.getTotalAmount())).append("\n");
-            details.append("Cash Paid: ₱").append(String.format("%.2f", receipt.getCashPaid())).append("\n");
-            details.append("Change: ₱").append(String.format("%.2f", receipt.getChange())).append("\n");
+            // Show VAT breakdown if possible (assume total includes VAT)
+            double totalAmt = receipt.getTotalAmount();
+            double subtotalAmt = totalAmt / 1.12;
+            double vatAmt = totalAmt - subtotalAmt;
+            details.append(String.format("Subtotal:      ₱%.2f\n", subtotalAmt));
+            details.append(String.format("VAT (12%%):     ₱%.2f\n", vatAmt));
+            details.append(String.format("TOTAL:         ₱%.2f\n", totalAmt));
+            details.append(String.format("Cash Paid:     ₱%.2f\n", receipt.getCashPaid()));
+            details.append(String.format("Change:        ₱%.2f\n", receipt.getChange()));
             details.append("═══════════════════════════════════════\n");
             details.append("       Thank you for your order!\n");
             details.append("═══════════════════════════════════════\n");

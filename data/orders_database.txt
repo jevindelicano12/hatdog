@@ -43,3 +43,10 @@ a36a3440|james|2025-11-26 00:20:25|boydila|Regular|Hot
 d8b99576|ASasA|2025-11-26 00:48:22|boydila|Regular|Hot
 7089a5ab|JADAJDAS|2025-11-26 01:28:48|Cappuccino|Regular|Hot
 aeebb90d|hatdogsese|2025-11-26 03:13:46|Cappuccino|Regular|Hot
+bf2d3fa7|TUTOP|2025-11-26 04:03:23|Cappuccino|Regular|Hot
+37e19b0f|chupchup|2025-11-26 04:13:34|Cappuccino|Regular|Hot
+6fc5d049|oaSBDjASd|2025-11-26 04:15:22|boydila|Regular|Hot
+fbbda866|asdjioasihdoasd|2025-11-26 04:32:46|Croissants|Regular|Hot
+fbbda866|asdjioasihdoasd|2025-11-26 04:32:46|Iced Frappe|Regular|Hot
+fbbda866|asdjioasihdoasd|2025-11-26 04:32:46|Latte|Regular|Hot
+0a5146ba|asdasd|2025-11-26 04:38:34|Cappuccino|Regular|Hot
