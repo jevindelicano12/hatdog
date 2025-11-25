@@ -120,7 +120,12 @@ public class CashierApp extends Application {
         receiptHistoryTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         receiptHistoryTab.setContent(createReceiptHistoryPanel());
         
-        // Tab 4: Reports / Dashboard
+        // Tab 4: Complaints
+        Tab complaintsTab = new Tab("   📝 Complaints   ");
+        complaintsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
+        complaintsTab.setContent(createComplaintsPanel());
+        
+        // Tab 5: Reports / Dashboard
         Tab reportsTab = new Tab("   📊 Dashboard   ");
         reportsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         reportsTab.setContent(createDashboardPanel());
@@ -132,7 +137,7 @@ public class CashierApp extends Application {
             }
         });
 
-        tabPane.getTabs().addAll(ordersTab, returnsTab, receiptHistoryTab, reportsTab);
+        tabPane.getTabs().addAll(ordersTab, returnsTab, receiptHistoryTab, complaintsTab, reportsTab);
         
         rootPane.setCenter(tabPane);
 
@@ -760,7 +765,7 @@ public class CashierApp extends Application {
 
         String receiptId = "RCP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         // Use recorded cash/payment values from the payment dialog so receipt shows real cash/change
-        Receipt receipt = new Receipt(receiptId, order.getOrderId(), customerName, order.getTotalAmount(), lastCashReceived, lastChange);
+        Receipt receipt = new Receipt(receiptId, order.getOrderId(), customerName, currentCashierId, order.getTotalAmount(), lastCashReceived, lastChange);
         receipt.setReceiptContent(receiptContent);
         TextDatabase.saveReceipt(receipt);
         receiptHistory.add(0, receipt);
@@ -1977,6 +1982,224 @@ public class CashierApp extends Application {
         
         // Open the return/exchange dialog
         showReturnExchangeDialog(receipt);
+    }
+    
+    // ==================== COMPLAINTS PANEL ====================
+    
+    private ScrollPane createComplaintsPanel() {
+        VBox panel = new VBox(30);
+        panel.setPadding(new Insets(40));
+        panel.setStyle("-fx-background-color: #f8f9fa;");
+        panel.setAlignment(Pos.TOP_CENTER);
+        
+        // Header
+        Label title = new Label("📝 Order Complaints");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        title.setTextFill(Color.web("#3b82f6"));
+        
+        Label subtitle = new Label("Submit and manage customer complaints for order issues");
+        subtitle.setFont(Font.font("Segoe UI", 16));
+        subtitle.setTextFill(Color.web("#6c757d"));
+        
+        // Main card
+        VBox card = new VBox(25);
+        card.setMaxWidth(700);
+        card.setPadding(new Insets(40));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5);");
+        card.setAlignment(Pos.TOP_LEFT);
+        
+        // Icon
+        Label icon = new Label("📋");
+        icon.setFont(Font.font(80));
+        icon.setAlignment(Pos.CENTER);
+        VBox iconBox = new VBox(icon);
+        iconBox.setAlignment(Pos.CENTER);
+        
+        // Order ID input
+        VBox orderIdBox = new VBox(10);
+        Label orderIdLabel = new Label("Order ID: *");
+        orderIdLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        orderIdLabel.setTextFill(Color.web("#374151"));
+        
+        TextField orderIdField = new TextField();
+        orderIdField.setPromptText("e.g., e10b8209 or 915a2be6");
+        orderIdField.setStyle("-fx-font-size: 16px; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-width: 2; -fx-border-radius: 8;");
+        orderIdBox.getChildren().addAll(orderIdLabel, orderIdField);
+        
+        // Customer name input
+        VBox customerBox = new VBox(10);
+        Label customerLabel = new Label("Customer Name: *");
+        customerLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        customerLabel.setTextFill(Color.web("#374151"));
+        
+        TextField customerField = new TextField();
+        customerField.setPromptText("Customer name");
+        customerField.setStyle("-fx-font-size: 16px; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-width: 2; -fx-border-radius: 8;");
+        customerBox.getChildren().addAll(customerLabel, customerField);
+        
+        // Issue type dropdown
+        VBox issueTypeBox = new VBox(10);
+        Label issueTypeLabel = new Label("Issue Type: *");
+        issueTypeLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        issueTypeLabel.setTextFill(Color.web("#374151"));
+        
+        ComboBox<String> issueTypeCombo = new ComboBox<>();
+        issueTypeCombo.setPromptText("Select issue type");
+        issueTypeCombo.getItems().addAll(
+            "Wrong Order",
+            "Missing Items",
+            "Quality Issue",
+            "Temperature Issue",
+            "Taste/Flavor Issue",
+            "Service Issue",
+            "Other"
+        );
+        issueTypeCombo.setStyle("-fx-font-size: 16px; -fx-padding: 8;");
+        issueTypeCombo.setPrefWidth(Double.MAX_VALUE);
+        issueTypeBox.getChildren().addAll(issueTypeLabel, issueTypeCombo);
+        
+        // Description text area
+        VBox descBox = new VBox(10);
+        Label descLabel = new Label("Description: *");
+        descLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        descLabel.setTextFill(Color.web("#374151"));
+        
+        TextArea descArea = new TextArea();
+        descArea.setPromptText("Please describe the issue in detail...");
+        descArea.setPrefRowCount(5);
+        descArea.setWrapText(true);
+        descArea.setStyle("-fx-font-size: 14px; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #e0e0e0; -fx-border-width: 2; -fx-border-radius: 8;");
+        descBox.getChildren().addAll(descLabel, descArea);
+        
+        // Submit button
+        Button submitBtn = new Button("Submit Complaint");
+        submitBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;");
+        submitBtn.setPrefWidth(Double.MAX_VALUE);
+        submitBtn.setOnMouseEntered(e -> submitBtn.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;"));
+        submitBtn.setOnMouseExited(e -> submitBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15 40; -fx-background-radius: 8; -fx-cursor: hand;"));
+        submitBtn.setOnAction(e -> {
+            String orderId = orderIdField.getText().trim();
+            String customer = customerField.getText().trim();
+            String issueType = issueTypeCombo.getValue();
+            String description = descArea.getText().trim();
+            
+            // Validation
+            if (orderId.isEmpty()) {
+                showAlert("Validation Error", "Please enter an Order ID.", Alert.AlertType.WARNING);
+                return;
+            }
+            if (customer.isEmpty()) {
+                showAlert("Validation Error", "Please enter the customer name.", Alert.AlertType.WARNING);
+                return;
+            }
+            if (issueType == null || issueType.isEmpty()) {
+                showAlert("Validation Error", "Please select an issue type.", Alert.AlertType.WARNING);
+                return;
+            }
+            if (description.isEmpty()) {
+                showAlert("Validation Error", "Please provide a description of the issue.", Alert.AlertType.WARNING);
+                return;
+            }
+            
+            // Check if order exists
+            Receipt receipt = receiptHistory.stream()
+                .filter(r -> r.getOrderId().equalsIgnoreCase(orderId))
+                .findFirst()
+                .orElse(null);
+            
+            if (receipt == null) {
+                Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                confirmAlert.setTitle("Order Not Found");
+                confirmAlert.setHeaderText("Cannot verify Order ID");
+                confirmAlert.setContentText("Order ID \"" + orderId + "\" was not found in receipt history.\nDo you want to submit the complaint anyway?");
+                
+                java.util.Optional<ButtonType> result = confirmAlert.showAndWait();
+                if (result.isEmpty() || result.get() != ButtonType.OK) {
+                    return;
+                }
+            }
+            
+            // Save complaint (for now, just show confirmation)
+            // In a real system, you would save this to a database or file
+            String complaintRecord = String.format(
+                "Complaint Submitted:\n" +
+                "Date: %s\n" +
+                "Order ID: %s\n" +
+                "Customer: %s\n" +
+                "Issue Type: %s\n" +
+                "Description: %s\n" +
+                "Cashier: %s",
+                java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                orderId,
+                customer,
+                issueType,
+                description,
+                currentCashierId != null ? currentCashierId : "Unknown"
+            );
+            
+            // Show success dialog with complaint details
+            Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+            successAlert.setTitle("Complaint Submitted");
+            successAlert.setHeaderText("✅ Complaint filed successfully");
+            successAlert.setContentText(complaintRecord);
+            successAlert.showAndWait();
+            
+            // Clear form
+            orderIdField.clear();
+            customerField.clear();
+            issueTypeCombo.setValue(null);
+            descArea.clear();
+        });
+        
+        // Clear button
+        Button clearBtn = new Button("Clear Form");
+        clearBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 12 30; -fx-cursor: hand; -fx-font-size: 14px;");
+        clearBtn.setPrefWidth(Double.MAX_VALUE);
+        clearBtn.setOnAction(e -> {
+            orderIdField.clear();
+            customerField.clear();
+            issueTypeCombo.setValue(null);
+            descArea.clear();
+        });
+        
+        HBox buttonBox = new HBox(15);
+        buttonBox.getChildren().addAll(clearBtn, submitBtn);
+        HBox.setHgrow(clearBtn, Priority.ALWAYS);
+        HBox.setHgrow(submitBtn, Priority.ALWAYS);
+        
+        // Info box
+        VBox infoBox = new VBox(10);
+        infoBox.setMaxWidth(700);
+        infoBox.setPadding(new Insets(20));
+        infoBox.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 10; -fx-border-color: #3b82f6; -fx-border-width: 1; -fx-border-radius: 10;");
+        
+        Label infoTitle = new Label("ℹ️ Complaint Guidelines");
+        infoTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        infoTitle.setTextFill(Color.web("#1e40af"));
+        
+        Label infoText = new Label(
+            "• Verify the Order ID from the customer's receipt\n" +
+            "• Document all relevant details about the issue\n" +
+            "• Be professional and empathetic when handling complaints\n" +
+            "• Follow up with management for resolution tracking"
+        );
+        infoText.setFont(Font.font("Segoe UI", 12));
+        infoText.setTextFill(Color.web("#6c757d"));
+        infoText.setWrapText(true);
+        
+        infoBox.getChildren().addAll(infoTitle, infoText);
+        
+        card.getChildren().addAll(iconBox, orderIdBox, customerBox, issueTypeBox, descBox, buttonBox);
+        panel.getChildren().addAll(title, subtitle, card, infoBox);
+        
+        // Wrap in ScrollPane for scrollability
+        ScrollPane scrollPane = new ScrollPane(panel);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: #f8f9fa; -fx-background: #f8f9fa;");
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        
+        return scrollPane;
     }
     
     // ==================== RECEIPT HISTORY PANEL ====================
