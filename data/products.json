@@ -3,7 +3,6 @@
     "id": "P003",
     "name": "Latte",
     "price": 50.0,
-    "stock": 5,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
@@ -15,7 +14,6 @@
     "id": "P004",
     "name": "Matcha Latte",
     "price": 30.0,
-    "stock": 15,
     "recipe": {
       "Milk": 200.0
     },
@@ -25,7 +23,6 @@
     "id": "P005",
     "name": "Mocha",
     "price": 5.25,
-    "stock": 19,
     "recipe": {
       "Water": 30.0,
       "Coffee Beans": 18.0,
@@ -38,7 +35,6 @@
     "id": "P006",
     "name": "Iced Frappe",
     "price": 4.5,
-    "stock": 18,
     "recipe": {
       "Milk": 200.0,
       "Coffee Beans": 15.0,
@@ -50,7 +46,6 @@
     "id": "P007",
     "name": "Mango Frappe",
     "price": 5.0,
-    "stock": 20,
     "recipe": {
       "Milk": 200.0,
       "Mango Puree": 50.0,
@@ -62,7 +57,6 @@
     "id": "P008",
     "name": "Strawberry",
     "price": 4.0,
-    "stock": 20,
     "recipe": {
       "Tea Leaves": 5.0
     },
@@ -72,7 +66,6 @@
     "id": "P009",
     "name": "Mango",
     "price": 4.0,
-    "stock": 18,
     "recipe": {
       "Tea Leaves": 5.0
     },
@@ -82,7 +75,6 @@
     "id": "P012",
     "name": "Taro",
     "price": 50.0,
-    "stock": 20,
     "recipe": {},
     "category": "Milk Tea"
   },
@@ -90,7 +82,6 @@
     "id": "P017",
     "name": "Croissants",
     "price": 100.0,
-    "stock": 12,
     "recipe": {},
     "category": "Pastries"
   },
@@ -98,7 +89,6 @@
     "id": "P018",
     "name": "Espresso",
     "price": 50.0,
-    "stock": 15,
     "recipe": {
       "Water": 10.0,
       "Coffee Beans": 5.0
@@ -109,7 +99,6 @@
     "id": "P019",
     "name": "Cappuccino",
     "price": 60.0,
-    "stock": 9,
     "recipe": {
       "Water": 10.0,
       "Coffee Beans": 1.0
@@ -120,7 +109,6 @@
     "id": "P020",
     "name": "boydila",
     "price": 500.0,
-    "stock": 6,
     "recipe": {},
     "category": "Pastries"
   }

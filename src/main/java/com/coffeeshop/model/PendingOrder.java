@@ -54,10 +54,23 @@ public class PendingOrder {
         calculateTotal();
     }
 
+    // New overload that includes size information and its surcharge
+    public void addItem(String productName, double price, int quantity, String temperature, int sugarLevel,
+                        String addOns, double addOnsCost, String specialRequest, String size, double sizeCost) {
+        OrderItemData item = new OrderItemData(productName, price, quantity, temperature, sugarLevel);
+        item.addOns = addOns;
+        item.addOnsCost = addOnsCost;
+        item.specialRequest = specialRequest;
+        item.size = size != null ? size : "";
+        item.sizeCost = sizeCost;
+        items.add(item);
+        calculateTotal();
+    }
+
     private void calculateTotal() {
         totalAmount = items.stream()
-                .mapToDouble(item -> item.price * item.quantity)
-                .sum();
+            .mapToDouble(item -> item.getSubtotal())
+            .sum();
     }
 
     public String toTextRecord() {
@@ -81,7 +94,9 @@ public class PendingOrder {
             sb.append(item.sugarLevel).append("~");
             sb.append(item.addOns != null ? item.addOns : "").append("~");
             sb.append(item.addOnsCost).append("~");
-            sb.append(item.specialRequest != null ? item.specialRequest : "");
+            sb.append(item.specialRequest != null ? item.specialRequest : "").append("~");
+            sb.append(item.size != null ? item.size : "").append("~");
+            sb.append(item.sizeCost);
             if (i < items.size() - 1) {
                 sb.append(",");
             }
@@ -135,12 +150,25 @@ public class PendingOrder {
                                 int qty = Integer.parseInt(itemParts[2]);
                                 String temp = itemParts[3];
                                 int sugar = Integer.parseInt(itemParts[4]);
-                                if (itemParts.length >= 8) {
-                                    String addOns = itemParts[5];
-                                    double addOnsCost = 0.0;
+                                String addOns = "";
+                                double addOnsCost = 0.0;
+                                String special = "";
+                                String size = "";
+                                double sizeCost = 0.0;
+                                if (itemParts.length >= 7) {
+                                    addOns = itemParts[5];
                                     try { addOnsCost = Double.parseDouble(itemParts[6]); } catch (Exception ex) {}
-                                    String special = itemParts[7];
-                                    order.addItem(prod, price, qty, temp, sugar, addOns, addOnsCost, special);
+                                }
+                                if (itemParts.length >= 8) {
+                                    special = itemParts[7];
+                                }
+                                if (itemParts.length >= 10) {
+                                    size = itemParts[8];
+                                    try { sizeCost = Double.parseDouble(itemParts[9]); } catch (Exception ex) {}
+                                }
+
+                                if (!addOns.isEmpty() || !special.isEmpty() || !size.isEmpty()) {
+                                    order.addItem(prod, price, qty, temp, sugar, addOns, addOnsCost, special, size, sizeCost);
                                 } else {
                                     order.addItem(prod, price, qty, temp, sugar);
                                 }
@@ -227,6 +255,8 @@ public class PendingOrder {
         public String addOns;
         public double addOnsCost;
         public String specialRequest;
+        public String size;
+        public double sizeCost;
 
         public OrderItemData(String productName, double price, int quantity, String temperature, int sugarLevel) {
             this.productName = productName;
@@ -237,10 +267,12 @@ public class PendingOrder {
             this.addOns = "";
             this.addOnsCost = 0.0;
             this.specialRequest = "";
+            this.size = "";
+            this.sizeCost = 0.0;
         }
 
         public double getSubtotal() {
-            return (price + addOnsCost) * quantity;
+            return (price + addOnsCost + sizeCost) * quantity;
         }
     }
 }

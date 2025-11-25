@@ -731,6 +731,11 @@ public class CashierApp extends Application {
                     if (item.addOns != null && !item.addOns.isEmpty()) oi.setAddOns(item.addOns);
                     oi.setAddOnsCost(item.addOnsCost);
                     if (item.specialRequest != null && !item.specialRequest.isEmpty()) oi.setSpecialRequest(item.specialRequest);
+                    // propagate size information if present in pending item
+                    try {
+                        if (item.size != null && !item.size.isEmpty()) oi.setSize(item.size);
+                        oi.setSizeCost(item.sizeCost);
+                    } catch (Exception ignored) {}
                 } catch (Exception ignored) {}
                 order.addItem(oi);
             }
@@ -2442,66 +2447,123 @@ public class CashierApp extends Application {
             .sum();
         double additionalPayment = exchangeTotal - returnCredit;
         
-        // If additional payment is required, show payment method dialog
-        String paymentMethod = "CASH";
+        // If additional payment is required, collect cash amount from the customer
+        double amountReceived = 0.0;
+        String paymentMethod = "";
         if (additionalPayment > 0) {
-            Dialog<String> paymentDialog = new Dialog<>();
-            paymentDialog.setTitle("Additional Payment Required");
-            paymentDialog.setHeaderText("Customer owes additional ₱" + String.format("%.2f", additionalPayment));
-            
-            VBox paymentContent = new VBox(15);
-            paymentContent.setPadding(new Insets(20));
-            paymentContent.setStyle("-fx-background-color: white;");
-            
-            Label messageLabel = new Label("The customer is exchanging items with a higher total value.\n" +
-                "Please select the payment method for the additional amount:");
-            messageLabel.setFont(Font.font("Segoe UI", 12));
-            messageLabel.setWrapText(true);
-            
-            GridPane paymentGrid = new GridPane();
-            paymentGrid.setHgap(15);
-            paymentGrid.setVgap(15);
-            paymentGrid.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 15; -fx-background-color: #f9f9f9;");
-            
-            Label amountLabel = new Label("Amount Due:");
-            amountLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-            Label amountValue = new Label("₱" + String.format("%.2f", additionalPayment));
-            amountValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-            amountValue.setTextFill(Color.web("#F44336"));
-            
-            paymentGrid.add(amountLabel, 0, 0);
-            paymentGrid.add(amountValue, 1, 0);
-            
-            Label paymentMethodLabel = new Label("Payment Method:");
-            paymentMethodLabel.setFont(Font.font("Segoe UI", 12));
-            
-            ComboBox<String> paymentMethodCombo = new ComboBox<>();
-            paymentMethodCombo.setStyle("-fx-font-size: 12;");
-            paymentMethodCombo.getItems().addAll("CASH", "CARD", "GCASH", "CHECK");
-            paymentMethodCombo.setValue("CASH");
-            
-            paymentGrid.add(paymentMethodLabel, 0, 1);
-            paymentGrid.add(paymentMethodCombo, 1, 1);
-            
-            paymentContent.getChildren().addAll(messageLabel, new Separator(), paymentGrid);
-            
-            paymentDialog.getDialogPane().setContent(paymentContent);
-            paymentDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-            
-            // Set result converter to return payment method
-            paymentDialog.setResultConverter(dialogButton -> {
-                if (dialogButton == ButtonType.OK) {
-                    return paymentMethodCombo.getValue();
+            // Keep prompting until a valid amount is entered or cashier cancels
+            boolean ok = false;
+            while (!ok) {
+                Dialog<Double> cashDialog = new Dialog<>();
+                cashDialog.setTitle("Additional Payment Required");
+                cashDialog.setHeaderText("Customer owes additional ₱" + String.format("%.2f", additionalPayment));
+
+                VBox paymentContent = new VBox(12);
+                paymentContent.setPadding(new Insets(18));
+
+                Label messageLabel = new Label("The customer is exchanging items with a higher total value.\n" +
+                    "Please enter the CASH amount received from the customer:");
+                messageLabel.setWrapText(true);
+
+                GridPane paymentGrid = new GridPane();
+                paymentGrid.setHgap(12);
+                paymentGrid.setVgap(12);
+
+                Label amountDueLabel = new Label("Amount Due:");
+                amountDueLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+                Label amountDueValue = new Label("₱" + String.format("%.2f", additionalPayment));
+                amountDueValue.setTextFill(Color.web("#F44336"));
+
+                Label receivedLabel = new Label("Amount Received (CASH):");
+                TextField receivedField = new TextField(String.format("%.2f", additionalPayment));
+                receivedField.setPromptText("Enter cash received");
+
+                // Restrict input to numeric with optional 2 decimals
+                java.util.regex.Pattern validEditingState = java.util.regex.Pattern.compile("\\d*(\\.\\d{0,2})?");
+                TextFormatter<String> textFormatter = new TextFormatter<>(change -> {
+                    String newText = change.getControlNewText();
+                    if (validEditingState.matcher(newText).matches()) {
+                        return change;
+                    }
+                    return null;
+                });
+                receivedField.setTextFormatter(textFormatter);
+
+                Label changeLabel = new Label("₱0.00");
+                changeLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+                changeLabel.setTextFill(Color.web("#4CAF50"));
+
+                Label errorLabel = new Label("Invalid amount!");
+                errorLabel.setTextFill(Color.web("#D32F2F"));
+                errorLabel.setVisible(false);
+
+                paymentGrid.add(amountDueLabel, 0, 0);
+                paymentGrid.add(amountDueValue, 1, 0);
+                paymentGrid.add(receivedLabel, 0, 1);
+                paymentGrid.add(receivedField, 1, 1);
+                paymentGrid.add(new Label("Change:"), 0, 2);
+                paymentGrid.add(changeLabel, 1, 2);
+                paymentGrid.add(errorLabel, 0, 3, 2, 1);
+
+                paymentContent.getChildren().addAll(messageLabel, new Separator(), paymentGrid);
+
+                cashDialog.getDialogPane().setContent(paymentContent);
+                cashDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+                // Disable OK until valid amount entered
+                javafx.scene.Node okButton = cashDialog.getDialogPane().lookupButton(ButtonType.OK);
+                okButton.setDisable(true);
+
+                // Live-validate input and compute change
+                receivedField.textProperty().addListener((obs, oldV, newV) -> {
+                    errorLabel.setVisible(false);
+                    if (newV == null || newV.isBlank()) {
+                        okButton.setDisable(true);
+                        changeLabel.setText("₱0.00");
+                        return;
+                    }
+                    try {
+                        double val = Double.parseDouble(newV);
+                        if (val < additionalPayment) {
+                            okButton.setDisable(true);
+                            changeLabel.setText("₱0.00");
+                        } else {
+                            okButton.setDisable(false);
+                            double ch = val - additionalPayment;
+                            changeLabel.setText("₱" + String.format("%.2f", ch));
+                        }
+                    } catch (Exception ex) {
+                        okButton.setDisable(true);
+                        errorLabel.setVisible(true);
+                        changeLabel.setText("₱0.00");
+                    }
+                });
+
+                cashDialog.setResultConverter(btn -> {
+                    if (btn == ButtonType.OK) {
+                        try {
+                            String txt = receivedField.getText().trim().replaceAll(",", "");
+                            return Double.parseDouble(txt);
+                        } catch (Exception ex) {
+                            return Double.valueOf(-1);
+                        }
+                    }
+                    return null;
+                });
+
+                java.util.Optional<Double> cashRes = cashDialog.showAndWait();
+                if (cashRes.isEmpty()) {
+                    return; // cancelled
                 }
-                return null;
-            });
-            
-            java.util.Optional<String> result = paymentDialog.showAndWait();
-            if (result.isEmpty()) {
-                return; // User cancelled the payment
+                Double val = cashRes.get();
+                if (val == null || val < additionalPayment) {
+                    showAlert("Insufficient Cash", "Amount received must be at least ₱" + String.format("%.2f", additionalPayment) + ". Please re-enter or cancel.", Alert.AlertType.WARNING);
+                    continue; // re-prompt
+                }
+                amountReceived = val;
+                paymentMethod = "CASH";
+                ok = true;
             }
-            
-            paymentMethod = result.get();
         }
         
         // Create return transaction
@@ -2557,18 +2619,34 @@ public class CashierApp extends Application {
         // Calculate totals
         returnTx.calculateTotals();
         
+        // Attach payment details (cash) if any
+        if (additionalPayment > 0) {
+            returnTx.setAmountReceived(amountReceived);
+            double change = Math.max(0.0, amountReceived - additionalPayment);
+            returnTx.setChangeAmount(change);
+            returnTx.setPaymentMethod(paymentMethod);
+        } else {
+            // No additional payment; leave defaults
+            returnTx.setAmountReceived(0.0);
+            returnTx.setChangeAmount(0.0);
+            returnTx.setPaymentMethod("");
+        }
+
         // Save return transaction
         TextDatabase.saveReturnTransaction(returnTx);
-        
-        // Generate return receipt with payment method
-        generateReturnReceipt(returnTx, originalReceipt, paymentMethod);
+
+        // Generate return receipt
+        generateReturnReceipt(returnTx, originalReceipt);
         
         dialogStage.close();
         
         Alert success = new Alert(Alert.AlertType.INFORMATION);
         success.setTitle("Success");
         success.setHeaderText("Return/Exchange Processed");
-        String paymentInfo = additionalPayment > 0 ? "\nPayment Method: " + paymentMethod : "";
+        String paymentInfo = "";
+        if (additionalPayment > 0) {
+            paymentInfo = String.format("\nPayment Method: %s\nAmount Received: ₱%.2f\nChange: ₱%.2f", paymentMethod, returnTx.getAmountReceived(), returnTx.getChangeAmount());
+        }
         success.setContentText(String.format(
             "Return ID: %s\n" +
             "Return Credit: ₱%.2f\n" +
@@ -2584,7 +2662,7 @@ public class CashierApp extends Application {
         success.showAndWait();
     }
 
-    private void generateReturnReceipt(com.coffeeshop.model.ReturnTransaction returnTx, Receipt originalReceipt, String paymentMethod) {
+    private void generateReturnReceipt(com.coffeeshop.model.ReturnTransaction returnTx, Receipt originalReceipt) {
         StringBuilder receipt = new StringBuilder();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         
@@ -2633,7 +2711,15 @@ public class CashierApp extends Application {
             receipt.append(String.format("REFUND DUE:          ₱%.2f\n", returnTx.getRefundAmount()));
         } else {
             receipt.append(String.format("PAYMENT COLLECTED:   ₱%.2f\n", Math.abs(returnTx.getRefundAmount())));
-            receipt.append(String.format("Payment Method:      %s\n", paymentMethod));
+            if (returnTx.getPaymentMethod() != null && !returnTx.getPaymentMethod().isEmpty()) {
+                receipt.append(String.format("Payment Method:      %s\n", returnTx.getPaymentMethod()));
+            }
+            if (returnTx.getAmountReceived() > 0) {
+                receipt.append(String.format("Amount Received:     ₱%.2f\n", returnTx.getAmountReceived()));
+            }
+            if (returnTx.getChangeAmount() > 0) {
+                receipt.append(String.format("Change:              ₱%.2f\n", returnTx.getChangeAmount()));
+            }
         }
         receipt.append("═══════════════════════════════════════\n");
         receipt.append("       Thank you for your patronage!\n");

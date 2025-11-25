@@ -3352,7 +3352,9 @@ public class CustomerApp extends Application {
                 PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In");
                 for (OrderItem oi : currentOrder.getItems()) {
                     double price = oi.getProduct().getPrice() + oi.getAddOnsCost();
-                    p.addItem(oi.getProduct().getName(), price, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel(), oi.getAddOns(), oi.getAddOnsCost(), oi.getSpecialRequest());
+                    String size = oi.getSize();
+                    double sizeCost = oi.getSizeCost();
+                    p.addItem(oi.getProduct().getName(), price, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel(), oi.getAddOns(), oi.getAddOnsCost(), oi.getSpecialRequest(), size, sizeCost);
                 }
                 TextDatabase.savePendingOrder(p);
             } catch (Exception ex) {

@@ -17,6 +17,9 @@ public class ReturnTransaction {
     private double exchangeTotal;
     private double refundAmount; // positive = refund to customer, negative = collect from customer
     private String notes;
+    private double amountReceived; // amount customer gave when paying additional
+    private double changeAmount; // change returned to customer
+    private String paymentMethod; // e.g., CASH
 
     public ReturnTransaction(String returnId, String originalReceiptId, String cashierId) {
         this.returnId = returnId;
@@ -30,6 +33,9 @@ public class ReturnTransaction {
         this.exchangeTotal = 0.0;
         this.refundAmount = 0.0;
         this.notes = "";
+        this.amountReceived = 0.0;
+        this.changeAmount = 0.0;
+        this.paymentMethod = "";
     }
 
     public String getReturnId() {
@@ -120,6 +126,30 @@ public class ReturnTransaction {
         this.notes = notes;
     }
 
+    public double getAmountReceived() {
+        return amountReceived;
+    }
+
+    public void setAmountReceived(double amountReceived) {
+        this.amountReceived = amountReceived;
+    }
+
+    public double getChangeAmount() {
+        return changeAmount;
+    }
+
+    public void setChangeAmount(double changeAmount) {
+        this.changeAmount = changeAmount;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
     public void calculateTotals() {
         returnCredit = returnedItems.stream()
             .mapToDouble(item -> item.getItemSubtotal())
@@ -161,6 +191,11 @@ public class ReturnTransaction {
         
         // Exchange items count
         sb.append(exchangeItems.size()).append("|");
+
+        // Payment info
+        sb.append(amountReceived).append("|");
+        sb.append(changeAmount).append("|");
+        sb.append(paymentMethod != null ? paymentMethod : "").append("|");
         
         // Notes
         sb.append(java.util.Base64.getEncoder().encodeToString(
@@ -172,7 +207,7 @@ public class ReturnTransaction {
     public static ReturnTransaction fromTextRecord(String line) {
         String[] parts = line.split("\\|");
         if (parts.length < 11) return null;
-        
+
         ReturnTransaction rt = new ReturnTransaction(parts[0], parts[1], parts[2]);
         
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -205,12 +240,23 @@ public class ReturnTransaction {
             }
         } catch (Exception ignored) {}
         
-        // Decode notes
+        // Additional fields: amountReceived, changeAmount, paymentMethod and notes
         try {
-            rt.setNotes(new String(
-                java.util.Base64.getDecoder().decode(parts[10]),
-                java.nio.charset.StandardCharsets.UTF_8
-            ));
+            if (parts.length >= 14) {
+                try { rt.setAmountReceived(Double.parseDouble(parts[10])); } catch (Exception ex) { rt.setAmountReceived(0.0); }
+                try { rt.setChangeAmount(Double.parseDouble(parts[11])); } catch (Exception ex) { rt.setChangeAmount(0.0); }
+                rt.setPaymentMethod(parts[12] != null ? parts[12] : "");
+                rt.setNotes(new String(
+                    java.util.Base64.getDecoder().decode(parts[13]),
+                    java.nio.charset.StandardCharsets.UTF_8
+                ));
+            } else if (parts.length >= 11) {
+                // legacy format: notes at index 10
+                rt.setNotes(new String(
+                    java.util.Base64.getDecoder().decode(parts[10]),
+                    java.nio.charset.StandardCharsets.UTF_8
+                ));
+            }
         } catch (Exception ignored) {}
         
         return rt;
