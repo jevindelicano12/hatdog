@@ -1446,7 +1446,8 @@ public class CustomerApp extends Application {
         headerRow.getChildren().addAll(leftHeader, spacer1, closeBtn);
         
         // Content: Size, Milk Options, Add-ons in a grid
-        VBox customContent = createCompactCustomizationForm(product);
+        Label totalPrice = new Label("₱" + String.format("%.2f", product.getPrice() + 30)); // Default Large size
+        VBox customContent = createCompactCustomizationForm(product, totalPrice);
         
         // Bottom section: Quantity, Total, Add to Order button
         Separator sep = new Separator();
@@ -1497,7 +1498,6 @@ public class CustomerApp extends Application {
         Label totalLbl = new Label("TOTAL");
         totalLbl.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
         totalLbl.setTextFill(Color.web("#999999"));
-        Label totalPrice = new Label("₱50");
         totalPrice.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         totalPrice.setTextFill(Color.web("#1A1A1A"));
         totalBox.getChildren().addAll(totalLbl, totalPrice);
@@ -1532,7 +1532,7 @@ public class CustomerApp extends Application {
     }
     
     // Create compact customization form with size, milk, and add-ons
-    private VBox createCompactCustomizationForm(Product product) {
+    private VBox createCompactCustomizationForm(Product product, Label totalPrice) {
         VBox form = new VBox(20);
         form.setAlignment(Pos.TOP_LEFT);
         
@@ -1556,7 +1556,7 @@ public class CustomerApp extends Application {
             HBox sizeButtons = new HBox(10);
             sizeButtons.setAlignment(Pos.CENTER_LEFT);
             
-            final int[] selectedSizeInitial = {30}; // Default to Large
+            final double[] selectedSizeCost = {30}; // Default to Large
             
             final Button[] smallBtnRef = new Button[1];
             final Button[] mediumBtnRef = new Button[1];
@@ -1568,16 +1568,17 @@ public class CustomerApp extends Application {
             smallBtn.setPadding(new Insets(8, 16, 8, 16));
             smallBtn.setStyle(getPillDefaultStyle());
             smallBtn.setOnAction(e -> {
-                selectedSizeInitial[0] = 0;
+                selectedSizeCost[0] = 0;
                 smallBtnRef[0].setStyle(getPillSelectedStyle());
                 mediumBtnRef[0].setStyle(getPillDefaultStyle());
                 largeBtnRef[0].setStyle(getPillDefaultStyle());
+                updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
             });
             smallBtn.setOnMouseEntered(e -> {
-                if (selectedSizeInitial[0] != 0) smallBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                if (selectedSizeCost[0] != 0) smallBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
             });
             smallBtn.setOnMouseExited(e -> {
-                if (selectedSizeInitial[0] != 0) smallBtn.setStyle(getPillDefaultStyle());
+                if (selectedSizeCost[0] != 0) smallBtn.setStyle(getPillDefaultStyle());
                 else smallBtn.setStyle(getPillSelectedStyle());
             });
             
@@ -1587,16 +1588,17 @@ public class CustomerApp extends Application {
             mediumBtn.setPadding(new Insets(8, 16, 8, 16));
             mediumBtn.setStyle(getPillDefaultStyle());
             mediumBtn.setOnAction(e -> {
-                selectedSizeInitial[0] = 20;
+                selectedSizeCost[0] = 20;
                 smallBtnRef[0].setStyle(getPillDefaultStyle());
                 mediumBtnRef[0].setStyle(getPillSelectedStyle());
                 largeBtnRef[0].setStyle(getPillDefaultStyle());
+                updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
             });
             mediumBtn.setOnMouseEntered(e -> {
-                if (selectedSizeInitial[0] != 20) mediumBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                if (selectedSizeCost[0] != 20) mediumBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
             });
             mediumBtn.setOnMouseExited(e -> {
-                if (selectedSizeInitial[0] != 20) mediumBtn.setStyle(getPillDefaultStyle());
+                if (selectedSizeCost[0] != 20) mediumBtn.setStyle(getPillDefaultStyle());
                 else mediumBtn.setStyle(getPillSelectedStyle());
             });
             
@@ -1606,22 +1608,26 @@ public class CustomerApp extends Application {
             largeBtn.setPadding(new Insets(8, 16, 8, 16));
             largeBtn.setStyle(getPillSelectedStyle()); // Start selected
             largeBtn.setOnAction(e -> {
-                selectedSizeInitial[0] = 30;
+                selectedSizeCost[0] = 30;
                 smallBtnRef[0].setStyle(getPillDefaultStyle());
                 mediumBtnRef[0].setStyle(getPillDefaultStyle());
                 largeBtnRef[0].setStyle(getPillSelectedStyle());
+                updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
             });
             largeBtn.setOnMouseEntered(e -> {
-                if (selectedSizeInitial[0] != 30) largeBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                if (selectedSizeCost[0] != 30) largeBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
             });
             largeBtn.setOnMouseExited(e -> {
-                if (selectedSizeInitial[0] != 30) largeBtn.setStyle(getPillDefaultStyle());
+                if (selectedSizeCost[0] != 30) largeBtn.setStyle(getPillDefaultStyle());
                 else largeBtn.setStyle(getPillSelectedStyle());
             });
             
             sizeButtons.getChildren().addAll(smallBtn, mediumBtn, largeBtn);
             sizeSection.getChildren().addAll(sizeTitle, sizeButtons);
             form.getChildren().add(sizeSection);
+            
+            // Store the selected size cost in the form's user data for later retrieval
+            form.setUserData(selectedSizeCost);
         }
         
         // MILK OPTIONS SECTION (for Milk Tea)
@@ -1759,6 +1765,15 @@ public class CustomerApp extends Application {
         try {
             // Create order item with basic details
             OrderItem item = new OrderItem(product, quantity, "Hot", 0);
+            
+            // Extract selected size cost from the form's user data
+            Object userDataObj = customContent.getUserData();
+            if (userDataObj instanceof double[]) {
+                double[] sizeCostArray = (double[]) userDataObj;
+                if (sizeCostArray.length > 0) {
+                    item.setSizeCost(sizeCostArray[0]);
+                }
+            }
             
             // Extract selected add-ons and special requests from the customContent VBox
             java.util.List<String> selectedAddOnNames = new java.util.ArrayList<>();
@@ -1959,6 +1974,12 @@ public class CustomerApp extends Application {
     // Style for selected add-on pill
     private String getPillSelectedStyle() {
         return "-fx-text-fill: #FFFFFF; -fx-border-color: #2C2C2C; -fx-border-width: 1; -fx-background-color: #2C2C2C; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;";
+    }
+    
+    // Update total price based on product base price + size cost
+    private void updateTotalPrice(Label totalPriceLabel, Product product, double sizeCost) {
+        double total = product.getPrice() + sizeCost;
+        totalPriceLabel.setText("₱" + String.format("%.2f", total));
     }
     
     private VBox createCustomizationOptions(Product product, javafx.beans.property.DoubleProperty suggestionsExtra, javafx.collections.ObservableList<Product> selectedSuggestions) {

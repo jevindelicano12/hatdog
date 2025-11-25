@@ -8,6 +8,8 @@ public class OrderItem {
     private String addOns;
     private double addOnsCost;
     private String specialRequest; // Custom notes/requests
+    private String size; // "Small", "Medium", "Large"
+    private double sizeCost; // Cost surcharge for size
 
     public OrderItem(Product product, int quantity, String temperature, int sugarLevel) {
         this.product = product;
@@ -17,6 +19,8 @@ public class OrderItem {
         this.addOns = "";
         this.addOnsCost = 0.0;
         this.specialRequest = "";
+        this.size = "Large"; // Default size
+        this.sizeCost = 30.0; // Default to Large cost
     }
 
     public Product getProduct() {
@@ -75,8 +79,24 @@ public class OrderItem {
         this.specialRequest = specialRequest;
     }
 
+    public String getSize() {
+        return size;
+    }
+
+    public void setSize(String size) {
+        this.size = size;
+    }
+
+    public double getSizeCost() {
+        return sizeCost;
+    }
+
+    public void setSizeCost(double sizeCost) {
+        this.sizeCost = sizeCost;
+    }
+
     public double getSubtotal() {
-        return (product.getPrice() + addOnsCost) * quantity;
+        return (product.getPrice() + sizeCost + addOnsCost) * quantity;
     }
 
     @Override
