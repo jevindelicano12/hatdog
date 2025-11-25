@@ -19,6 +19,10 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.XYChart;
 import java.io.File;
 
 import java.time.format.DateTimeFormatter;
@@ -1125,13 +1129,19 @@ public class CashierApp extends Application {
         perfLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
         perfLabel.setTextFill(Color.web("#1a1a1a"));
         
-        Label perfPlaceholder = new Label("Chart visualization would appear here");
-        perfPlaceholder.setFont(Font.font("Segoe UI", 14));
-        perfPlaceholder.setTextFill(Color.web("#6c757d"));
-        perfPlaceholder.setPadding(new Insets(50, 0, 50, 0));
-        perfPlaceholder.setAlignment(Pos.CENTER);
-        
-        perfBox.getChildren().addAll(perfLabel, perfPlaceholder);
+        // Create a bar chart for product performance
+        CategoryAxis perfXAxis = new CategoryAxis();
+        NumberAxis perfYAxis = new NumberAxis();
+        perfXAxis.setLabel("");
+        perfYAxis.setLabel("Sold");
+        BarChart<String, Number> perfChart = new BarChart<>(perfXAxis, perfYAxis);
+        perfChart.setLegendVisible(false);
+        perfChart.setTitle("");
+        perfChart.setPrefHeight(300);
+        perfChart.setAnimated(false);
+        perfChart.setStyle("-fx-background-color: transparent;");
+
+        perfBox.getChildren().addAll(perfLabel, perfChart);
         HBox.setHgrow(perfBox, Priority.ALWAYS);
         
         contentBox.getChildren().addAll(topProductsBox, perfBox);
@@ -1140,12 +1150,24 @@ public class CashierApp extends Application {
             // refresh data
             loadReceiptHistory();
             List<com.coffeeshop.model.ItemRecord> items = com.coffeeshop.service.TextDatabase.loadAllItems();
-            List<Map.Entry<String,Integer>> top = com.coffeeshop.service.SalesAnalytics.getTopProducts(items, 5);
+            List<Map.Entry<String,Integer>> top = com.coffeeshop.service.SalesAnalytics.getTopProducts(items, 8);
             topList.getItems().clear();
             int rank = 1;
             for (Map.Entry<String,Integer> en : top) {
                 topList.getItems().add(String.format("%d    %s                                        %d sold", rank++, en.getKey(), en.getValue()));
             }
+
+            // Update product performance chart
+            try {
+                XYChart.Series<String, Number> series = new XYChart.Series<>();
+                for (Map.Entry<String,Integer> en : top) {
+                    series.getData().add(new XYChart.Data<>(en.getKey(), en.getValue()));
+                }
+                perfChart.getData().clear();
+                perfChart.getData().add(series);
+                // minor attempt to adjust label rotation for long names
+                perfChart.getXAxis().setTickLabelRotation( -20 );
+            } catch (Exception ignore) {}
 
             double total = com.coffeeshop.service.SalesAnalytics.getTotalSales(receiptHistory);
             double today = com.coffeeshop.service.SalesAnalytics.getTotalSalesForDate(receiptHistory, LocalDate.now());
