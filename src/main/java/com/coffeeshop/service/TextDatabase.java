@@ -19,6 +19,7 @@ public class TextDatabase {
     private static final String RECEIPTS_DB = DATA_DIR + "/receipts_database.txt";
     private static final String PENDING_ORDERS_DB = DATA_DIR + "/pending_orders.txt";
     private static final String RETURNS_DB = DATA_DIR + "/returns_database.txt";
+    private static final String COMPLAINTS_DB = DATA_DIR + "/complaints_database.txt";
 
     // Ensure data directory exists
     public static void ensureDataDirectory() {
@@ -523,5 +524,37 @@ public class TextDatabase {
         }
         
         return returns;
+    }
+
+    // ==================== COMPLAINTS DATABASE ====================
+
+    public static void saveComplaint(com.coffeeshop.model.Complaint complaint) {
+        ensureDataDirectory();
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(COMPLAINTS_DB, true))) {
+            writer.write(complaint.toTextRecord());
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error saving complaint: " + e.getMessage());
+        }
+    }
+
+    public static java.util.List<com.coffeeshop.model.Complaint> loadAllComplaints() {
+        java.util.List<com.coffeeshop.model.Complaint> out = new java.util.ArrayList<>();
+        ensureDataDirectory();
+        File f = new File(COMPLAINTS_DB);
+        if (!f.exists()) return out;
+        try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                try {
+                    com.coffeeshop.model.Complaint c = com.coffeeshop.model.Complaint.fromTextRecord(line);
+                    if (c != null) out.add(c);
+                } catch (Exception ignored) {}
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading complaints: " + e.getMessage());
+        }
+        return out;
     }
 }

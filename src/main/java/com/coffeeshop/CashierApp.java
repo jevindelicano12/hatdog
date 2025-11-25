@@ -2119,36 +2119,53 @@ public class CashierApp extends Application {
                 }
             }
             
-            // Save complaint (for now, just show confirmation)
-            // In a real system, you would save this to a database or file
-            String complaintRecord = String.format(
-                "Complaint Submitted:\n" +
-                "Date: %s\n" +
-                "Order ID: %s\n" +
-                "Customer: %s\n" +
-                "Issue Type: %s\n" +
-                "Description: %s\n" +
-                "Cashier: %s",
-                java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-                orderId,
-                customer,
-                issueType,
-                description,
-                currentCashierId != null ? currentCashierId : "Unknown"
-            );
-            
-            // Show success dialog with complaint details
-            Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
-            successAlert.setTitle("Complaint Submitted");
-            successAlert.setHeaderText("✅ Complaint filed successfully");
-            successAlert.setContentText(complaintRecord);
-            successAlert.showAndWait();
-            
-            // Clear form
-            orderIdField.clear();
-            customerField.clear();
-            issueTypeCombo.setValue(null);
-            descArea.clear();
+            // Persist complaint and notify admin listeners
+            try {
+                String cmpId = "CMP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                com.coffeeshop.model.Complaint complaint = new com.coffeeshop.model.Complaint(
+                    cmpId,
+                    orderId,
+                    customer,
+                    issueType,
+                    description,
+                    currentCashierId != null ? currentCashierId : "Unknown"
+                );
+
+                // Save via Store so listeners are notified
+                Store.getInstance().saveComplaint(complaint);
+
+                String complaintRecord = String.format(
+                    "Complaint Submitted:\n" +
+                    "ID: %s\n" +
+                    "Date: %s\n" +
+                    "Order ID: %s\n" +
+                    "Customer: %s\n" +
+                    "Issue Type: %s\n" +
+                    "Description: %s\n" +
+                    "Cashier: %s",
+                    complaint.getId(),
+                    complaint.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                    complaint.getOrderId(),
+                    complaint.getCustomerName(),
+                    complaint.getIssueType(),
+                    complaint.getDescription(),
+                    complaint.getCashierId()
+                );
+
+                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                successAlert.setTitle("Complaint Submitted");
+                successAlert.setHeaderText("✅ Complaint filed successfully");
+                successAlert.setContentText(complaintRecord);
+                successAlert.showAndWait();
+
+                // Clear form
+                orderIdField.clear();
+                customerField.clear();
+                issueTypeCombo.setValue(null);
+                descArea.clear();
+            } catch (Exception ex) {
+                showAlert("Save Error", "Failed to save complaint: " + ex.getMessage(), Alert.AlertType.ERROR);
+            }
         });
         
         // Cancel button (clears the form / cancels)

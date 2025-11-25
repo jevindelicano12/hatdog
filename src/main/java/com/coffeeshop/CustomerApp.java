@@ -1740,7 +1740,7 @@ public class CustomerApp extends Application {
             // Recompute function: recompute total price including size, milk, and selected dynamic add-ons
             recomputeRef[0] = () -> {
                 try {
-                    double total = product.getPrice() + selectedSizeCost[0] + selectedMilkCost[0];
+                    double total = product.getPrice() + selectedMilkCost[0];
                     // Sum selected dynamic add-ons from addOnsGrid
                     for (javafx.scene.Node n : addOnsGrid.getChildren()) {
                         if (n instanceof javafx.scene.control.Button) {

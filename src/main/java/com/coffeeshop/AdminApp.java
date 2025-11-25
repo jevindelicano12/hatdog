@@ -157,6 +157,33 @@ public class AdminApp extends Application {
         primaryStage.show();
 
         refreshData();
+
+        // Register complaint listener: show a brief notification and allow opening complaints view
+        try {
+            Store.getInstance().addComplaintChangeListener(() -> {
+                // run on FX thread
+                Platform.runLater(() -> {
+                    try {
+                        java.util.List<com.coffeeshop.model.Complaint> all = Store.getInstance().getAllComplaints();
+                        if (all == null || all.isEmpty()) return;
+                        com.coffeeshop.model.Complaint latest = all.get(all.size() - 1);
+
+                        Alert a = new Alert(Alert.AlertType.INFORMATION);
+                        a.setTitle("New Complaint Received");
+                        a.setHeaderText("📝 New complaint: " + latest.getIssueType());
+                        String summary = String.format("Order: %s\nCustomer: %s\nCashier: %s\n%<s", latest.getOrderId(), latest.getCustomerName(), latest.getCashierId());
+                        a.setContentText(summary);
+
+                        ButtonType openBtn = new ButtonType("Open", ButtonBar.ButtonData.OK_DONE);
+                        a.getButtonTypes().setAll(openBtn, ButtonType.CLOSE);
+                        java.util.Optional<ButtonType> res = a.showAndWait();
+                        if (res.isPresent() && res.get() == openBtn) {
+                            showComplaintsDialog();
+                        }
+                    } catch (Exception ignored) {}
+                });
+            });
+        } catch (Exception ignored) {}
     }
     
     private void showContent(VBox content) {
@@ -1607,6 +1634,58 @@ public class AdminApp extends Application {
         }
 
         dlg.getDialogPane().setContent(ta);
+        dlg.setResizable(true);
+        dlg.showAndWait();
+    }
+
+    // Simple complaints viewer dialog
+    private void showComplaintsDialog() {
+        Dialog<Void> dlg = new Dialog<>();
+        dlg.setTitle("Complaints");
+        dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        VBox root = new VBox(12);
+        root.setPadding(new Insets(12));
+        root.setPrefSize(700, 480);
+
+        ListView<String> list = new ListView<>();
+        TextArea details = new TextArea();
+        details.setEditable(false);
+        details.setWrapText(true);
+        details.setPrefHeight(320);
+
+        java.util.List<com.coffeeshop.model.Complaint> allComplaints = Store.getInstance().getAllComplaints();
+        if (allComplaints == null) allComplaints = new java.util.ArrayList<>();
+        final java.util.List<com.coffeeshop.model.Complaint> complaints = allComplaints;
+        for (com.coffeeshop.model.Complaint c : complaints) {
+            list.getItems().add(String.format("%s | %s | %s", c.getId(), c.getIssueType(), c.getOrderId()));
+        }
+
+        list.getSelectionModel().selectedIndexProperty().addListener((obs, oldV, newV) -> {
+            int idx = newV == null ? -1 : newV.intValue();
+            if (idx >= 0 && idx < complaints.size()) {
+                com.coffeeshop.model.Complaint c = complaints.get(idx);
+                StringBuilder sb = new StringBuilder();
+                sb.append("Complaint ID: ").append(c.getId()).append("\n");
+                sb.append("Order ID: ").append(c.getOrderId()).append("\n");
+                sb.append("Customer: ").append(c.getCustomerName()).append("\n");
+                sb.append("Issue: ").append(c.getIssueType()).append("\n");
+                sb.append("Description:\n").append(c.getDescription()).append("\n\n");
+                sb.append("Cashier: ").append(c.getCashierId()).append("\n");
+                sb.append("Status: ").append(c.getStatus()).append("\n");
+                sb.append("Created: ").append(c.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("\n");
+                details.setText(sb.toString());
+            } else {
+                details.setText("");
+            }
+        });
+
+        HBox content = new HBox(12, list, details);
+        HBox.setHgrow(list, Priority.ALWAYS);
+        HBox.setHgrow(details, Priority.ALWAYS);
+
+        root.getChildren().addAll(new Label("Complaints"), content);
+        dlg.getDialogPane().setContent(root);
         dlg.setResizable(true);
         dlg.showAndWait();
     }

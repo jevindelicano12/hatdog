@@ -14,6 +14,7 @@ public class Store {
     private java.util.List<Runnable> productListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> specialRequestListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> addOnListeners = new java.util.ArrayList<>();
+    private java.util.List<Runnable> complaintListeners = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.CashierAccount> cashiers = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.AddOn> addOns = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.SpecialRequest> specialRequests = new java.util.ArrayList<>();
@@ -353,6 +354,12 @@ public class Store {
         }
     }
 
+    private void notifyComplaintListeners() {
+        for (Runnable r : new java.util.ArrayList<>(complaintListeners)) {
+            try { r.run(); } catch (Exception ignored) {}
+        }
+    }
+
     public void addCategoryChangeListener(Runnable r) {
         if (r == null) return;
         categoryListeners.add(r);
@@ -375,6 +382,15 @@ public class Store {
     public void addAddOnChangeListener(Runnable r) {
         if (r == null) return;
         addOnListeners.add(r);
+    }
+
+    public void addComplaintChangeListener(Runnable r) {
+        if (r == null) return;
+        complaintListeners.add(r);
+    }
+
+    public void removeComplaintChangeListener(Runnable r) {
+        complaintListeners.remove(r);
     }
 
     public void removeAddOnChangeListener(Runnable r) {
@@ -587,5 +603,20 @@ public class Store {
                 return;
             }
         }
+    }
+
+    // Complaints persistence helpers (wrapper over TextDatabase to centralize notify)
+    public void saveComplaint(com.coffeeshop.model.Complaint complaint) {
+        if (complaint == null) return;
+        try {
+            TextDatabase.saveComplaint(complaint);
+        } catch (Exception ignored) {}
+        notifyComplaintListeners();
+    }
+
+    public java.util.List<com.coffeeshop.model.Complaint> getAllComplaints() {
+        try {
+            return TextDatabase.loadAllComplaints();
+        } catch (Exception ignored) { return new java.util.ArrayList<>(); }
     }
 }
