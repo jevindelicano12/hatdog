@@ -2114,6 +2114,7 @@ public class CashierApp extends Application {
         
         Button addExchangeBtn = new Button("+ Add Exchange Item");
         addExchangeBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 10 20;");
+        addExchangeBtn.setDisable(true); // Disabled initially
         addExchangeBtn.setOnAction(e -> showProductSelector(dialogStage, exchangeItems, exchangeContainer));
         
         exchangeScroll.setContent(exchangeContainer);
@@ -2199,7 +2200,13 @@ public class CashierApp extends Application {
         };
         
         // Listen to changes
-        returnControls.forEach(rc -> rc.setOnActionChanged(updateTotals));
+        returnControls.forEach(rc -> rc.setOnActionChanged(() -> {
+            // Check if any item has EXCHANGE action selected
+            boolean hasExchange = returnControls.stream().anyMatch(r -> r.getAction() == ReturnAction.EXCHANGE);
+            addExchangeBtn.setDisable(!hasExchange);
+            exchangeInfo.setTextFill(hasExchange ? Color.web("#666") : Color.web("#999"));
+            updateTotals.run();
+        }));
         exchangeItems.addListener((javafx.collections.ListChangeListener.Change<? extends com.coffeeshop.model.OrderItem> c) -> updateTotals.run());
         
         Scene scene = new Scene(root, 1200, 700);
@@ -2426,6 +2433,77 @@ public class CashierApp extends Application {
             return;
         }
         
+        // Calculate if customer needs to pay additional amount
+        double returnCredit = itemsToReturn.stream()
+            .mapToDouble(rc -> rc.getItemData().getSubtotal())
+            .sum();
+        double exchangeTotal = exchangeItems.stream()
+            .mapToDouble(com.coffeeshop.model.OrderItem::getSubtotal)
+            .sum();
+        double additionalPayment = exchangeTotal - returnCredit;
+        
+        // If additional payment is required, show payment method dialog
+        String paymentMethod = "CASH";
+        if (additionalPayment > 0) {
+            Dialog<String> paymentDialog = new Dialog<>();
+            paymentDialog.setTitle("Additional Payment Required");
+            paymentDialog.setHeaderText("Customer owes additional ₱" + String.format("%.2f", additionalPayment));
+            
+            VBox paymentContent = new VBox(15);
+            paymentContent.setPadding(new Insets(20));
+            paymentContent.setStyle("-fx-background-color: white;");
+            
+            Label messageLabel = new Label("The customer is exchanging items with a higher total value.\n" +
+                "Please select the payment method for the additional amount:");
+            messageLabel.setFont(Font.font("Segoe UI", 12));
+            messageLabel.setWrapText(true);
+            
+            GridPane paymentGrid = new GridPane();
+            paymentGrid.setHgap(15);
+            paymentGrid.setVgap(15);
+            paymentGrid.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-padding: 15; -fx-background-color: #f9f9f9;");
+            
+            Label amountLabel = new Label("Amount Due:");
+            amountLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+            Label amountValue = new Label("₱" + String.format("%.2f", additionalPayment));
+            amountValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+            amountValue.setTextFill(Color.web("#F44336"));
+            
+            paymentGrid.add(amountLabel, 0, 0);
+            paymentGrid.add(amountValue, 1, 0);
+            
+            Label paymentMethodLabel = new Label("Payment Method:");
+            paymentMethodLabel.setFont(Font.font("Segoe UI", 12));
+            
+            ComboBox<String> paymentMethodCombo = new ComboBox<>();
+            paymentMethodCombo.setStyle("-fx-font-size: 12;");
+            paymentMethodCombo.getItems().addAll("CASH", "CARD", "GCASH", "CHECK");
+            paymentMethodCombo.setValue("CASH");
+            
+            paymentGrid.add(paymentMethodLabel, 0, 1);
+            paymentGrid.add(paymentMethodCombo, 1, 1);
+            
+            paymentContent.getChildren().addAll(messageLabel, new Separator(), paymentGrid);
+            
+            paymentDialog.getDialogPane().setContent(paymentContent);
+            paymentDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+            
+            // Set result converter to return payment method
+            paymentDialog.setResultConverter(dialogButton -> {
+                if (dialogButton == ButtonType.OK) {
+                    return paymentMethodCombo.getValue();
+                }
+                return null;
+            });
+            
+            java.util.Optional<String> result = paymentDialog.showAndWait();
+            if (result.isEmpty()) {
+                return; // User cancelled the payment
+            }
+            
+            paymentMethod = result.get();
+        }
+        
         // Create return transaction
         String returnId = "RTN-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         com.coffeeshop.model.ReturnTransaction returnTx = new com.coffeeshop.model.ReturnTransaction(
@@ -2482,29 +2560,31 @@ public class CashierApp extends Application {
         // Save return transaction
         TextDatabase.saveReturnTransaction(returnTx);
         
-        // Generate return receipt
-        generateReturnReceipt(returnTx, originalReceipt);
+        // Generate return receipt with payment method
+        generateReturnReceipt(returnTx, originalReceipt, paymentMethod);
         
         dialogStage.close();
         
         Alert success = new Alert(Alert.AlertType.INFORMATION);
         success.setTitle("Success");
         success.setHeaderText("Return/Exchange Processed");
+        String paymentInfo = additionalPayment > 0 ? "\nPayment Method: " + paymentMethod : "";
         success.setContentText(String.format(
             "Return ID: %s\n" +
             "Return Credit: ₱%.2f\n" +
             "Exchange Total: ₱%.2f\n" +
-            "%s: ₱%.2f",
+            "%s: ₱%.2f%s",
             returnId,
             returnTx.getReturnCredit(),
             returnTx.getExchangeTotal(),
             returnTx.getRefundAmount() >= 0 ? "Refund Amount" : "Additional Collected",
-            Math.abs(returnTx.getRefundAmount())
+            Math.abs(returnTx.getRefundAmount()),
+            paymentInfo
         ));
         success.showAndWait();
     }
 
-    private void generateReturnReceipt(com.coffeeshop.model.ReturnTransaction returnTx, Receipt originalReceipt) {
+    private void generateReturnReceipt(com.coffeeshop.model.ReturnTransaction returnTx, Receipt originalReceipt, String paymentMethod) {
         StringBuilder receipt = new StringBuilder();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         
@@ -2553,6 +2633,7 @@ public class CashierApp extends Application {
             receipt.append(String.format("REFUND DUE:          ₱%.2f\n", returnTx.getRefundAmount()));
         } else {
             receipt.append(String.format("PAYMENT COLLECTED:   ₱%.2f\n", Math.abs(returnTx.getRefundAmount())));
+            receipt.append(String.format("Payment Method:      %s\n", paymentMethod));
         }
         receipt.append("═══════════════════════════════════════\n");
         receipt.append("       Thank you for your patronage!\n");

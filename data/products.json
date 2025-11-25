@@ -109,7 +109,7 @@
     "id": "P019",
     "name": "Cappuccino",
     "price": 60.0,
-    "stock": 8,
+    "stock": 9,
     "recipe": {
       "Water": 10.0,
       "Coffee Beans": 1.0
@@ -120,7 +120,7 @@
     "id": "P020",
     "name": "boydila",
     "price": 500.0,
-    "stock": 7,
+    "stock": 6,
     "recipe": {},
     "category": "Pastries"
   }
