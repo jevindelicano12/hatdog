@@ -7,6 +7,7 @@ public class OrderItem {
     private int sugarLevel; // 0, 25, 50, 75, 100
     private String addOns;
     private double addOnsCost;
+    private String specialRequest; // Custom notes/requests
 
     public OrderItem(Product product, int quantity, String temperature, int sugarLevel) {
         this.product = product;
@@ -15,6 +16,7 @@ public class OrderItem {
         this.sugarLevel = sugarLevel;
         this.addOns = "";
         this.addOnsCost = 0.0;
+        this.specialRequest = "";
     }
 
     public Product getProduct() {
@@ -65,6 +67,14 @@ public class OrderItem {
         this.addOnsCost = addOnsCost;
     }
 
+    public String getSpecialRequest() {
+        return specialRequest;
+    }
+
+    public void setSpecialRequest(String specialRequest) {
+        this.specialRequest = specialRequest;
+    }
+
     public double getSubtotal() {
         return (product.getPrice() + addOnsCost) * quantity;
     }
@@ -78,6 +88,9 @@ public class OrderItem {
           .append(", ").append(sugarLevel).append("% sugar");
         if (!addOns.isEmpty()) {
             sb.append(", +").append(addOns);
+        }
+        if (specialRequest != null && !specialRequest.isEmpty()) {
+            sb.append(", Note: ").append(specialRequest);
         }
         sb.append(")");
         return sb.toString();

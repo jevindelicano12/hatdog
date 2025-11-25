@@ -12,7 +12,7 @@ public class PendingOrder {
     private List<OrderItemData> items;
     private double totalAmount;
     private String status; // STATUS_* constants below
-    private String orderType; // "Dine In" or "Take Away"
+    private String orderType; // "Dine In" or "Take Out"
 
     public static final String STATUS_PENDING = "PENDING"; // created but not paid
     public static final String STATUS_PAID = "PAID"; // paid and waiting to be prepared

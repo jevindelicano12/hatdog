@@ -18,3 +18,5 @@ f0cf4490|Guest|2025-11-24 02:45:24|120.0|COMPLETED|Dine In|[Espresso~40.0~1~Hot~
 e6abbf0d|Guest|2025-11-24 12:59:52|60.0|COMPLETED|Dine In|[Cappuccino~60.0~1~Hot~50]
 f566fe57|Guest|2025-11-24 14:10:05|50.0|COMPLETED|Dine In|[Blueberry Muffin~50.0~1~Hot~50]
 21501bfe|Guest|2025-11-24 15:09:34|50.0|COMPLETED|Dine In|[Blueberry Muffin~50.0~1~Hot~50]
+1bb89cb8|Guest|2025-11-25 02:29:10|268.5|COMPLETED|Dine In|[Cappuccino~60.0~1~Hot~50,Crossants~100.0~1~Hot~50,Espresso~50.0~1~Hot~50,Iced Frappe~4.5~1~Hot~50,Latte~50.0~1~Hot~50,Mango~4.0~1~Hot~50]
+b9b9c0e3|Guest|2025-11-25 03:27:00|162.0|PENDING|Dine In|[Crossants~100.0~1~Hot~0,Matcha Latte~62.0~1~Hot~50]

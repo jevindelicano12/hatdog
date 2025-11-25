@@ -570,11 +570,16 @@ public class CashierApp extends Application {
                         // reload all pending orders and populate stage lists
                         loadPendingOrdersFromFile();
 
+                        // Avoid clearing or reconstructing the dashboard VBox here —
+                        // removing its children on the FX thread can produce a
+                        // brief empty view (observed as the dashboard disappearing)
+                        // while the scheduler is running. Instead, keep dashboard
+                        // structure intact and let the user-triggered refresh button
+                        // update visible metrics. We still update the underlying
+                        // data models (`receiptHistory`, pending lists) above.
+                        // (No-op for dashboardPanel to prevent flicker/vanish.)
                         if (dashboardPanel != null) {
-                            VBox parent = dashboardPanel;
-                            parent.getChildren().clear();
-                            // Refresh the dashboard by calling the refresh button instead
-                            createDashboardPanel();
+                            // Intentionally left blank to avoid UI disruption.
                         }
                         // Check cashier account active status from persisted accounts for realtime deactivation
                         try {

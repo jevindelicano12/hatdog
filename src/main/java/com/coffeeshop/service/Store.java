@@ -16,6 +16,7 @@ public class Store {
     private java.util.List<Runnable> categoryListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> productListeners = new java.util.ArrayList<>();
     private java.util.List<com.coffeeshop.model.CashierAccount> cashiers = new java.util.ArrayList<>();
+    private java.util.List<com.coffeeshop.model.AddOn> addOns = new java.util.ArrayList<>();
     private static Store instance;
 
     private Store() {
@@ -41,6 +42,12 @@ public class Store {
             cashiers = PersistenceManager.loadAccounts();
         } catch (Exception ignored) {
             cashiers = new java.util.ArrayList<>();
+        }
+        // load add-ons
+        try {
+            addOns = PersistenceManager.loadAddOns();
+        } catch (Exception ignored) {
+            addOns = new java.util.ArrayList<>();
         }
         // initialize categories: prefer explicit categories file if present, otherwise infer from products
         categories.clear();
@@ -79,6 +86,10 @@ public class Store {
         // save explicit categories file too
         try {
             PersistenceManager.saveCategories(new java.util.ArrayList<>(categories));
+        } catch (Exception ignored) {}
+        // save add-ons
+        try {
+            PersistenceManager.saveAddOns(addOns);
         } catch (Exception ignored) {}
         // Notify listeners that products (or categories/inventory) may have changed
         notifyProductListeners();
@@ -345,9 +356,18 @@ public class Store {
 
     // Order validation and processing
     public boolean isStockSufficient(Order order) {
+        // Aggregate requested quantities per product id to handle multiple order lines
+        Map<String, Integer> requiredPerProduct = new HashMap<>();
         for (OrderItem item : order.getItems()) {
-            Product product = getProductById(item.getProduct().getId());
-            if (product == null || product.getStock() < item.getQuantity()) {
+            if (item == null || item.getProduct() == null) continue;
+            String pid = item.getProduct().getId();
+            requiredPerProduct.merge(pid, item.getQuantity(), Integer::sum);
+        }
+
+        for (Map.Entry<String, Integer> e : requiredPerProduct.entrySet()) {
+            Product product = getProductById(e.getKey());
+            int required = e.getValue();
+            if (product == null || product.getStock() < required) {
                 return false;
             }
         }
@@ -478,5 +498,72 @@ public class Store {
 
         alerts.append("╚═══════════════════════════════════════════════════════╝\n");
         return alerts.toString();
+    }
+
+    // Add-on management methods
+    public java.util.List<com.coffeeshop.model.AddOn> getAddOns() {
+        return new java.util.ArrayList<>(addOns);
+    }
+
+    public java.util.List<com.coffeeshop.model.AddOn> getActiveAddOns() {
+        return addOns.stream()
+                .filter(com.coffeeshop.model.AddOn::isActive)
+                .collect(Collectors.toList());
+    }
+
+    public java.util.List<com.coffeeshop.model.AddOn> getAddOnsForProduct(String productId) {
+        Product product = getProductById(productId);
+        if (product == null) return new java.util.ArrayList<>();
+        
+        String category = product.getCategory();
+        return addOns.stream()
+                .filter(com.coffeeshop.model.AddOn::isActive)
+                .filter(addOn -> {
+                    // Check if add-on applies to this product's category
+                    if (addOn.getCategory().equalsIgnoreCase("All")) return true;
+                    if (addOn.getCategory().equalsIgnoreCase(category)) {
+                        // Check if specifically assigned to this product
+                        return addOn.isApplicableToProduct(productId);
+                    }
+                    return false;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public com.coffeeshop.model.AddOn getAddOnById(String id) {
+        return addOns.stream()
+                .filter(a -> a.getId().equals(id))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public void addAddOn(com.coffeeshop.model.AddOn addOn) {
+        addOns.add(addOn);
+        saveData();
+    }
+
+    public void updateAddOn(com.coffeeshop.model.AddOn addOn) {
+        for (int i = 0; i < addOns.size(); i++) {
+            if (addOns.get(i).getId().equals(addOn.getId())) {
+                addOns.set(i, addOn);
+                saveData();
+                return;
+            }
+        }
+    }
+
+    public void deleteAddOn(String id) {
+        addOns.removeIf(a -> a.getId().equals(id));
+        saveData();
+    }
+
+    public void toggleAddOnActive(String id) {
+        for (com.coffeeshop.model.AddOn addOn : addOns) {
+            if (addOn.getId().equals(id)) {
+                addOn.setActive(!addOn.isActive());
+                saveData();
+                return;
+            }
+        }
     }
 }

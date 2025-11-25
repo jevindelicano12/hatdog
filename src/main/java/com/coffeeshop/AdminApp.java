@@ -89,7 +89,7 @@ public class AdminApp extends Application {
     }
 
     private VBox currentContentArea;
-    private VBox dashboardContent, productsContent, inventoryContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent;
+    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, categoriesContent, accountsContent, refillAlertsContent, reportsContent;
     private VBox archivedContent;
     private TableView<InventoryRow> archivedTable;
 
@@ -123,6 +123,7 @@ public class AdminApp extends Application {
         dashboardContent = createDashboardTab();
         productsContent = createProductsTab();
         inventoryContent = createInventoryTab();
+        addOnsContent = createAddOnsTab();
         categoriesContent = createCategoriesTab();
         accountsContent = createAccountsTab();
         refillAlertsContent = createRefillAlertsTab();
@@ -413,11 +414,12 @@ public class AdminApp extends Application {
         
         Button productsBtn = createNavButton("📦", "Products", false);
         Button inventoryBtn = createNavButton("📋", "Inventory", false);
+        Button addOnsBtn = createNavButton("➕", "Add-ons", false);
         Button categoriesBtn = createNavButton("🗂️", "Categories", false);
         Button accountsBtn = createNavButton("👥", "Accounts", false);
         
         VBox managementSection = new VBox(0);
-        managementSection.getChildren().addAll(managementHeader, productsBtn, inventoryBtn, categoriesBtn, accountsBtn);
+        managementSection.getChildren().addAll(managementHeader, productsBtn, inventoryBtn, addOnsBtn, categoriesBtn, accountsBtn);
         
         // SYSTEM section
         Label systemHeader = new Label("SYSTEM");
@@ -463,6 +465,7 @@ public class AdminApp extends Application {
         reportsBtn.setOnAction(e -> { setActiveNav(reportsBtn); showContent(reportsContent); });
         productsBtn.setOnAction(e -> { setActiveNav(productsBtn); showContent(productsContent); });
         inventoryBtn.setOnAction(e -> { setActiveNav(inventoryBtn); showContent(inventoryContent); });
+        addOnsBtn.setOnAction(e -> { setActiveNav(addOnsBtn); refreshAddOnsContent(); showContent(addOnsContent); });
         categoriesBtn.setOnAction(e -> { setActiveNav(categoriesBtn); showContent(categoriesContent); });
         accountsBtn.setOnAction(e -> { setActiveNav(accountsBtn); showContent(accountsContent); });
         refillBtn.setOnAction(e -> { setActiveNav(refillBtn); showContent(refillAlertsContent); });
@@ -800,6 +803,227 @@ public class AdminApp extends Application {
 
         panel.getChildren().addAll(title, new Separator(), metricsBox, new Separator(), topChart, trendChart, refreshBtn);
         return panel;
+    }
+
+    private VBox createAddOnsTab() {
+        VBox panel = new VBox(12);
+        panel.setPadding(new Insets(20));
+
+        Label title = new Label("➕ Manage Add-ons");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+
+        HBox header = new HBox(12);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getChildren().add(title);
+
+        Button addNewBtn = new Button("+ Add New Add-on");
+        addNewBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 16;");
+        addNewBtn.setOnAction(e -> showAddOnDialog(null));
+        header.getChildren().add(addNewBtn);
+
+        // Table for add-ons
+        javafx.scene.control.TableView<com.coffeeshop.model.AddOn> table = new javafx.scene.control.TableView<>();
+        
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> idCol = new javafx.scene.control.TableColumn<>("ID");
+        idCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getId()));
+        idCol.setPrefWidth(80);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> nameCol = new javafx.scene.control.TableColumn<>("Name");
+        nameCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getName()));
+        nameCol.setPrefWidth(200);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> priceCol = new javafx.scene.control.TableColumn<>("Price");
+        priceCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getFormattedPrice()));
+        priceCol.setPrefWidth(100);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> categoryCol = new javafx.scene.control.TableColumn<>("Category");
+        categoryCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getCategory()));
+        categoryCol.setPrefWidth(120);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> statusCol = new javafx.scene.control.TableColumn<>("Status");
+        statusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().isActive() ? "Active" : "Inactive"));
+        statusCol.setPrefWidth(100);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, String> productsCol = new javafx.scene.control.TableColumn<>("Assigned Products");
+        productsCol.setCellValueFactory(data -> {
+            java.util.List<String> ids = data.getValue().getApplicableProductIds();
+            if (ids.isEmpty()) return new javafx.beans.property.SimpleStringProperty("All in category");
+            return new javafx.beans.property.SimpleStringProperty(ids.size() + " product(s)");
+        });
+        productsCol.setPrefWidth(150);
+
+        javafx.scene.control.TableColumn<com.coffeeshop.model.AddOn, Void> actionsCol = new javafx.scene.control.TableColumn<>("Actions");
+        actionsCol.setPrefWidth(200);
+        actionsCol.setCellFactory(param -> new javafx.scene.control.TableCell<>() {
+            private final Button editBtn = new Button("Edit");
+            private final Button toggleBtn = new Button("Toggle");
+            private final Button deleteBtn = new Button("Delete");
+
+            {
+                editBtn.setStyle("-fx-background-color: #3B82F6; -fx-text-fill: white; -fx-font-size: 11;");
+                toggleBtn.setStyle("-fx-background-color: #F59E0B; -fx-text-fill: white; -fx-font-size: 11;");
+                deleteBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 11;");
+
+                editBtn.setOnAction(e -> {
+                    com.coffeeshop.model.AddOn addOn = getTableView().getItems().get(getIndex());
+                    showAddOnDialog(addOn);
+                });
+
+                toggleBtn.setOnAction(e -> {
+                    com.coffeeshop.model.AddOn addOn = getTableView().getItems().get(getIndex());
+                    store.toggleAddOnActive(addOn.getId());
+                    refreshAddOnsContent();
+                });
+
+                deleteBtn.setOnAction(e -> {
+                    com.coffeeshop.model.AddOn addOn = getTableView().getItems().get(getIndex());
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Delete Add-on");
+                    confirm.setHeaderText("Are you sure you want to delete this add-on?");
+                    confirm.setContentText(addOn.getName());
+                    confirm.showAndWait().ifPresent(response -> {
+                        if (response == javafx.scene.control.ButtonType.OK) {
+                            store.deleteAddOn(addOn.getId());
+                            refreshAddOnsContent();
+                        }
+                    });
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    HBox buttons = new HBox(5, editBtn, toggleBtn, deleteBtn);
+                    setGraphic(buttons);
+                }
+            }
+        });
+
+        table.getColumns().addAll(idCol, nameCol, priceCol, categoryCol, statusCol, productsCol, actionsCol);
+        table.setItems(javafx.collections.FXCollections.observableArrayList(store.getAddOns()));
+
+        VBox.setVgrow(table, Priority.ALWAYS);
+        panel.getChildren().addAll(header, table);
+
+        return panel;
+    }
+
+    private void refreshAddOnsContent() {
+        addOnsContent.getChildren().clear();
+        addOnsContent.getChildren().addAll(createAddOnsTab().getChildren());
+    }
+
+    private void showAddOnDialog(com.coffeeshop.model.AddOn existingAddOn) {
+        Dialog<com.coffeeshop.model.AddOn> dialog = new Dialog<>();
+        dialog.setTitle(existingAddOn == null ? "Add New Add-on" : "Edit Add-on");
+        dialog.setHeaderText(existingAddOn == null ? "Create a new add-on" : "Edit add-on details");
+
+        javafx.scene.control.ButtonType saveButtonType = new javafx.scene.control.ButtonType("Save", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, javafx.scene.control.ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("Add-on name");
+        TextField priceField = new TextField();
+        priceField.setPromptText("Price (e.g., 1.00)");
+        javafx.scene.control.ComboBox<String> categoryCombo = new javafx.scene.control.ComboBox<>();
+        categoryCombo.getItems().addAll("Coffee", "Milk Tea", "All");
+        javafx.scene.control.CheckBox activeCheck = new javafx.scene.control.CheckBox("Active");
+
+        if (existingAddOn != null) {
+            nameField.setText(existingAddOn.getName());
+            priceField.setText(String.valueOf(existingAddOn.getPrice()));
+            categoryCombo.setValue(existingAddOn.getCategory());
+            activeCheck.setSelected(existingAddOn.isActive());
+        } else {
+            categoryCombo.setValue("Coffee");
+            activeCheck.setSelected(true);
+        }
+
+        // Product assignment section
+        Label productLabel = new Label("Assign to specific products (optional):");
+        javafx.scene.control.ListView<javafx.scene.control.CheckBox> productList = new javafx.scene.control.ListView<>();
+        productList.setPrefHeight(200);
+        
+        javafx.collections.ObservableList<javafx.scene.control.CheckBox> productCheckBoxes = javafx.collections.FXCollections.observableArrayList();
+        for (Product p : store.getProducts()) {
+            javafx.scene.control.CheckBox cb = new javafx.scene.control.CheckBox(p.getName() + " (" + p.getCategory() + ")");
+            cb.setUserData(p.getId());
+            if (existingAddOn != null && existingAddOn.getApplicableProductIds().contains(p.getId())) {
+                cb.setSelected(true);
+            }
+            productCheckBoxes.add(cb);
+        }
+        productList.setItems(productCheckBoxes);
+
+        grid.add(new Label("Name:"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Price:"), 0, 1);
+        grid.add(priceField, 1, 1);
+        grid.add(new Label("Category:"), 0, 2);
+        grid.add(categoryCombo, 1, 2);
+        grid.add(activeCheck, 1, 3);
+        grid.add(productLabel, 0, 4);
+        grid.add(productList, 0, 5, 2, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                try {
+                    String name = nameField.getText().trim();
+                    double price = Double.parseDouble(priceField.getText().trim());
+                    String category = categoryCombo.getValue();
+                    boolean active = activeCheck.isSelected();
+
+                    java.util.List<String> selectedProducts = new java.util.ArrayList<>();
+                    for (javafx.scene.control.CheckBox cb : productCheckBoxes) {
+                        if (cb.isSelected()) {
+                            selectedProducts.add((String) cb.getUserData());
+                        }
+                    }
+
+                    if (existingAddOn != null) {
+                        existingAddOn.setName(name);
+                        existingAddOn.setPrice(price);
+                        existingAddOn.setCategory(category);
+                        existingAddOn.setActive(active);
+                        existingAddOn.setApplicableProductIds(selectedProducts);
+                        return existingAddOn;
+                    } else {
+                        // Generate new ID
+                        int maxId = 0;
+                        for (com.coffeeshop.model.AddOn a : store.getAddOns()) {
+                            try {
+                                String numPart = a.getId().replaceAll("[^0-9]", "");
+                                if (!numPart.isEmpty()) maxId = Math.max(maxId, Integer.parseInt(numPart));
+                            } catch (Exception ignored) {}
+                        }
+                        String newId = "A" + String.format("%03d", maxId + 1);
+                        return new com.coffeeshop.model.AddOn(newId, name, price, category, selectedProducts, active);
+                    }
+                } catch (NumberFormatException e) {
+                    showAlert("Invalid Input", "Please enter a valid price.", Alert.AlertType.ERROR);
+                }
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(addOn -> {
+            if (existingAddOn != null) {
+                store.updateAddOn(addOn);
+            } else {
+                store.addAddOn(addOn);
+            }
+            refreshAddOnsContent();
+        });
     }
 
     private VBox createCategoriesTab() {
@@ -1160,25 +1384,16 @@ public class AdminApp extends Application {
             .filter(o -> "COMPLETED".equals(o.getStatus()))
             .count();
 
-        // Low stock products
-        long lowStockCount = store.getProducts().stream()
-            .filter(p -> p.getStock() <= Store.REFILL_THRESHOLD)
-            .count();
-
         // Update labels
         netSalesLabel.setText(String.format("₱%.2f", netSales));
         pendingOrdersLabel.setText(String.valueOf(pendingCount));
         completedOrdersLabel.setText(String.valueOf(completedCount));
-        lowStockLabel.setText(String.valueOf(lowStockCount));
+        // Low-stock counter/alerts removed per configuration: keep UI neutral
+        lowStockLabel.setText("—");
 
-        // Update alerts area
-        if (store.hasProductsNeedingRefill()) {
-            dashboardAlertsArea.setText(store.getProductRefillAlerts());
-            dashboardAlertsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 12px;"); 
-        } else {
-            dashboardAlertsArea.setText("✓ All products are well-stocked!");
-            dashboardAlertsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 12px; -fx-text-fill: #2E7D32;");
-        }
+        // Dashboard alerts: no refill/low-stock alerts shown here anymore.
+        dashboardAlertsArea.setText("✓ All products are well-stocked!");
+        dashboardAlertsArea.setStyle("-fx-font-family: 'Courier New'; -fx-font-size: 12px; -fx-text-fill: #2E7D32;");
     }
 
     private void refreshDashboard() {
@@ -1393,8 +1608,8 @@ public class AdminApp extends Application {
                 } else {
                     String txt = String.format("%s — %.2f %s", item.getName(), item.getQuantity(), item.getUnit());
                     setText(txt);
-                    // Simple low-stock visual cue
-                    if (item.getQuantity() <= Store.REFILL_THRESHOLD) {
+                    // Visual cue only for out-of-stock items (low-stock notifications removed)
+                    if (item.getQuantity() == 0) {
                         setStyle("-fx-background-color: rgba(254,226,226,0.6);");
                     } else {
                         setStyle("");
@@ -1724,8 +1939,6 @@ public class AdminApp extends Application {
             String status;
             if (p.getStock() == 0) {
                 status = "🔴 OUT OF STOCK";
-            } else if (p.getStock() <= 5) {
-                status = "🟡 LOW STOCK";
             } else {
                 status = "✓ OK";
             }
@@ -1769,15 +1982,17 @@ public class AdminApp extends Application {
         java.util.Collection<com.coffeeshop.model.InventoryItem> inv = store.getInventory().values();
         java.util.List<com.coffeeshop.model.InventoryItem> items = new java.util.ArrayList<>(inv);
         if (lowOnly) {
+            // Show only out-of-stock ingredients when filtering for 'Low Stock'
             java.util.List<com.coffeeshop.model.InventoryItem> low = new java.util.ArrayList<>();
             for (com.coffeeshop.model.InventoryItem it : items) {
-                if (it.getQuantity() <= Store.REFILL_THRESHOLD) low.add(it);
+                if (it.getQuantity() == 0) low.add(it);
             }
             alertsListView.getItems().setAll(low);
             if (low.isEmpty()) {
                 alertsListView.getItems().clear();
             }
         } else {
+            // Show all ingredients (no low-stock prioritization)
             alertsListView.getItems().setAll(items);
         }
     }

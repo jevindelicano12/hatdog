@@ -1,0 +1,73 @@
+[
+  {
+    "id": "A001",
+    "name": "Extra Shot",
+    "price": 1.0,
+    "category": "Coffee",
+    "applicableProductIds": [
+      "P001",
+      "P002",
+      "P003",
+      "P004"
+    ],
+    "active": true
+  },
+  {
+    "id": "A002",
+    "name": "Whipped Cream",
+    "price": 0.5,
+    "category": "Coffee",
+    "applicableProductIds": [],
+    "active": true
+  },
+  {
+    "id": "A003",
+    "name": "Vanilla Syrup",
+    "price": 0.75,
+    "category": "Coffee",
+    "applicableProductIds": [],
+    "active": true
+  },
+  {
+    "id": "A004",
+    "name": "Caramel Sauce",
+    "price": 0.75,
+    "category": "Coffee",
+    "applicableProductIds": [],
+    "active": true
+  },
+  {
+    "id": "A005",
+    "name": "Tapioca Pearls",
+    "price": 10.0,
+    "category": "Milk Tea",
+    "applicableProductIds": [],
+    "active": true
+  },
+  {
+    "id": "A006",
+    "name": "Jellies",
+    "price": 10.0,
+    "category": "Milk Tea",
+    "applicableProductIds": [],
+    "active": true
+  },
+  {
+    "id": "A007",
+    "name": "Popping Boba",
+    "price": 10.0,
+    "category": "Milk Tea",
+    "applicableProductIds": [],
+    "active": true
+  },
+  {
+    "id": "A008",
+    "name": "jhames",
+    "price": 10.0,
+    "category": "Coffee",
+    "applicableProductIds": [
+      "P018"
+    ],
+    "active": true
+  }
+]

@@ -52,7 +52,7 @@ public class CustomerApp extends Application {
     private Label footerTotalLabel;
     private Button footerViewCartBtn;
     private Button footerCheckoutBtn;
-    private String orderType = ""; // "Dine In" or "Take Away"
+    private String orderType = ""; // "Dine In" or "Take Out"
     private Timeline inactivityTimer;
     private int countdownSeconds = 30;
     private Label countdownLabel;
@@ -297,14 +297,14 @@ public class CustomerApp extends Application {
             showMenuScreen();
         });
 
-        // Take Away button
-        VBox takeAwayBox = createOptionCard("🛍", "Take Away", "Grab your coffee on the go");
-        takeAwayBox.setOnMouseClicked(e -> {
-            orderType = "Take Away";
+        // Take Out button
+        VBox takeOutBox = createOptionCard("🛍", "Take Out", "Grab your coffee on the go");
+        takeOutBox.setOnMouseClicked(e -> {
+            orderType = "Take Out";
             showMenuScreen();
         });
 
-        optionsBox.getChildren().addAll(dineInBox, takeAwayBox);
+        optionsBox.getChildren().addAll(dineInBox, takeOutBox);
 
         welcomeBox.getChildren().addAll(titleBox, optionsBox);
         root.getChildren().add(welcomeBox);
@@ -386,6 +386,24 @@ public class CustomerApp extends Application {
         
         container.getChildren().addAll(background, logo);
         return container;
+    }
+
+    // Simple cart graphic composed from shapes so it's consistent across platforms
+    private javafx.scene.Node createCartIcon(double size) {
+        javafx.scene.layout.StackPane g = new javafx.scene.layout.StackPane();
+        g.setPrefSize(size + 8, size + 8);
+
+        javafx.scene.shape.Circle bg = new javafx.scene.shape.Circle((size + 8) / 2.0);
+        bg.setFill(Color.web("#FFFFFF"));
+        bg.setStroke(Color.web("#D0D0D0"));
+        bg.setStrokeWidth(1.2);
+
+        // Use a simple cart glyph using a Label to avoid SVG/font issues
+        Label glyph = new Label("🛒");
+        glyph.setFont(Font.font("Segoe UI Emoji", size));
+
+        g.getChildren().addAll(bg, glyph);
+        return g;
     }
 
     // Create BREWISE circular logo with LOGO.jpg image for welcome screen
@@ -1223,86 +1241,114 @@ public class CustomerApp extends Application {
 
     private VBox createProductCard(Product product) {
         VBox card = new VBox(0);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-cursor: hand;");
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 1); -fx-cursor: hand; -fx-border-color: #F0F0F0; -fx-border-width: 1; -fx-border-radius: 12;");
         
-        // Responsive sizing based on sidebar visibility (expanded)
-        int cardWidth = sidebarVisible ? 260 : 360;
-        int cardHeight = sidebarVisible ? 320 : 380;
+        // More compact card sizing like reference
+        int cardWidth = sidebarVisible ? 200 : 240;
+        int cardHeight = sidebarVisible ? 280 : 320;
         
         card.setPrefWidth(cardWidth);
         card.setPrefHeight(cardHeight);
 
         // Product image with real image support
         StackPane imagePane = new StackPane();
-        int imageHeight = sidebarVisible ? 180 : 240;
+        int imageHeight = sidebarVisible ? 140 : 180;
         imagePane.setPrefHeight(imageHeight);
         imagePane.setMaxHeight(imageHeight);
-        imagePane.setStyle("-fx-background-color: #f0f0f0; -fx-background-radius: 0; -fx-border-radius: 0;");
+        imagePane.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 12 12 0 0;");
         
         // Try to load product image
         javafx.scene.image.ImageView productImage = loadProductImage(product.getId());
         if (productImage != null) {
             productImage.setFitHeight(imageHeight);
             productImage.setFitWidth(cardWidth);
-            productImage.setPreserveRatio(false);
+            productImage.setPreserveRatio(true);
+            // Clip to rounded corners
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(cardWidth, imageHeight);
+            clip.setArcWidth(24);
+            clip.setArcHeight(24);
+            imagePane.setClip(clip);
             imagePane.getChildren().add(productImage);
         } else {
             // Fallback to emoji if no image
-            String gradient = product.getName().toLowerCase().contains("espresso") ? 
-                "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" :
-                product.getName().toLowerCase().contains("cappuccino") ?
-                "linear-gradient(to bottom right, #404040, #2C2C2C)" :
-                "linear-gradient(to bottom right, #505050, #2C2C2C)";
-            imagePane.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0;");
+            imagePane.setStyle("-fx-background-color: linear-gradient(to bottom right, #D4B5A0, #C4A890); -fx-background-radius: 12 12 0 0;");
             
             Label imagePlaceholder = new Label("☕");
-            int emojiSize = sidebarVisible ? 64 : 88;
+            int emojiSize = sidebarVisible ? 50 : 60;
             imagePlaceholder.setFont(Font.font("Segoe UI Emoji", emojiSize));
-            imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
+            imagePlaceholder.setTextFill(Color.web("#FFFFFF"));
             imagePane.getChildren().add(imagePlaceholder);
         }
 
-        // Content area - simplified (responsive padding)
-        VBox contentBox = new VBox(sidebarVisible ? 12 : 18);
-        contentBox.setPadding(new Insets(sidebarVisible ? 18 : 24));
-        contentBox.setAlignment(Pos.CENTER);
+        // Content area with proper spacing
+        VBox contentBox = new VBox(4);
+        contentBox.setPadding(new Insets(12, 14, 12, 14));
+        contentBox.setAlignment(Pos.TOP_LEFT);
 
-        // Product name (responsive font size)
+        // Product name (left-aligned)
         Label nameLabel = new Label(product.getName());
-        int nameSize = sidebarVisible ? 16 : 20;
-        nameLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, nameSize));
+        nameLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
         nameLabel.setTextFill(Color.web("#1A1A1A"));
-        nameLabel.setWrapText(true);
-        nameLabel.setAlignment(Pos.CENTER);
-        nameLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        nameLabel.setWrapText(false);
+        nameLabel.setMaxWidth(Double.MAX_VALUE);
 
-        // Price (responsive font size)
-        Label priceLabel = new Label("₱" + String.format("%.2f", product.getPrice()));
-        int priceSize = sidebarVisible ? 16 : 18;
-        priceLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, priceSize));
-        priceLabel.setTextFill(Color.web("#1A1A1A"));
+        // Bottom row: price on left, button on right
+        HBox bottomRow = new HBox(8);
+        bottomRow.setAlignment(Pos.CENTER_LEFT);
+        bottomRow.setPadding(new Insets(2, 0, 0, 0));
+        
+        Label priceLabel = new Label("₱" + String.format("%.1f", product.getPrice()));
+        priceLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        priceLabel.setTextFill(Color.web("#666666"));
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        contentBox.getChildren().addAll(nameLabel, priceLabel);
+        // Cart button: use a graphic instead of relying on emoji fonts (prevents fallback to "...")
+        Button addBtn = new Button();
+        addBtn.setGraphic(createCartIcon(14));
+        addBtn.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-pref-width: 32; -fx-pref-height: 32; -fx-cursor: hand; -fx-border-color: #D0D0D0; -fx-border-width: 1.5; -fx-border-radius: 20;");
+        addBtn.setPrefSize(32, 32);
+        addBtn.setFocusTraversable(false);
+        addBtn.setOnMouseEntered(e -> addBtn.setStyle("-fx-background-color: #F0F0F0; -fx-background-radius: 20; -fx-pref-width: 32; -fx-pref-height: 32; -fx-cursor: hand; -fx-border-color: #A0A0A0; -fx-border-width: 1.5; -fx-border-radius: 20;"));
+        addBtn.setOnMouseExited(e -> addBtn.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-pref-width: 32; -fx-pref-height: 32; -fx-cursor: hand; -fx-border-color: #D0D0D0; -fx-border-width: 1.5; -fx-border-radius: 20;"));
+
+        // Open customization when user clicks the cart icon so they can select add-ons / sugar etc.
+        addBtn.setTooltip(new javafx.scene.control.Tooltip("Customize before adding"));
+        addBtn.setOnMouseClicked(ev -> {
+            ev.consume();
+            try {
+                resetInactivityTimer();
+                // Open the customization page for this product (user can add to cart from there)
+                showCustomizationPage(product);
+            } catch (Exception ex) {
+                System.err.println("Failed to open customization: " + ex.getMessage());
+            }
+        });
+
+        bottomRow.getChildren().addAll(priceLabel, spacer, addBtn);
+
+        contentBox.getChildren().addAll(nameLabel, bottomRow);
         card.getChildren().addAll(imagePane, contentBox);
 
-        // Click handler - navigate to customization page
+        // Click handler - open customization on card click
         card.setOnMouseClicked(e -> {
-            if (product.getStock() > 0) {
+            if (product.getStock() > 0 && e.getTarget() != addBtn) {
                 resetInactivityTimer();
                 showCustomizationPage(product);
             }
         });
 
-        // Hover effects
+        // Subtle hover effects
         card.setOnMouseEntered(e -> {
             if (product.getStock() > 0) {
-                card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5); -fx-cursor: hand;");
+                card.setStyle("-fx-background-color: #FAFAFA; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.10), 6, 0, 0, 2); -fx-cursor: hand; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-border-radius: 12;");
             }
         });
         
         card.setOnMouseExited(e -> {
             if (product.getStock() > 0) {
-                card.setStyle("-fx-background-color: white; -fx-background-radius: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0, 0, 2); -fx-cursor: hand;");
+                card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 1); -fx-cursor: hand; -fx-border-color: #F0F0F0; -fx-border-width: 1; -fx-border-radius: 12;");
             }
         });
 
@@ -1310,149 +1356,473 @@ public class CustomerApp extends Application {
     }
     
     private void showCustomizationPage(Product product) {
-        BorderPane customizationLayout = new BorderPane();
-        customizationLayout.setStyle("-fx-background-color: #FFFFFF;");
+        // Create modal-style dialog
+        StackPane modalRoot = new StackPane();
+        modalRoot.setStyle("-fx-background-color: rgba(0, 0, 0, 0.5);");
         
-        // Header
-        VBox header = createCustomizationHeader(product);
-        customizationLayout.setTop(header);
+        // Modal card
+        VBox modalCard = new VBox(20);
+        modalCard.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 30, 0, 0, 10);");
+        modalCard.setPadding(new Insets(40));
+        modalCard.setPrefWidth(800);
+        modalCard.setMaxWidth(800);
+        modalCard.setAlignment(Pos.TOP_CENTER);
         
-        // Content
-        ScrollPane content = createCustomizationContent(product);
-        customizationLayout.setCenter(content);
+        // Header with close button
+        HBox headerRow = new HBox();
+        headerRow.setAlignment(Pos.CENTER_LEFT);
+        headerRow.setPrefHeight(60);
         
-        Scene customScene = new Scene(customizationLayout, 1280, 900);
+        // Product image and info (left side)
+        HBox leftHeader = new HBox(20);
+        leftHeader.setAlignment(Pos.CENTER_LEFT);
+        
+        StackPane imageBox = new StackPane();
+        imageBox.setPrefSize(80, 80);
+        imageBox.setStyle("-fx-background-color: #F5F5F5; -fx-background-radius: 12;");
+        ImageView productImg = loadProductImage(product.getId());
+        if (productImg != null) {
+            productImg.setFitWidth(80);
+            productImg.setFitHeight(80);
+            productImg.setPreserveRatio(true);
+            imageBox.getChildren().add(productImg);
+        } else {
+            Label placeholder = new Label("☕");
+            placeholder.setFont(Font.font("Segoe UI Emoji", 40));
+            imageBox.getChildren().add(placeholder);
+        }
+        
+        VBox productInfo = new VBox(6);
+        Label productName = new Label(product.getName());
+        productName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        productName.setTextFill(Color.web("#1A1A1A"));
+        
+        Label productDesc = new Label("Customize your drink exactly\nhow you like it.");
+        productDesc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        productDesc.setTextFill(Color.web("#666666"));
+        productDesc.setWrapText(true);
+        
+        productInfo.getChildren().addAll(productName, productDesc);
+        leftHeader.getChildren().addAll(imageBox, productInfo);
+        
+        // Close button (right side)
+        Region spacer1 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        Button closeBtn = new Button("✕");
+        closeBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand; -fx-padding: 0;");
+        closeBtn.setOnMouseEntered(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-cursor: hand;"));
+        closeBtn.setOnMouseExited(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand;"));
+        closeBtn.setOnAction(e -> showMenuScreen());
+        
+        headerRow.getChildren().addAll(leftHeader, spacer1, closeBtn);
+        
+        // Content: Size, Milk Options, Add-ons in a grid
+        VBox customContent = createCompactCustomizationForm(product);
+        
+        // Bottom section: Quantity, Total, Add to Order button
+        Separator sep = new Separator();
+        sep.setStyle("-fx-padding: 0; -fx-background-color: #EEEEEE;");
+        
+        HBox footerRow = new HBox(20);
+        footerRow.setAlignment(Pos.CENTER);
+        footerRow.setPadding(new Insets(20, 0, 0, 0));
+        
+        // Quantity
+        HBox qtyBox = new HBox(12);
+        qtyBox.setAlignment(Pos.CENTER);
+        Label qtyLbl = new Label("Quantity:");
+        qtyLbl.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        qtyLbl.setTextFill(Color.web("#333333"));
+        
+        Button qtyMinus = new Button("−");
+        qtyMinus.setPrefSize(34, 34);
+        qtyMinus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;");
+        qtyMinus.setOnMouseEntered(e -> qtyMinus.setStyle("-fx-background-color: #EEEEEE; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
+        qtyMinus.setOnMouseExited(e -> qtyMinus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
+        
+        Label qtyVal = new Label("1");
+        qtyVal.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
+        qtyVal.setTextFill(Color.web("#1A1A1A"));
+        qtyVal.setPrefWidth(30);
+        qtyVal.setAlignment(Pos.CENTER);
+        
+        Button qtyPlus = new Button("+");
+        qtyPlus.setPrefSize(34, 34);
+        qtyPlus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;");
+        qtyPlus.setOnMouseEntered(e -> qtyPlus.setStyle("-fx-background-color: #EEEEEE; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
+        qtyPlus.setOnMouseExited(e -> qtyPlus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
+        
+        final int[] qty = {1};
+        qtyMinus.setOnAction(e -> { if (qty[0] > 1) { qty[0]--; qtyVal.setText(String.valueOf(qty[0])); } });
+        qtyPlus.setOnAction(e -> { qty[0]++; qtyVal.setText(String.valueOf(qty[0])); });
+        
+        qtyBox.getChildren().addAll(qtyLbl, qtyMinus, qtyVal, qtyPlus);
+        
+        // Spacer
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+        
+        // Total and Add button
+        VBox totalBox = new VBox(4);
+        totalBox.setAlignment(Pos.CENTER_RIGHT);
+        Label totalLbl = new Label("TOTAL");
+        totalLbl.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
+        totalLbl.setTextFill(Color.web("#999999"));
+        Label totalPrice = new Label("₱50");
+        totalPrice.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        totalPrice.setTextFill(Color.web("#1A1A1A"));
+        totalBox.getChildren().addAll(totalLbl, totalPrice);
+        
+        Button addBtn = new Button("Add to Order →");
+        addBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        addBtn.setPrefSize(160, 48);
+        addBtn.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;");
+        addBtn.setOnMouseEntered(e -> addBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"));
+        addBtn.setOnMouseExited(e -> addBtn.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-background-radius: 8; -fx-cursor: hand;"));
+        addBtn.setOnAction(e -> {
+            try {
+                resetInactivityTimer();
+                // Get customization selections and add to cart
+                handleAddToCart(product, qty[0], customContent);
+            } catch (Exception ex) {
+                System.err.println("Error adding to cart: " + ex.getMessage());
+            }
+        });
+        
+        footerRow.getChildren().addAll(qtyBox, spacer2, totalBox, addBtn);
+        
+        modalCard.getChildren().addAll(headerRow, sep, customContent, footerRow);
+        
+        // Add modal to center of root
+        modalRoot.getChildren().add(modalCard);
+        StackPane.setAlignment(modalCard, Pos.CENTER);
+        
+        Scene customScene = new Scene(modalRoot, 1600, 900);
         setScenePreserveWindowSize(customScene);
-        primaryStage.setTitle("Customize " + product.getName() + " - Coffee Shop Kiosk");
         applyAtlantafx(customScene);
     }
     
-    private VBox createCustomizationHeader(Product product) {
-        VBox header = new VBox(15);
-        header.setPadding(new Insets(30, 40, 20, 40));
-        header.getStyleClass().add("custom-header");
+    // Create compact customization form with size, milk, and add-ons
+    private VBox createCompactCustomizationForm(Product product) {
+        VBox form = new VBox(20);
+        form.setAlignment(Pos.TOP_LEFT);
         
-        // Back button and title row
-        HBox titleRow = new HBox();
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-        
-        // Dynamic back button text and behavior based on whether we're editing or adding new
-        String backText = customizingOrderItem != null ? "← Back to Cart" : "← Back to Menu";
-        Button backBtn = new Button(backText);
-        backBtn.getStyleClass().add("primary-button");
-        backBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
-        
-        if (customizingOrderItem != null) {
-            backBtn.setOnAction(e -> {
-                customizingOrderItem = null; // Clear the customizing reference
-                showCartPage();
-            });
-        } else {
-            backBtn.setOnAction(e -> showMenuScreen());
+        boolean isCoffee = product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee");
+        boolean isMilkTea = product.getCategory() != null && product.getCategory().equalsIgnoreCase("Milk Tea");
+        boolean isEspresso = product.getName() != null && product.getName().equalsIgnoreCase("Espresso");
+        boolean isPastry = false;
+        if (product.getCategory() != null) {
+            String c = product.getCategory().toLowerCase();
+            isPastry = c.contains("pastr") || c.contains("bakery") || c.contains("snack");
         }
         
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        // SIZE SECTION - converted to clickable pills
+        if (!isPastry) {
+            VBox sizeSection = new VBox(12);
+            Label sizeTitle = new Label("SELECT SIZE");
+            sizeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            sizeTitle.setTextFill(Color.web("#999999"));
+            sizeTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
+            
+            HBox sizeButtons = new HBox(10);
+            sizeButtons.setAlignment(Pos.CENTER_LEFT);
+            
+            final int[] selectedSizeInitial = {30}; // Default to Large
+            
+            final Button[] smallBtnRef = new Button[1];
+            final Button[] mediumBtnRef = new Button[1];
+            final Button[] largeBtnRef = new Button[1];
+            
+            Button smallBtn = new Button("Small (₱0)");
+            smallBtnRef[0] = smallBtn;
+            smallBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            smallBtn.setPadding(new Insets(8, 16, 8, 16));
+            smallBtn.setStyle(getPillDefaultStyle());
+            smallBtn.setOnAction(e -> {
+                selectedSizeInitial[0] = 0;
+                smallBtnRef[0].setStyle(getPillSelectedStyle());
+                mediumBtnRef[0].setStyle(getPillDefaultStyle());
+                largeBtnRef[0].setStyle(getPillDefaultStyle());
+            });
+            smallBtn.setOnMouseEntered(e -> {
+                if (selectedSizeInitial[0] != 0) smallBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            });
+            smallBtn.setOnMouseExited(e -> {
+                if (selectedSizeInitial[0] != 0) smallBtn.setStyle(getPillDefaultStyle());
+                else smallBtn.setStyle(getPillSelectedStyle());
+            });
+            
+            Button mediumBtn = new Button("Medium (₱20)");
+            mediumBtnRef[0] = mediumBtn;
+            mediumBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            mediumBtn.setPadding(new Insets(8, 16, 8, 16));
+            mediumBtn.setStyle(getPillDefaultStyle());
+            mediumBtn.setOnAction(e -> {
+                selectedSizeInitial[0] = 20;
+                smallBtnRef[0].setStyle(getPillDefaultStyle());
+                mediumBtnRef[0].setStyle(getPillSelectedStyle());
+                largeBtnRef[0].setStyle(getPillDefaultStyle());
+            });
+            mediumBtn.setOnMouseEntered(e -> {
+                if (selectedSizeInitial[0] != 20) mediumBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            });
+            mediumBtn.setOnMouseExited(e -> {
+                if (selectedSizeInitial[0] != 20) mediumBtn.setStyle(getPillDefaultStyle());
+                else mediumBtn.setStyle(getPillSelectedStyle());
+            });
+            
+            Button largeBtn = new Button("Large (₱30)");
+            largeBtnRef[0] = largeBtn;
+            largeBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            largeBtn.setPadding(new Insets(8, 16, 8, 16));
+            largeBtn.setStyle(getPillSelectedStyle()); // Start selected
+            largeBtn.setOnAction(e -> {
+                selectedSizeInitial[0] = 30;
+                smallBtnRef[0].setStyle(getPillDefaultStyle());
+                mediumBtnRef[0].setStyle(getPillDefaultStyle());
+                largeBtnRef[0].setStyle(getPillSelectedStyle());
+            });
+            largeBtn.setOnMouseEntered(e -> {
+                if (selectedSizeInitial[0] != 30) largeBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            });
+            largeBtn.setOnMouseExited(e -> {
+                if (selectedSizeInitial[0] != 30) largeBtn.setStyle(getPillDefaultStyle());
+                else largeBtn.setStyle(getPillSelectedStyle());
+            });
+            
+            sizeButtons.getChildren().addAll(smallBtn, mediumBtn, largeBtn);
+            sizeSection.getChildren().addAll(sizeTitle, sizeButtons);
+            form.getChildren().add(sizeSection);
+        }
         
-        String headerText = customizingOrderItem != null ? "Edit " + product.getName() : "Customize " + product.getName();
-        Label titleLabel = new Label(headerText);
-        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        // MILK OPTIONS SECTION (for Milk Tea)
+        if (isMilkTea) {
+            VBox milkSection = new VBox(12);
+            Label milkTitle = new Label("MILK OPTIONS");
+            milkTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            milkTitle.setTextFill(Color.web("#999999"));
+            
+            HBox milkButtons = new HBox(12);
+            milkButtons.setAlignment(Pos.CENTER_LEFT);
+            
+            Button oatBtn = createMilkOptionPill("Oat Milk (+₱25)");
+            Button almondBtn = createMilkOptionPill("Almond Milk (+₱25)");
+            Button soyBtn = createMilkOptionPill("Soy Milk (+₱25)");
+            
+            milkButtons.getChildren().addAll(oatBtn, almondBtn, soyBtn);
+            milkSection.getChildren().addAll(milkTitle, milkButtons);
+            form.getChildren().add(milkSection);
+        }
         
-        titleRow.getChildren().addAll(backBtn, spacer, titleLabel, new Region());
+        // ADD-ONS SECTION - Dynamically loaded from database
+        java.util.List<com.coffeeshop.model.AddOn> availableAddOns = store.getAddOnsForProduct(product.getId());
+        if (!availableAddOns.isEmpty()) {
+            VBox addOnsSection = new VBox(12);
+            Label addOnsTitle = new Label("ADD-ONS");
+            addOnsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            addOnsTitle.setTextFill(Color.web("#999999"));
+            addOnsTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
+            
+            HBox addOnsGrid = new HBox(10);
+            addOnsGrid.setAlignment(Pos.CENTER_LEFT);
+            addOnsGrid.setStyle("-fx-wrap-text: true;");
+            
+            // Create pills dynamically from database
+            for (com.coffeeshop.model.AddOn addOn : availableAddOns) {
+                Button addOnPill = new Button(addOn.getName() + " (+" + addOn.getFormattedPrice() + ")");
+                addOnPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                addOnPill.setPadding(new Insets(8, 16, 8, 16));
+                addOnPill.setStyle(getPillDefaultStyle());
+                addOnPill.setUserData(addOn); // Store the AddOn object for later retrieval
+                addOnPill.setOnAction(e -> addOnPill.setStyle(addOnPill.getStyle().equals(getPillSelectedStyle()) ? getPillDefaultStyle() : getPillSelectedStyle()));
+                addOnPill.setOnMouseEntered(e -> {
+                    if (!addOnPill.getStyle().equals(getPillSelectedStyle())) {
+                        addOnPill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                    }
+                });
+                addOnPill.setOnMouseExited(e -> {
+                    if (!addOnPill.getStyle().equals(getPillSelectedStyle())) {
+                        addOnPill.setStyle(getPillDefaultStyle());
+                    }
+                });
+                addOnsGrid.getChildren().add(addOnPill);
+            }
+            
+            addOnsSection.getChildren().addAll(addOnsTitle, addOnsGrid);
+            form.getChildren().add(addOnsSection);
+        }
         
-        // Product info
-        String infoText = customizingOrderItem != null ? 
-            "₱" + String.format("%.2f", product.getPrice()) + " • Update your drink preferences" :
-            "₱" + String.format("%.2f", product.getPrice()) + " • " + product.getStock() + " available";
-        Label productInfo = new Label(infoText);
-        productInfo.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
-        productInfo.getStyleClass().add("info");
+        // SPECIAL REQUESTS SECTION
+        VBox specialRequestsSection = new VBox(12);
+        Label requestsTitle = new Label("💬 SPECIAL REQUESTS");
+        requestsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        requestsTitle.setTextFill(Color.web("#999999"));
+        requestsTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
         
-        header.getChildren().addAll(titleRow, productInfo);
-        return header;
+        // Quick select buttons for common requests
+        HBox quickButtons = new HBox(8);
+        quickButtons.setAlignment(Pos.CENTER_LEFT);
+        
+        String[] commonRequests = {"Less Ice", "No Ice", "Less Sweet", "No Sugar", "Extra Hot", "No Whip"};
+        javafx.scene.control.TextArea requestTextArea = new javafx.scene.control.TextArea();
+        requestTextArea.setPromptText("Add special instructions here...");
+        requestTextArea.setPrefRowCount(2);
+        requestTextArea.setWrapText(true);
+        requestTextArea.setStyle("-fx-font-size: 12px; -fx-border-color: #E0E0E0; -fx-border-radius: 6; -fx-background-radius: 6;");
+        
+        for (String request : commonRequests) {
+            Button quickBtn = new Button(request);
+            quickBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
+            quickBtn.setPadding(new Insets(6, 12, 6, 12));
+            quickBtn.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 15; -fx-border-radius: 15; -fx-cursor: hand; -fx-font-size: 11px;");
+            quickBtn.setOnMouseEntered(e -> quickBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 15; -fx-border-radius: 15; -fx-cursor: hand; -fx-font-size: 11px;"));
+            quickBtn.setOnMouseExited(e -> quickBtn.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 15; -fx-border-radius: 15; -fx-cursor: hand; -fx-font-size: 11px;"));
+            quickBtn.setOnAction(e -> {
+                String currentText = requestTextArea.getText();
+                if (currentText.isEmpty()) {
+                    requestTextArea.setText(request);
+                } else if (!currentText.contains(request)) {
+                    requestTextArea.setText(currentText + ", " + request);
+                }
+            });
+            quickButtons.getChildren().add(quickBtn);
+        }
+        
+        specialRequestsSection.getChildren().addAll(requestsTitle, quickButtons, requestTextArea);
+        form.getChildren().add(specialRequestsSection);
+        
+        return form;
     }
     
-    private ScrollPane createCustomizationContent(Product product) {
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setStyle("-fx-background: -fx-dominant-bg; -fx-background-color: -fx-dominant-bg;");
-        scrollPane.setFitToWidth(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+    // Create a milk option pill button
+    private Button createMilkOptionPill(String label) {
+        Button pill = new Button(label);
+        pill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+        pill.setPadding(new Insets(8, 16, 8, 16));
+        pill.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;");
         
-        VBox content = new VBox(16);
-        content.setPadding(new Insets(20, 30, 30, 30));
+        pill.setOnMouseEntered(e -> pill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;"));
+        pill.setOnMouseExited(e -> pill.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;"));
         
-        // Product image and basic info
-        VBox productSection = new VBox(12);
-        productSection.getStyleClass().add("card");
-        productSection.setPadding(new Insets(18));
-        productSection.setAlignment(Pos.CENTER_LEFT);
-        productSection.setMaxWidth(Double.MAX_VALUE);
-
-        // Large product banner (wider, taller and centered content)
-        StackPane imagePane = new StackPane();
-        imagePane.setPrefHeight(220);
-        imagePane.setMaxWidth(Double.MAX_VALUE);
-        String gradient = product.getName().toLowerCase().contains("espresso") ? 
-            "linear-gradient(to bottom right, #2C2C2C, #1A1A1A)" :
-            product.getName().toLowerCase().contains("cappuccino") ?
-            "linear-gradient(to bottom right, #404040, #2C2C2C)" :
-            "linear-gradient(to bottom right, #505050, #2C2C2C)";
-
-        // Create a centered background box so the gradient only covers the image area
-        StackPane imageBackground = new StackPane();
-        // Do not force a wide pref width; let the image determine width. Fix height to target.
-        final double targetHeight = 220.0;
-        imageBackground.setPrefHeight(targetHeight);
-        // Prevent the background from being stretched by parent containers
-        imageBackground.setMaxWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-        imageBackground.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-        imageBackground.setStyle("-fx-background-color: " + gradient + "; -fx-background-radius: 0; -fx-border-radius: 0; -fx-padding: 12 12 12 12;");
-
-        // Try to load actual product image
-        javafx.scene.image.ImageView productImage = loadProductImage(product.getId());
-        if (productImage != null) {
-            productImage.setPreserveRatio(true);
-            productImage.setFitHeight(targetHeight);
-            // If image already loaded, compute scaled width and size the background to match.
-                    if (productImage.getImage() != null) {
-                javafx.scene.image.Image img = productImage.getImage();
-                if (img.getHeight() > 0) {
-                    double scaledW = img.getWidth() * (targetHeight / img.getHeight());
-                    productImage.setFitWidth(scaledW);
-                            imageBackground.setPrefWidth(scaledW + 24); // include padding
-                            imageBackground.setMinWidth(scaledW + 24);
-                            imageBackground.setMaxWidth(scaledW + 24);
-                }
-            } else {
-                // Wait for image to load then adjust sizes
-                productImage.imageProperty().addListener((obs, oldImg, newImg) -> {
-                    try {
-                        if (newImg != null && newImg.getHeight() > 0) {
-                            double scaledW = newImg.getWidth() * (targetHeight / newImg.getHeight());
-                            javafx.application.Platform.runLater(() -> {
-                                productImage.setFitWidth(scaledW);
-                                imageBackground.setPrefWidth(scaledW + 24);
-                                imageBackground.setMinWidth(scaledW + 24);
-                                imageBackground.setMaxWidth(scaledW + 24);
-                            });
+        return pill;
+    }
+    
+    // Create an add-on label with price
+    private HBox createAddOnLabel(String name, String price) {
+        HBox box = new HBox(8);
+        box.setAlignment(Pos.CENTER_LEFT);
+        
+        Label nameLbl = new Label(name);
+        nameLbl.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        nameLbl.setTextFill(Color.web("#333333"));
+        
+        Label priceLbl = new Label(price);
+        priceLbl.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        priceLbl.setTextFill(Color.web("#666666"));
+        
+        box.getChildren().addAll(nameLbl, priceLbl);
+        return box;
+    }
+    
+    // Handle adding item to cart
+    private void handleAddToCart(Product product, int quantity, VBox customContent) {
+        try {
+            // Create order item with basic details
+            OrderItem item = new OrderItem(product, quantity, "Hot", 0);
+            
+            // Extract selected add-ons and special requests from the customContent VBox
+            java.util.List<String> selectedAddOnNames = new java.util.ArrayList<>();
+            double addOnsTotalCost = 0.0;
+            String specialRequest = "";
+            
+            // Traverse the customContent to find selected add-on buttons and text area
+            for (javafx.scene.Node child : customContent.getChildren()) {
+                if (child instanceof VBox) {
+                    VBox section = (VBox) child;
+                    for (javafx.scene.Node sectionChild : section.getChildren()) {
+                        if (sectionChild instanceof HBox) {
+                            HBox row = (HBox) sectionChild;
+                            for (javafx.scene.Node rowChild : row.getChildren()) {
+                                if (rowChild instanceof Button) {
+                                    Button btn = (Button) rowChild;
+                                    // Check if button is selected (has dark background style)
+                                    if (btn.getStyle().equals(getPillSelectedStyle())) {
+                                        Object userData = btn.getUserData();
+                                        if (userData instanceof com.coffeeshop.model.AddOn) {
+                                            com.coffeeshop.model.AddOn addOn = (com.coffeeshop.model.AddOn) userData;
+                                            selectedAddOnNames.add(addOn.getName());
+                                            addOnsTotalCost += addOn.getPrice();
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (sectionChild instanceof javafx.scene.control.TextArea) {
+                            javafx.scene.control.TextArea textArea = (javafx.scene.control.TextArea) sectionChild;
+                            String text = textArea.getText();
+                            if (text != null && !text.trim().isEmpty()) {
+                                specialRequest = text.trim();
+                            }
                         }
-                    } catch (Exception ignored) {}
-                });
+                    }
+                }
             }
-            imageBackground.getChildren().add(productImage);
-            imagePane.getChildren().add(imageBackground);
-        } else {
-            // Fallback to emoji if no image
-            Label imagePlaceholder = new Label("☕");
-            imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 84));
-            imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
-            // When no image, make the background a compact square
-            imageBackground.setPrefWidth(targetHeight + 24);
-            imageBackground.setMinWidth(targetHeight + 24);
-            imageBackground.setMaxWidth(targetHeight + 24);
-            imageBackground.getChildren().add(imagePlaceholder);
-            imagePane.getChildren().add(imageBackground);
+            
+            // Set add-ons on the order item
+            if (!selectedAddOnNames.isEmpty()) {
+                item.setAddOns(String.join(", ", selectedAddOnNames));
+                item.setAddOnsCost(addOnsTotalCost);
+            }
+            
+            // Set special request on the order item
+            if (!specialRequest.isEmpty()) {
+                item.setSpecialRequest(specialRequest);
+            }
+            
+            // Add to current order
+            if (currentOrder != null) {
+                currentOrder.addItem(item);
+                updateFooter();
+            }
+            
+            // Show menu screen
+            showMenuScreen();
+        } catch (Exception ex) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText(null);
+            alert.setContentText("Failed to add item: " + ex.getMessage());
+            alert.showAndWait();
         }
+    }
+
+    // Create a detailed product view with customization options
+    private ScrollPane createProductDetailView(Product product) {
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-padding: 20; -fx-background-color: #FFFFFF;");
+        
+        VBox content = new VBox(28);
+        content.setAlignment(Pos.TOP_CENTER);
+        content.setMaxWidth(Double.MAX_VALUE);
+        
+        // Product section with image and name
+        VBox productSection = new VBox(12);
+        HBox imagePane = new HBox();
+        imagePane.setAlignment(Pos.CENTER);
+        HBox imageBackground = new HBox();
+        imageBackground.setStyle("-fx-background-color: #F5EFE7; -fx-background-radius: 12;");
+        imageBackground.setAlignment(Pos.CENTER);
+        
+        // Placeholder: In actual implementation, load product image
+        Label imagePlaceholder = new Label("☕");
+        imagePlaceholder.setFont(Font.font("Segoe UI Emoji", 84));
+        imagePlaceholder.setTextFill(Color.web("#F5EFE7"));
+        imageBackground.setPrefWidth(200);
+        imageBackground.setMinWidth(200);
+        imageBackground.setMaxWidth(200);
+        imageBackground.getChildren().add(imagePlaceholder);
+        imagePane.getChildren().add(imageBackground);
 
         Label productName = new Label(product.getName());
         productName.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 18));
@@ -1487,31 +1857,81 @@ public class CustomerApp extends Application {
         return scrollPane;
     }
     
+    // Helper to create an add-on pill button with toggle behavior
+    private Button createAddOnPill(String label, CheckBox checkbox, double cost) {
+        Button pill = new Button(label);
+        pill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+        pill.setPadding(new Insets(8, 16, 8, 16));
+        pill.setStyle(getPillDefaultStyle());
+        pill.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+        
+        pill.setOnAction(e -> {
+            if (checkbox != null) {
+                boolean selected = !checkbox.isSelected();
+                checkbox.setSelected(selected);
+                if (selected) {
+                    pill.setStyle(getPillSelectedStyle());
+                } else {
+                    pill.setStyle(getPillDefaultStyle());
+                }
+            }
+        });
+        
+        pill.setOnMouseEntered(e -> {
+            if (!checkbox.isSelected()) {
+                pill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            }
+        });
+        
+        pill.setOnMouseExited(e -> {
+            if (checkbox.isSelected()) {
+                pill.setStyle(getPillSelectedStyle());
+            } else {
+                pill.setStyle(getPillDefaultStyle());
+            }
+        });
+        
+        return pill;
+    }
+    
+    // Style for default (unselected) add-on pill
+    private String getPillDefaultStyle() {
+        return "-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;";
+    }
+    
+    // Style for selected add-on pill
+    private String getPillSelectedStyle() {
+        return "-fx-text-fill: #FFFFFF; -fx-border-color: #2C2C2C; -fx-border-width: 1; -fx-background-color: #2C2C2C; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;";
+    }
+    
     private VBox createCustomizationOptions(Product product, javafx.beans.property.DoubleProperty suggestionsExtra, javafx.collections.ObservableList<Product> selectedSuggestions) {
         VBox customSection = new VBox(14);
         customSection.getStyleClass().add("card");
         customSection.setPadding(new Insets(18));
         
         // Temperature selection (only for Coffee category, excluding Espresso)
-        VBox tempSection = null;
-        RadioButton hotBtn = null;
-        RadioButton coldBtn = null;
-        final ToggleGroup tempGroup = new ToggleGroup();
         boolean isEspresso = product.getName() != null && product.getName().equalsIgnoreCase("Espresso");
-        if (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee") && !isEspresso) {
-            tempSection = new VBox(8);
+        // Treat pastry/bakery/snack categories as non-drink products where no drink customizations apply
+        boolean isPastry = false;
+        if (product.getCategory() != null) {
+            String c = product.getCategory().toLowerCase();
+            isPastry = c.contains("pastr") || c.contains("bakery") || c.contains("snack") || c.contains("pastry");
+        }
+        final ToggleGroup tempGroup = (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee") && !isEspresso) ? new ToggleGroup() : null;
+        final VBox tempSection = (tempGroup != null) ? new VBox(8) : null;
+        final RadioButton hotBtn = (tempGroup != null) ? new RadioButton("☕ Hot") : null;
+        final RadioButton coldBtn = (tempGroup != null) ? new RadioButton("🧊 Cold") : null;
+        if (tempGroup != null) {
             Label tempTitle = new Label("Temperature");
             tempTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
 
             HBox tempButtons = new HBox(12);
 
-            hotBtn = new RadioButton("☕ Hot");
             hotBtn.setToggleGroup(tempGroup);
             hotBtn.setUserData("Hot");
             hotBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
             hotBtn.setTextFill(Color.web("#2C2C2C"));
 
-            coldBtn = new RadioButton("🧊 Cold");
             coldBtn.setToggleGroup(tempGroup);
             coldBtn.setUserData("Cold");
             coldBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
@@ -1531,201 +1951,242 @@ public class CustomerApp extends Application {
             tempButtons.getChildren().addAll(hotBtn, coldBtn);
             tempSection.getChildren().addAll(tempTitle, tempButtons);
         }
-        
-        // Sugar level
-        VBox sugarSection = new VBox(8);
-        Label sugarTitle = new Label("Sugar Level");
-        sugarTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        
-        HBox sugarButtons = new HBox(8);
-        ToggleGroup sugarGroup = new ToggleGroup();
-        
-        String[] sugarLevels = {"0%", "25%", "50%", "75%", "100%"};
-        RadioButton[] sugarBtns = new RadioButton[5];
-        
-        for (int i = 0; i < sugarLevels.length; i++) {
-            sugarBtns[i] = new RadioButton(sugarLevels[i]);
-            sugarBtns[i].setToggleGroup(sugarGroup);
-            sugarBtns[i].setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
-            sugarButtons.getChildren().add(sugarBtns[i]);
-        }
-        
-        // Pre-select sugar level if editing existing item
-        if (customizingOrderItem != null) {
-            int currentSugar = customizingOrderItem.getSugarLevel();
+
+        // Sugar level (omit for Espresso and pastry/bakery items)
+        String[] sugarLevels = new String[] {"0%", "25%", "50%", "75%", "100%"};
+        final VBox sugarSection = (!isEspresso && !isPastry) ? new VBox(8) : null;
+        final HBox sugarButtons = (!isEspresso && !isPastry) ? new HBox(8) : null;
+        final ToggleGroup sugarGroup = (!isEspresso && !isPastry) ? new ToggleGroup() : null;
+        final RadioButton[] sugarBtns = (!isEspresso && !isPastry) ? new RadioButton[sugarLevels.length] : null;
+        if (sugarSection != null) {
+            Label sugarTitle = new Label("Sugar Level");
+            sugarTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+
             for (int i = 0; i < sugarLevels.length; i++) {
-                if (Integer.parseInt(sugarLevels[i].replace("%", "")) == currentSugar) {
-                    sugarBtns[i].setSelected(true);
-                    break;
-                }
+                sugarBtns[i] = new RadioButton(sugarLevels[i]);
+                sugarBtns[i].setToggleGroup(sugarGroup);
+                sugarBtns[i].setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
+                sugarButtons.getChildren().add(sugarBtns[i]);
             }
-        } else {
-            sugarBtns[2].setSelected(true); // 50% default for new items
-        }
-        
-        sugarSection.getChildren().addAll(sugarTitle, sugarButtons);
-        
-        // Add-ons section
-        VBox addOnsSection = new VBox(8);
-        Label addOnsTitle = new Label("Add-ons");
-        addOnsTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
-        
-        VBox addOnsList = new VBox(10);
 
-        // Add-on rows: checkbox + quantity controls
-        // Only offer extra shot for non-Milk Tea products
-        boolean isMilkTea = product.getCategory() != null && product.getCategory().equalsIgnoreCase("Milk Tea");
-        final CheckBox extraShotCheck = !isMilkTea ? createStyledCheckBox("Extra Shot (+₱1.00)") : null;
+            // Pre-select sugar level if editing existing item
+            if (customizingOrderItem != null) {
+                int currentSugar = customizingOrderItem.getSugarLevel();
+                for (int i = 0; i < sugarLevels.length; i++) {
+                    if (Integer.parseInt(sugarLevels[i].replace("%", "")) == currentSugar) {
+                        sugarBtns[i].setSelected(true);
+                        break;
+                    }
+                }
+            } else {
+                sugarBtns[2].setSelected(true); // 50% default for new items
+            }
+
+            sugarSection.getChildren().addAll(new Label("Sugar Level"), sugarButtons);
+        }
+
+        // Add-ons section (omit entirely for Espresso and pastries)
+        final VBox addOnsSection = (!isEspresso && !isPastry) ? new VBox(8) : null;
         final int[] extraShotQty = {1};
-        HBox extraRow = new HBox(8);
-        extraRow.setAlignment(Pos.CENTER_LEFT);
-        Label extraQtyLabel = new Label(String.valueOf(extraShotQty[0]));
-        extraQtyLabel.getStyleClass().add("qty-label");
-        Button extraMinus = new Button("-");
-        extraMinus.getStyleClass().add("qty-button");
-        extraMinus.setOnAction(ev -> { if (extraShotQty[0] > 1) { extraShotQty[0]--; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); } });
-        Button extraPlus = new Button();
-        Label extraPlusLbl = new Label("+");
-        extraPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
-        extraPlus.setGraphic(extraPlusLbl);
-        extraPlus.setText(null);
-        extraPlus.setMnemonicParsing(false);
-        extraPlus.getStyleClass().add("qty-button");
-        extraPlus.setOnAction(ev -> { extraShotQty[0]++; extraQtyLabel.setText(String.valueOf(extraShotQty[0])); });
-        if (extraShotCheck != null) {
-            extraRow.getChildren().addAll(extraShotCheck, extraMinus, extraQtyLabel, extraPlus);
-        } else {
-            // keep layout consistent: show quantity controls but without the checkbox label
-            extraRow.getChildren().addAll(new Region(), extraMinus, extraQtyLabel, extraPlus);
-        }
-
-        CheckBox whippedCreamCheck = createStyledCheckBox("Whipped Cream (+₱0.50)");
         final int[] whippedQty = {1};
-        HBox whipRow = new HBox(8);
-        whipRow.setAlignment(Pos.CENTER_LEFT);
-        Button whipMinus = new Button("-");
-        whipMinus.getStyleClass().add("qty-button");
-        Button whipPlus = new Button();
-        Label whipPlusLbl = new Label("+");
-        whipPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
-        whipPlus.setGraphic(whipPlusLbl);
-        whipPlus.setText(null);
-        whipPlus.setMnemonicParsing(false);
-        whipPlus.getStyleClass().add("qty-button");
-        Label whipQtyLabel = new Label(String.valueOf(whippedQty[0]));
-        whipQtyLabel.getStyleClass().add("qty-label");
-        whipMinus.setOnAction(ev -> { if (whippedQty[0] > 1) { whippedQty[0]--; whipQtyLabel.setText(String.valueOf(whippedQty[0])); } });
-        whipPlus.setOnAction(ev -> { whippedQty[0]++; whipQtyLabel.setText(String.valueOf(whippedQty[0])); });
-        whipRow.getChildren().addAll(whippedCreamCheck, whipMinus, whipQtyLabel, whipPlus);
-
-        CheckBox vanillaSyrupCheck = createStyledCheckBox("Vanilla Syrup (+₱0.75)");
         final int[] vanillaQty = {1};
-        HBox vanillaRow = new HBox(8);
-        vanillaRow.setAlignment(Pos.CENTER_LEFT);
-        Button vanMinus = new Button("-");
-        vanMinus.getStyleClass().add("qty-button");
-        vanMinus.setOnMouseEntered(e -> vanMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        vanMinus.setOnMouseExited(e -> vanMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Button vanPlus = new Button();
-        Label vanPlusLbl = new Label("+");
-        vanPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        vanPlus.setGraphic(vanPlusLbl);
-        vanPlus.setText(null);
-        vanPlus.setMnemonicParsing(false);
-        vanPlus.setPrefSize(30, 30);
-        vanPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
-        vanPlus.setOnMouseEntered(e -> vanPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        vanPlus.setOnMouseExited(e -> vanPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Label vanQtyLabel = new Label(String.valueOf(vanillaQty[0]));
-        vanMinus.setOnAction(ev -> { if (vanillaQty[0] > 1) { vanillaQty[0]--; vanQtyLabel.setText(String.valueOf(vanillaQty[0])); } });
-        vanPlus.setOnAction(ev -> { vanillaQty[0]++; vanQtyLabel.setText(String.valueOf(vanillaQty[0])); });
-        vanillaRow.getChildren().addAll(vanillaSyrupCheck, vanMinus, vanQtyLabel, vanPlus);
-
-        CheckBox caramelSyrupCheck = createStyledCheckBox("Caramel Syrup (+₱0.75)");
         final int[] caramelQty = {1};
-        HBox caramelRow = new HBox(8);
-        caramelRow.setAlignment(Pos.CENTER_LEFT);
-        Button carMinus = new Button("-");
-        carMinus.setPrefSize(30, 30);
-        carMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
-        carMinus.setOnMouseEntered(e -> carMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        carMinus.setOnMouseExited(e -> carMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Button carPlus = new Button();
-        Label carPlusLbl = new Label("+");
-        carPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        carPlus.setGraphic(carPlusLbl);
-        carPlus.setText(null);
-        carPlus.setMnemonicParsing(false);
-        carPlus.setPrefSize(30, 30);
-        carPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
-        carPlus.setOnMouseEntered(e -> carPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        carPlus.setOnMouseExited(e -> carPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Label carQtyLabel = new Label(String.valueOf(caramelQty[0]));
-        carMinus.setOnAction(ev -> { if (caramelQty[0] > 1) { caramelQty[0]--; carQtyLabel.setText(String.valueOf(caramelQty[0])); } });
-        carPlus.setOnAction(ev -> { caramelQty[0]++; carQtyLabel.setText(String.valueOf(caramelQty[0])); });
-        caramelRow.getChildren().addAll(caramelSyrupCheck, carMinus, carQtyLabel, carPlus);
-
-        CheckBox chocolateSyrupCheck = createStyledCheckBox("Chocolate Syrup (+₱0.75)");
         final int[] chocolateQty = {1};
-        HBox chocRow = new HBox(8);
-        chocRow.setAlignment(Pos.CENTER_LEFT);
-        Button chocMinus = new Button("-");
-        chocMinus.setPrefSize(30, 30);
-        chocMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
-        chocMinus.setOnMouseEntered(e -> chocMinus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        chocMinus.setOnMouseExited(e -> chocMinus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Button chocPlus = new Button();
-        Label chocPlusLbl = new Label("+");
-        chocPlusLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
-        chocPlus.setGraphic(chocPlusLbl);
-        chocPlus.setText(null);
-        chocPlus.setMnemonicParsing(false);
-        chocPlus.setPrefSize(30, 30);
-        chocPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;");
-        chocPlus.setOnMouseEntered(e -> chocPlus.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        chocPlus.setOnMouseExited(e -> chocPlus.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 14; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
-        Label chocQtyLabel = new Label(String.valueOf(chocolateQty[0]));
-        chocMinus.setOnAction(ev -> { if (chocolateQty[0] > 1) { chocolateQty[0]--; chocQtyLabel.setText(String.valueOf(chocolateQty[0])); } });
-        chocPlus.setOnAction(ev -> { chocolateQty[0]++; chocQtyLabel.setText(String.valueOf(chocolateQty[0])); });
-        chocRow.getChildren().addAll(chocolateSyrupCheck, chocMinus, chocQtyLabel, chocPlus);
+        // Milk tea topping quantities
+        final int[] tapiocaQty = {1};
+        final int[] jelliesQty = {1};
+        final int[] poppingQty = {1};
+        boolean isMilkTea = product.getCategory() != null && product.getCategory().equalsIgnoreCase("Milk Tea");
+        final CheckBox extraShotCheck = (!isEspresso && !isPastry && !isMilkTea) ? createStyledCheckBox("Extra Shot (+₱1.00)") : null;
+        final CheckBox whippedCreamCheck = (!isEspresso && !isPastry && !isMilkTea) ? createStyledCheckBox("Whipped Cream (+₱0.50)") : null;
+        final CheckBox vanillaSyrupCheck = (!isEspresso && !isPastry && !isMilkTea) ? createStyledCheckBox("Vanilla Syrup (+₱0.75)") : null;
+        final CheckBox caramelSyrupCheck = (!isEspresso && !isPastry && !isMilkTea) ? createStyledCheckBox("Caramel Syrup (+₱0.75)") : null;
+        final CheckBox chocolateSyrupCheck = (!isEspresso && !isPastry && !isMilkTea) ? createStyledCheckBox("Chocolate Syrup (+₱0.75)") : null;
+        // Milk tea specific toppings
+        final CheckBox tapiocaCheck = (isMilkTea) ? createStyledCheckBox("Tapioca Pearls (+₱10.00)") : null;
+        final CheckBox jelliesCheck = (isMilkTea) ? createStyledCheckBox("Jellies (+₱10.00)") : null;
+        final CheckBox poppingCheck = (isMilkTea) ? createStyledCheckBox("Popping Boba (+₱12.00)") : null;
+        // Forward-reference holder so lambdas created above can call recompute safely
+        final Runnable[] recomputeRef = new Runnable[1];
 
-        // Pre-select add-ons if editing existing item
-        if (customizingOrderItem != null && customizingOrderItem.getAddOns() != null) {
-            String addOns = customizingOrderItem.getAddOns();
-            if (extraShotCheck != null) extraShotCheck.setSelected(addOns.contains("Extra Shot"));
-            whippedCreamCheck.setSelected(addOns.contains("Whipped Cream"));
-            vanillaSyrupCheck.setSelected(addOns.contains("Vanilla Syrup"));
-            caramelSyrupCheck.setSelected(addOns.contains("Caramel Syrup"));
-            chocolateSyrupCheck.setSelected(addOns.contains("Chocolate Syrup"));
-        }
+            if (addOnsSection != null) {
+                Label addOnsTitle = new Label("ADD-ONS");
+                addOnsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+                addOnsTitle.setTextFill(Color.web("#999999"));
+                addOnsTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
+                
+                HBox addOnsGrid = new HBox(10);
+                addOnsGrid.setAlignment(Pos.CENTER_LEFT);
+                addOnsGrid.setStyle("-fx-wrap-text: true;");
 
-        if (extraShotCheck != null) addOnsList.getChildren().add(extraRow);
-        addOnsList.getChildren().addAll(whipRow, vanillaRow, caramelRow, chocRow);
+                if (isMilkTea) {
+                    // Milk Tea add-ons as toggleable pills
+                    Button tapiPill = createAddOnPill("Tapioca Pearls (+₱10.00)", tapiocaCheck, 10.00);
+                    Button jelliPill = createAddOnPill("Jellies (+₱10.00)", jelliesCheck, 10.00);
+                    Button poppingPill = createAddOnPill("Popping Boba (+₱12.00)", poppingCheck, 12.00);
+
+                    // Attach listeners to checkboxes so pills update when selections change
+                    if (tapiocaCheck != null) {
+                        tapiocaCheck.selectedProperty().addListener((obs, o, n) -> {
+                            tapiPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+                    if (jelliesCheck != null) {
+                        jelliesCheck.selectedProperty().addListener((obs, o, n) -> {
+                            jelliPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+                    if (poppingCheck != null) {
+                        poppingCheck.selectedProperty().addListener((obs, o, n) -> {
+                            poppingPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+
+                    addOnsGrid.getChildren().addAll(tapiPill, jelliPill, poppingPill);
+
+                    // Pre-select add-ons if editing existing item
+                    if (customizingOrderItem != null && customizingOrderItem.getAddOns() != null) {
+                        String addOns = customizingOrderItem.getAddOns();
+                        if (tapiocaCheck != null && addOns.contains("Tapioca")) { tapiocaCheck.setSelected(true); tapiPill.setStyle(getPillSelectedStyle()); }
+                        if (jelliesCheck != null && addOns.contains("Jellies")) { jelliesCheck.setSelected(true); jelliPill.setStyle(getPillSelectedStyle()); }
+                        if (poppingCheck != null && addOns.contains("Popping")) { poppingCheck.setSelected(true); poppingPill.setStyle(getPillSelectedStyle()); }
+                    }
+                } else {
+                    // Coffee add-ons as toggleable pills
+                    Button extraShotPill = createAddOnPill("Extra Shot (+₱1.00)", extraShotCheck, 1.00);
+                    Button whippedPill = createAddOnPill("Whipped Cream (+₱0.50)", whippedCreamCheck, 0.50);
+                    Button vanillaPill = createAddOnPill("Vanilla Syrup (+₱0.75)", vanillaSyrupCheck, 0.75);
+                    Button caramelPill = createAddOnPill("Caramel Sauce (+₱0.75)", caramelSyrupCheck, 0.75);
+                    Button chocolatePill = createAddOnPill("Chocolate Syrup (+₱0.75)", chocolateSyrupCheck, 0.75);
+
+                    // Attach listeners to update pill styles and recompute
+                    if (extraShotCheck != null) {
+                        extraShotCheck.selectedProperty().addListener((obs, o, n) -> {
+                            extraShotPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+                    if (whippedCreamCheck != null) {
+                        whippedCreamCheck.selectedProperty().addListener((obs, o, n) -> {
+                            whippedPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+                    if (vanillaSyrupCheck != null) {
+                        vanillaSyrupCheck.selectedProperty().addListener((obs, o, n) -> {
+                            vanillaPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+                    if (caramelSyrupCheck != null) {
+                        caramelSyrupCheck.selectedProperty().addListener((obs, o, n) -> {
+                            caramelPill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+                    if (chocolateSyrupCheck != null) {
+                        chocolateSyrupCheck.selectedProperty().addListener((obs, o, n) -> {
+                            chocolatePill.setStyle(n ? getPillSelectedStyle() : getPillDefaultStyle());
+                            recomputeRef[0].run();
+                        });
+                    }
+
+                    addOnsGrid.getChildren().addAll(extraShotPill, whippedPill, vanillaPill, caramelPill, chocolatePill);
+
+                    // Pre-select add-ons if editing existing item
+                    if (customizingOrderItem != null && customizingOrderItem.getAddOns() != null) {
+                        String addOns = customizingOrderItem.getAddOns();
+                        if (extraShotCheck != null && addOns.contains("Extra Shot")) { extraShotCheck.setSelected(true); extraShotPill.setStyle(getPillSelectedStyle()); }
+                        if (whippedCreamCheck != null && addOns.contains("Whipped Cream")) { whippedCreamCheck.setSelected(true); whippedPill.setStyle(getPillSelectedStyle()); }
+                        if (vanillaSyrupCheck != null && addOns.contains("Vanilla Syrup")) { vanillaSyrupCheck.setSelected(true); vanillaPill.setStyle(getPillSelectedStyle()); }
+                        if (caramelSyrupCheck != null && addOns.contains("Caramel")) { caramelSyrupCheck.setSelected(true); caramelPill.setStyle(getPillSelectedStyle()); }
+                        if (chocolateSyrupCheck != null && addOns.contains("Chocolate")) { chocolateSyrupCheck.setSelected(true); chocolatePill.setStyle(getPillSelectedStyle()); }
+                    }
+                }
+                    addOnsSection.getChildren().addAll(addOnsTitle, addOnsGrid);
+                }
+
+        // Cup size selection: Small (base), Medium (+₱5), Large (+₱10) - displayed as clickable pills
+        final int[] selectedSize = (!isPastry) ? new int[1] : null; // 0: Small, 5: Medium, 10: Large
+        if (selectedSize != null) selectedSize[0] = 0; // Default to Small
         
-        addOnsSection.getChildren().addAll(addOnsTitle, addOnsList);
+        final Button[] sizeSmallPillRef = new Button[1];
+        final Button[] sizeMediumPillRef = new Button[1];
+        final Button[] sizeLargePillRef = new Button[1];
+        
+        final VBox sizeSection = (!isPastry) ? new VBox(8) : null;
+        if (sizeSection != null) {
+            Label sizeTitle = new Label("CUP SIZE");
+            sizeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            sizeTitle.setTextFill(Color.web("#999999"));
+            sizeTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
 
-        // Cup size selection: Small (base), Medium (+₱5), Large (+₱10)
-        VBox sizeSection = new VBox(8);
-        Label sizeTitle = new Label("Cup Size");
-        sizeTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+            HBox sizeButtons = new HBox(10);
+            sizeButtons.setAlignment(Pos.CENTER_LEFT);
+            
+            Button sizeSmallPill = new Button("Small (₱" + String.format("%.2f", product.getPrice()) + ")");
+            sizeSmallPillRef[0] = sizeSmallPill;
+            sizeSmallPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            sizeSmallPill.setPadding(new Insets(8, 16, 8, 16));
+            sizeSmallPill.setStyle(getPillSelectedStyle()); // Start selected
+            sizeSmallPill.setOnAction(e -> {
+                selectedSize[0] = 0;
+                sizeSmallPillRef[0].setStyle(getPillSelectedStyle());
+                sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
+                sizeLargePillRef[0].setStyle(getPillDefaultStyle());
+            });
+            sizeSmallPill.setOnMouseEntered(e -> {
+                if (selectedSize[0] != 0) sizeSmallPill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            });
+            sizeSmallPill.setOnMouseExited(e -> {
+                if (selectedSize[0] != 0) sizeSmallPill.setStyle(getPillDefaultStyle());
+                else sizeSmallPill.setStyle(getPillSelectedStyle());
+            });
 
-        ToggleGroup sizeGroup = new ToggleGroup();
-        RadioButton sizeSmall = new RadioButton("Small (₱" + String.format("%.2f", product.getPrice()) + ")");
-        sizeSmall.setToggleGroup(sizeGroup);
-        sizeSmall.setUserData(0.0);
+            Button sizeMediumPill = new Button("Medium (₱" + String.format("%.2f", product.getPrice() + 5.0) + ")");
+            sizeMediumPillRef[0] = sizeMediumPill;
+            sizeMediumPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            sizeMediumPill.setPadding(new Insets(8, 16, 8, 16));
+            sizeMediumPill.setStyle(getPillDefaultStyle());
+            sizeMediumPill.setOnAction(e -> {
+                selectedSize[0] = 5;
+                sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
+                sizeMediumPillRef[0].setStyle(getPillSelectedStyle());
+                sizeLargePillRef[0].setStyle(getPillDefaultStyle());
+            });
+            sizeMediumPill.setOnMouseEntered(e -> {
+                if (selectedSize[0] != 5) sizeMediumPill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            });
+            sizeMediumPill.setOnMouseExited(e -> {
+                if (selectedSize[0] != 5) sizeMediumPill.setStyle(getPillDefaultStyle());
+                else sizeMediumPill.setStyle(getPillSelectedStyle());
+            });
 
-        RadioButton sizeMedium = new RadioButton("Medium (₱" + String.format("%.2f", product.getPrice() + 5.0) + ")");
-        sizeMedium.setToggleGroup(sizeGroup);
-        sizeMedium.setUserData(5.0);
+            Button sizeLargePill = new Button("Large (₱" + String.format("%.2f", product.getPrice() + 10.0) + ")");
+            sizeLargePillRef[0] = sizeLargePill;
+            sizeLargePill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            sizeLargePill.setPadding(new Insets(8, 16, 8, 16));
+            sizeLargePill.setStyle(getPillDefaultStyle());
+            sizeLargePill.setOnAction(e -> {
+                selectedSize[0] = 10;
+                sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
+                sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
+                sizeLargePillRef[0].setStyle(getPillSelectedStyle());
+            });
+            sizeLargePill.setOnMouseEntered(e -> {
+                if (selectedSize[0] != 10) sizeLargePill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+            });
+            sizeLargePill.setOnMouseExited(e -> {
+                if (selectedSize[0] != 10) sizeLargePill.setStyle(getPillDefaultStyle());
+                else sizeLargePill.setStyle(getPillSelectedStyle());
+            });
 
-        RadioButton sizeLarge = new RadioButton("Large (₱" + String.format("%.2f", product.getPrice() + 10.0) + ")");
-        sizeLarge.setToggleGroup(sizeGroup);
-        sizeLarge.setUserData(10.0);
-
-        // Default to Small
-        sizeSmall.setSelected(true);
-
-        sizeSection.getChildren().addAll(sizeTitle, sizeSmall, sizeMedium, sizeLarge);
+            sizeButtons.getChildren().addAll(sizeSmallPill, sizeMediumPill, sizeLargePill);
+            sizeSection.getChildren().addAll(sizeTitle, sizeButtons);
+        }
         
         // Quantity and Add button
         VBox bottomSection = new VBox(12);
@@ -1795,25 +2256,19 @@ public class CustomerApp extends Application {
         // Helper to recompute totals (reads current UI state)
         Runnable recompute = () -> {
             double addOnsCost = 0.0;
-            // Extra shot may be null for certain categories (e.g., Milk Tea)
+            // Extra shot may be null for certain categories (e.g., Milk Tea) or omitted for Espresso
             if (extraShotCheck != null && extraShotCheck.isSelected()) addOnsCost += 1.00 * extraShotQty[0];
-            if (whippedCreamCheck.isSelected()) addOnsCost += 0.50 * whippedQty[0];
-            if (vanillaSyrupCheck.isSelected()) addOnsCost += 0.75 * vanillaQty[0];
-            if (caramelSyrupCheck.isSelected()) addOnsCost += 0.75 * caramelQty[0];
-            if (chocolateSyrupCheck.isSelected()) addOnsCost += 0.75 * chocolateQty[0];
+            if (whippedCreamCheck != null && whippedCreamCheck.isSelected()) addOnsCost += 0.50 * whippedQty[0];
+            if (vanillaSyrupCheck != null && vanillaSyrupCheck.isSelected()) addOnsCost += 0.75 * vanillaQty[0];
+            if (caramelSyrupCheck != null && caramelSyrupCheck.isSelected()) addOnsCost += 0.75 * caramelQty[0];
+            if (chocolateSyrupCheck != null && chocolateSyrupCheck.isSelected()) addOnsCost += 0.75 * chocolateQty[0];
+            // Milk tea toppings
+            if (tapiocaCheck != null && tapiocaCheck.isSelected()) addOnsCost += 10.00 * tapiocaQty[0];
+            if (jelliesCheck != null && jelliesCheck.isSelected()) addOnsCost += 10.00 * jelliesQty[0];
+            if (poppingCheck != null && poppingCheck.isSelected()) addOnsCost += 12.00 * poppingQty[0];
 
-            // Include cup size delta (userData on selected Toggle)
-            double sizeDelta = 0.0;
-            try {
-                if (sizeGroup != null) {
-                    javafx.scene.control.Toggle sel = sizeGroup.getSelectedToggle();
-                    if (sel != null && sel.getUserData() != null) {
-                        Object ud = sel.getUserData();
-                        if (ud instanceof Number) sizeDelta = ((Number) ud).doubleValue();
-                        else sizeDelta = Double.parseDouble(ud.toString());
-                    }
-                }
-            } catch (Exception ignored) {}
+            // Include cup size delta (from selectedSize array)
+            double sizeDelta = selectedSize[0];
             addOnsCost += sizeDelta;
 
             double suggestions = suggestionsExtra.get();
@@ -1821,14 +2276,18 @@ public class CustomerApp extends Application {
             double subtotal = (base + addOnsCost) * quantity[0] + suggestions;
             javafx.application.Platform.runLater(() -> liveTotal.setText(String.format("₱%.2f", subtotal)));
         };
+        // assign the actual recompute implementation to the forward-reference
+        recomputeRef[0] = recompute;
 
         // attach recompute listeners to controls that affect price
         if (extraShotCheck != null) extraShotCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
-        whippedCreamCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
-        vanillaSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
-        caramelSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
-        chocolateSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
-        if (sizeGroup != null) sizeGroup.selectedToggleProperty().addListener((obs, o, n) -> recompute.run());
+        if (whippedCreamCheck != null) whippedCreamCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (vanillaSyrupCheck != null) vanillaSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (caramelSyrupCheck != null) caramelSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (chocolateSyrupCheck != null) chocolateSyrupCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (tapiocaCheck != null) tapiocaCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (jelliesCheck != null) jelliesCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
+        if (poppingCheck != null) poppingCheck.selectedProperty().addListener((obs, o, n) -> recompute.run());
 
         // quantity changes should also recompute
         plusBtn.setOnAction(e -> {
@@ -1862,11 +2321,16 @@ public class CustomerApp extends Application {
                     }
                 }
                 int sugarLevel = 50; // default
-                for (int i = 0; i < sugarBtns.length; i++) {
-                    if (sugarBtns[i].isSelected()) {
-                        sugarLevel = Integer.parseInt(sugarLevels[i].replace("%", ""));
-                        break;
+                if (sugarBtns != null) {
+                    for (int i = 0; i < sugarBtns.length; i++) {
+                        if (sugarBtns[i].isSelected()) {
+                            sugarLevel = Integer.parseInt(sugarLevels[i].replace("%", ""));
+                            break;
+                        }
                     }
+                } else {
+                    // Espresso: sugar not applicable
+                    sugarLevel = 0;
                 }
                 
                 // Calculate add-ons (recompute same values used by live total)
@@ -1874,20 +2338,15 @@ public class CustomerApp extends Application {
                 double addOnsCost = 0.0;
 
                 // Include selected cup size (if any)
-                double selSizeDelta = 0.0;
+                double selSizeDelta = selectedSize != null ? selectedSize[0] : 0.0;
                 String selSizeLabel = null;
-                try {
-                    if (sizeGroup != null) {
-                        javafx.scene.control.Toggle sel = sizeGroup.getSelectedToggle();
-                        if (sel != null && sel instanceof RadioButton) {
-                            RadioButton rb = (RadioButton) sel;
-                            selSizeLabel = rb.getText();
-                            Object ud = sel.getUserData();
-                            if (ud instanceof Number) selSizeDelta = ((Number) ud).doubleValue();
-                            else selSizeDelta = Double.parseDouble(ud.toString());
-                        }
+                if (selectedSize != null && selectedSize[0] > 0) {
+                    if (selectedSize[0] == 5) {
+                        selSizeLabel = "Medium";
+                    } else if (selectedSize[0] == 10) {
+                        selSizeLabel = "Large";
                     }
-                } catch (Exception ignored) {}
+                }
 
                 // Apply extra shot only if control exists for this product
                 if (extraShotCheck != null && extraShotCheck.isSelected()) {
@@ -1895,29 +2354,49 @@ public class CustomerApp extends Application {
                     addOnsCost += 1.00 * extraShotQty[0];
                     if (extraShotQty[0] > 1) addOnsText.append(" x").append(extraShotQty[0]);
                 }
-                if (whippedCreamCheck.isSelected()) {
+                if (whippedCreamCheck != null && whippedCreamCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Whipped Cream");
                     addOnsCost += 0.50 * whippedQty[0];
                     if (whippedQty[0] > 1) addOnsText.append(" x").append(whippedQty[0]);
                 }
-                if (vanillaSyrupCheck.isSelected()) {
+                if (vanillaSyrupCheck != null && vanillaSyrupCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Vanilla Syrup");
                     addOnsCost += 0.75 * vanillaQty[0];
                     if (vanillaQty[0] > 1) addOnsText.append(" x").append(vanillaQty[0]);
                 }
-                if (caramelSyrupCheck.isSelected()) {
+                if (caramelSyrupCheck != null && caramelSyrupCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Caramel Syrup");
                     addOnsCost += 0.75 * caramelQty[0];
                     if (caramelQty[0] > 1) addOnsText.append(" x").append(caramelQty[0]);
                 }
-                if (chocolateSyrupCheck.isSelected()) {
+                if (chocolateSyrupCheck != null && chocolateSyrupCheck.isSelected()) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append("Chocolate Syrup");
                     addOnsCost += 0.75 * chocolateQty[0];
                     if (chocolateQty[0] > 1) addOnsText.append(" x").append(chocolateQty[0]);
+                }
+
+                // Milk tea toppings
+                if (tapiocaCheck != null && tapiocaCheck.isSelected()) {
+                    if (addOnsText.length() > 0) addOnsText.append(", ");
+                    addOnsText.append("Tapioca Pearls");
+                    addOnsCost += 10.00 * tapiocaQty[0];
+                    if (tapiocaQty[0] > 1) addOnsText.append(" x").append(tapiocaQty[0]);
+                }
+                if (jelliesCheck != null && jelliesCheck.isSelected()) {
+                    if (addOnsText.length() > 0) addOnsText.append(", ");
+                    addOnsText.append("Jellies");
+                    addOnsCost += 10.00 * jelliesQty[0];
+                    if (jelliesQty[0] > 1) addOnsText.append(" x").append(jelliesQty[0]);
+                }
+                if (poppingCheck != null && poppingCheck.isSelected()) {
+                    if (addOnsText.length() > 0) addOnsText.append(", ");
+                    addOnsText.append("Popping Boba");
+                    addOnsCost += 12.00 * poppingQty[0];
+                    if (poppingQty[0] > 1) addOnsText.append(" x").append(poppingQty[0]);
                 }
 
                 // Append size information and include its delta per unit
@@ -2034,11 +2513,12 @@ public class CustomerApp extends Application {
         bottomSection.getChildren().addAll(qtySection, spacer, totalBox);
         bottomSection.setAlignment(Pos.CENTER_LEFT);
         
-        if (tempSection != null) {
-            customSection.getChildren().addAll(tempSection, sugarSection, addOnsSection, bottomSection);
-        } else {
-            customSection.getChildren().addAll(sugarSection, addOnsSection, bottomSection);
-        }
+        // Add sections only if they were created (Espresso/pastry may omit sugar/add-ons/size)
+        if (tempSection != null) customSection.getChildren().add(tempSection);
+        if (sugarSection != null) customSection.getChildren().add(sugarSection);
+        if (addOnsSection != null) customSection.getChildren().add(addOnsSection);
+        if (sizeSection != null) customSection.getChildren().add(sizeSection);
+        customSection.getChildren().add(bottomSection);
         
         return customSection;
     }

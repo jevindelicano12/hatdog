@@ -19,6 +19,7 @@ public class PersistenceManager {
     private static final String REMOVED_INVENTORY_FILE = DATA_DIR + "/inventory_removed.json";
     private static final String CATEGORIES_FILE = DATA_DIR + "/categories.json";
     private static final String ACCOUNTS_FILE = DATA_DIR + "/accounts.json";
+    private static final String ADDONS_FILE = DATA_DIR + "/addons.json";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public static void ensureDataDirectory() {
@@ -278,5 +279,66 @@ public class PersistenceManager {
     public static void save(List<Product> products, Map<String, InventoryItem> inventory) {
         saveProducts(products);
         saveInventory(inventory);
+    }
+
+    // Add-on persistence methods
+    public static void saveAddOns(List<AddOn> addOns) {
+        ensureDataDirectory();
+        try (Writer writer = new FileWriter(ADDONS_FILE)) {
+            gson.toJson(addOns, writer);
+        } catch (IOException e) {
+            System.err.println("Error saving add-ons: " + e.getMessage());
+        }
+    }
+
+    public static List<AddOn> loadAddOns() {
+        ensureDataDirectory();
+        File file = new File(ADDONS_FILE);
+        if (!file.exists()) {
+            return initializeDefaultAddOns();
+        }
+
+        try (Reader reader = new FileReader(ADDONS_FILE)) {
+            Type listType = new TypeToken<ArrayList<AddOn>>(){}.getType();
+            List<AddOn> addOns = gson.fromJson(reader, listType);
+            return addOns != null ? addOns : initializeDefaultAddOns();
+        } catch (IOException e) {
+            System.err.println("Error loading add-ons: " + e.getMessage());
+            return initializeDefaultAddOns();
+        }
+    }
+
+    private static List<AddOn> initializeDefaultAddOns() {
+        List<AddOn> addOns = new ArrayList<>();
+        
+        // Coffee add-ons
+        AddOn extraShot = new AddOn("A001", "Extra Shot", 1.00, "Coffee");
+        extraShot.addApplicableProduct("P001"); // Espresso
+        extraShot.addApplicableProduct("P002"); // Latte
+        extraShot.addApplicableProduct("P003"); // Cappuccino
+        extraShot.addApplicableProduct("P004"); // Americano
+        addOns.add(extraShot);
+
+        AddOn whippedCream = new AddOn("A002", "Whipped Cream", 0.50, "Coffee");
+        addOns.add(whippedCream);
+
+        AddOn vanillaSyrup = new AddOn("A003", "Vanilla Syrup", 0.75, "Coffee");
+        addOns.add(vanillaSyrup);
+
+        AddOn caramelSauce = new AddOn("A004", "Caramel Sauce", 0.75, "Coffee");
+        addOns.add(caramelSauce);
+
+        // Milk Tea add-ons
+        AddOn tapiocaPearls = new AddOn("A005", "Tapioca Pearls", 10.00, "Milk Tea");
+        addOns.add(tapiocaPearls);
+
+        AddOn jellies = new AddOn("A006", "Jellies", 10.00, "Milk Tea");
+        addOns.add(jellies);
+
+        AddOn poppingBoba = new AddOn("A007", "Popping Boba", 10.00, "Milk Tea");
+        addOns.add(poppingBoba);
+
+        saveAddOns(addOns);
+        return addOns;
     }
 }

@@ -17,3 +17,9 @@ f0cf4490|Guest|2025-11-24 02:45:58|Cappuccino|Regular|Hot
 e6abbf0d|Guest|2025-11-24 14:08:26|Cappuccino|Regular|Hot
 f566fe57|Guest|2025-11-24 14:15:59|Blueberry Muffin|Regular|Hot
 21501bfe|JERWINS|2025-11-24 15:10:02|Blueberry Muffin|Regular|Hot
+1bb89cb8|Guest|2025-11-25 13:45:39|Cappuccino|Regular|Hot
+1bb89cb8|Guest|2025-11-25 13:45:39|Crossants|Regular|Hot
+1bb89cb8|Guest|2025-11-25 13:45:39|Espresso|Regular|Hot
+1bb89cb8|Guest|2025-11-25 13:45:39|Iced Frappe|Regular|Hot
+1bb89cb8|Guest|2025-11-25 13:45:39|Latte|Regular|Hot
+1bb89cb8|Guest|2025-11-25 13:45:39|Mango|Regular|Hot
