@@ -1541,6 +1541,10 @@ public class CustomerApp extends Application {
             isPastry = c.contains("pastr") || c.contains("bakery") || c.contains("snack");
         }
         
+        // Keep state for milk/add-on recompute (declared here so all sections can see it)
+        final double[] selectedMilkCost = {0.0};
+        final Runnable[] recomputeRef = new Runnable[1];
+
         // SIZE SECTION - converted to clickable pills
         if (!isPastry) {
             VBox sizeSection = new VBox(12);
@@ -1639,6 +1643,56 @@ public class CustomerApp extends Application {
             Button oatBtn = createMilkOptionPill("Oat Milk (+₱25)");
             Button almondBtn = createMilkOptionPill("Almond Milk (+₱25)");
             Button soyBtn = createMilkOptionPill("Soy Milk (+₱25)");
+
+            // Attach AddOn-like userData so handleAddToCart recognizes selected milk as an add-on
+            try {
+                oatBtn.setUserData(new com.coffeeshop.model.AddOn("milk-oat", "Oat Milk", 25.0, "Milk"));
+                almondBtn.setUserData(new com.coffeeshop.model.AddOn("milk-almond", "Almond Milk", 25.0, "Milk"));
+                soyBtn.setUserData(new com.coffeeshop.model.AddOn("milk-soy", "Soy Milk", 25.0, "Milk"));
+            } catch (Exception ignored) {}
+
+            // Make milk options toggleable and mutually exclusive, update displayed total
+            oatBtn.setOnAction(e -> {
+                boolean nowSelected = !oatBtn.getStyle().equals(getPillSelectedStyle());
+                if (nowSelected) {
+                    oatBtn.setStyle(getPillSelectedStyle());
+                    almondBtn.setStyle(getPillDefaultStyle());
+                    soyBtn.setStyle(getPillDefaultStyle());
+                    selectedMilkCost[0] = 25.0;
+                } else {
+                    oatBtn.setStyle(getPillDefaultStyle());
+                    selectedMilkCost[0] = 0.0;
+                }
+                if (recomputeRef[0] != null) recomputeRef[0].run();
+            });
+
+            almondBtn.setOnAction(e -> {
+                boolean nowSelected = !almondBtn.getStyle().equals(getPillSelectedStyle());
+                if (nowSelected) {
+                    almondBtn.setStyle(getPillSelectedStyle());
+                    oatBtn.setStyle(getPillDefaultStyle());
+                    soyBtn.setStyle(getPillDefaultStyle());
+                    selectedMilkCost[0] = 25.0;
+                } else {
+                    almondBtn.setStyle(getPillDefaultStyle());
+                    selectedMilkCost[0] = 0.0;
+                }
+                if (recomputeRef[0] != null) recomputeRef[0].run();
+            });
+
+            soyBtn.setOnAction(e -> {
+                boolean nowSelected = !soyBtn.getStyle().equals(getPillSelectedStyle());
+                if (nowSelected) {
+                    soyBtn.setStyle(getPillSelectedStyle());
+                    oatBtn.setStyle(getPillDefaultStyle());
+                    almondBtn.setStyle(getPillDefaultStyle());
+                    selectedMilkCost[0] = 25.0;
+                } else {
+                    soyBtn.setStyle(getPillDefaultStyle());
+                    selectedMilkCost[0] = 0.0;
+                }
+                if (recomputeRef[0] != null) recomputeRef[0].run();
+            });
             
             milkButtons.getChildren().addAll(oatBtn, almondBtn, soyBtn);
             milkSection.getChildren().addAll(milkTitle, milkButtons);
@@ -1659,13 +1713,16 @@ public class CustomerApp extends Application {
             addOnsGrid.setStyle("-fx-wrap-text: true;");
             
             // Create pills dynamically from database
-            for (com.coffeeshop.model.AddOn addOn : availableAddOns) {
-                Button addOnPill = new Button(addOn.getName() + " (+" + addOn.getFormattedPrice() + ")");
+                for (com.coffeeshop.model.AddOn addOn : availableAddOns) {
+                Button addOnPill = new Button(addOn.getName() + " (" + addOn.getFormattedPrice() + ")");
                 addOnPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
                 addOnPill.setPadding(new Insets(8, 16, 8, 16));
                 addOnPill.setStyle(getPillDefaultStyle());
                 addOnPill.setUserData(addOn); // Store the AddOn object for later retrieval
-                addOnPill.setOnAction(e -> addOnPill.setStyle(addOnPill.getStyle().equals(getPillSelectedStyle()) ? getPillDefaultStyle() : getPillSelectedStyle()));
+                addOnPill.setOnAction(e -> {
+                    addOnPill.setStyle(addOnPill.getStyle().equals(getPillSelectedStyle()) ? getPillDefaultStyle() : getPillSelectedStyle());
+                    if (recomputeRef[0] != null) recomputeRef[0].run();
+                });
                 addOnPill.setOnMouseEntered(e -> {
                     if (!addOnPill.getStyle().equals(getPillSelectedStyle())) {
                         addOnPill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
@@ -1680,6 +1737,27 @@ public class CustomerApp extends Application {
             }
             
             addOnsSection.getChildren().addAll(addOnsTitle, addOnsGrid);
+            // Recompute function: recompute total price including size, milk, and selected dynamic add-ons
+            recomputeRef[0] = () -> {
+                try {
+                    double total = product.getPrice() + selectedSizeCost[0] + selectedMilkCost[0];
+                    // Sum selected dynamic add-ons from addOnsGrid
+                    for (javafx.scene.Node n : addOnsGrid.getChildren()) {
+                        if (n instanceof javafx.scene.control.Button) {
+                            javafx.scene.control.Button b = (javafx.scene.control.Button) n;
+                            if (b.getStyle() != null && b.getStyle().equals(getPillSelectedStyle())) {
+                                Object ud = b.getUserData();
+                                if (ud instanceof com.coffeeshop.model.AddOn) {
+                                    total += ((com.coffeeshop.model.AddOn) ud).getPrice();
+                                }
+                            }
+                        }
+                    }
+                    totalPrice.setText("₱" + String.format("%.2f", total));
+                } catch (Exception ignored) {}
+            };
+            // Initial compute
+            if (recomputeRef[0] != null) recomputeRef[0].run();
             form.getChildren().add(addOnsSection);
         }
         
