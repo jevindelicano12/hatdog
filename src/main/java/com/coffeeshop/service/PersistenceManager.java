@@ -13,21 +13,52 @@ import java.util.List;
 import java.util.Map;
 
 public class PersistenceManager {
-    private static final String DATA_DIR = "data";
-    private static final String PRODUCTS_FILE = DATA_DIR + "/products.json";
-    private static final String INVENTORY_FILE = DATA_DIR + "/inventory.json";
-    private static final String REMOVED_INVENTORY_FILE = DATA_DIR + "/inventory_removed.json";
-    private static final String CATEGORIES_FILE = DATA_DIR + "/categories.json";
-    private static final String ACCOUNTS_FILE = DATA_DIR + "/accounts.json";
-    private static final String ADDONS_FILE = DATA_DIR + "/addons.json";
-    private static final String SPECIAL_REQUESTS_FILE = DATA_DIR + "/special_requests.json";
+    // Use a stable user-level directory to persist data reliably across different run contexts
+    private static final String BASE_DIR = System.getProperty("user.home") + File.separator + ".coffeeshop";
+    private static final String DATA_DIR = BASE_DIR + File.separator + "data";
+    private static final String PRODUCTS_FILE = DATA_DIR + File.separator + "products.json";
+    private static final String INVENTORY_FILE = DATA_DIR + File.separator + "inventory.json";
+    private static final String REMOVED_INVENTORY_FILE = DATA_DIR + File.separator + "inventory_removed.json";
+    private static final String CATEGORIES_FILE = DATA_DIR + File.separator + "categories.json";
+    private static final String ACCOUNTS_FILE = DATA_DIR + File.separator + "accounts.json";
+    private static final String ADDONS_FILE = DATA_DIR + File.separator + "addons.json";
+    private static final String SPECIAL_REQUESTS_FILE = DATA_DIR + File.separator + "special_requests.json";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public static void ensureDataDirectory() {
+        File base = new File(BASE_DIR);
         File dir = new File(DATA_DIR);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
+        if (!base.exists()) base.mkdirs();
+        if (!dir.exists()) dir.mkdirs();
+
+        // If a legacy project-local `data/` folder exists (e.g., when running from IDE),
+        // migrate its files into the stable user directory on first run so changes persist.
+        try {
+            File legacy = new File("data");
+            if (legacy.exists() && legacy.isDirectory()) {
+                // For each file in legacy, copy it to DATA_DIR if target does not already exist
+                for (File f : legacy.listFiles()) {
+                    if (f == null || !f.isFile()) continue;
+                    File dest = new File(dir, f.getName());
+                    if (!dest.exists()) {
+                        try (InputStream in = new FileInputStream(f); OutputStream out = new FileOutputStream(dest)) {
+                            byte[] buf = new byte[8192];
+                            int r;
+                            while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * Returns the full path to the active data directory used by the application.
+     * Calling code can use this to display where data is being stored for debugging.
+     */
+    public static String getDataDirectory() {
+        ensureDataDirectory();
+        return DATA_DIR;
     }
 
     public static void saveProducts(List<Product> products) {

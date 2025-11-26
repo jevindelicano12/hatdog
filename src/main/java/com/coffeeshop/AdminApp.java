@@ -2,6 +2,7 @@ package com.coffeeshop;
 
 import com.coffeeshop.model.*;
 import com.coffeeshop.service.Store;
+import com.coffeeshop.service.PersistenceManager;
 import com.coffeeshop.service.TextDatabase;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -497,6 +498,15 @@ public class AdminApp extends Application {
         VBox adminContainer = new VBox();
         adminContainer.setPadding(new Insets(0, 15, 15, 15));
         adminContainer.getChildren().add(adminUserBox);
+
+        // Small debug/info label showing where data is persisted (helps confirm persistence path)
+        try {
+            Label dataPathLabel = new Label("Data: " + PersistenceManager.getDataDirectory());
+            dataPathLabel.setFont(Font.font("Segoe UI", 10));
+            dataPathLabel.setTextFill(Color.web("#D1D5DB"));
+            dataPathLabel.setWrapText(true);
+            adminContainer.getChildren().add(dataPathLabel);
+        } catch (Exception ignored) {}
         
         sidebar.getChildren().addAll(brandSection, navContainer, spacer, adminContainer);
         
