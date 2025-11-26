@@ -8,3 +8,5 @@ bf2d3fa7|TUTOP|2025-11-26 03:22:13|60.0|PREPARING|Dine In|[Cappuccino~60.0~1~Hot
 6fc5d049|oaSBDjASd|2025-11-26 04:02:14|532.0|PREPARING|Dine In|[boydila~501.0~1~Hot~0~Extra Shot~1.0~No Whip~Large~30.0]
 fbbda866|asdjioasihdoasd|2025-11-26 04:22:27|244.5|PREPARING|Take Out|[Croissants~100.0~1~Hot~0~~0.0~~Large~30.0,Iced Frappe~4.5~1~Hot~0~~0.0~~Large~30.0,Latte~50.0~1~Hot~0~~0.0~~Large~30.0]
 0a5146ba|asdasd|2025-11-26 04:22:42|90.0|PREPARING|Take Out|[Cappuccino~60.0~1~Hot~0~~0.0~~Large~30.0]
+bdeddf21|Guest|2025-11-26 18:52:36|80.0|PENDING|Dine In|[Cappuccino~60.0~1~Hot~0~~0.0~No Whip&#44; No Ice~Medium~20.0]
+62bca307|Guest|2025-11-26 18:53:52|840.0|PENDING|Dine In|[Matcha Latte~60.0~7~Hot~0~Tapioca Pearls&#44; Jellies&#44; Popping Boba~30.0~No Ice&#44; No Whip~Large~30.0]

@@ -1543,6 +1543,7 @@ public class CustomerApp extends Application {
         
         // Keep state for milk/add-on recompute (declared here so all sections can see it)
         final double[] selectedMilkCost = {0.0};
+        final double[] selectedSizeCost = {0}; // Default to Small - declared at method level so ADD-ONS section can access it
         final Runnable[] recomputeRef = new Runnable[1];
 
         // SIZE SECTION - converted to clickable pills
@@ -1559,8 +1560,6 @@ public class CustomerApp extends Application {
             Label sizeDefault = new Label("(Small is selected by default)");
             sizeDefault.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
             sizeDefault.setTextFill(Color.web("#888888"));
-            
-            final double[] selectedSizeCost = {0}; // Default to Small
             
             final Button[] smallBtnRef = new Button[1];
             final Button[] mediumBtnRef = new Button[1];
