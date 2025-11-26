@@ -67,12 +67,21 @@ public class CustomerApp extends Application {
     private java.util.Map<String, java.io.File> imageFileIndex = null;
     // Sidebar category container reference so it can be refreshed when categories change
     private VBox categoryContainerSidebar = null;
+    // Cashier ID - set via command line parameter or defaults to "Guest"
+    private String currentCashierId = "Guest";
 
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
         store = Store.getInstance();
+        
+        // Read cashier ID from parameters if provided
+        java.util.List<String> params = getParameters().getRaw();
+        if (!params.isEmpty()) {
+            currentCashierId = params.get(0);
+        }
+        
         // Listen for category changes so customer UI updates in real-time
         try {
             Store.getInstance().addCategoryChangeListener(() -> {
@@ -3419,7 +3428,7 @@ public class CustomerApp extends Application {
             // Persist a pending order so the cashier can pick it up
             try {
                 // Build PendingOrder from currentOrder
-                PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In");
+                PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In", currentCashierId);
                 for (OrderItem oi : currentOrder.getItems()) {
                     double price = oi.getProduct().getPrice() + oi.getAddOnsCost();
                     String size = oi.getSize();

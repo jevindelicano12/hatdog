@@ -685,6 +685,13 @@ public class CashierApp extends Application {
         completedList.clear();
 
         for (PendingOrder pendingOrder : allOrders) {
+            // Only load orders that belong to current cashier or don't have a cashier ID (backwards compatibility)
+            String orderCashierId = pendingOrder.getCashierId();
+            if (!orderCashierId.isEmpty() && !orderCashierId.equals(currentCashierId)) {
+                // Skip orders from other cashiers
+                continue;
+            }
+            
             orderCustomerNames.put(pendingOrder.getOrderId(), pendingOrder.getCustomerName());
             orderTypes.put(pendingOrder.getOrderId(), pendingOrder.getOrderType());
             orderQueue.add(pendingOrder);

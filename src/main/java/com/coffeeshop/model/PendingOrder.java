@@ -13,6 +13,7 @@ public class PendingOrder {
     private double totalAmount;
     private String status; // STATUS_* constants below
     private String orderType; // "Dine In" or "Take Out"
+    private String cashierId; // ID of the cashier who created this order
 
     public static final String STATUS_PENDING = "PENDING"; // created but not paid
     public static final String STATUS_PAID = "PAID"; // paid and waiting to be prepared
@@ -27,6 +28,7 @@ public class PendingOrder {
         this.totalAmount = 0.0;
         this.status = STATUS_PENDING;
         this.orderType = "Dine In"; // default
+        this.cashierId = ""; // default empty
     }
 
     public PendingOrder(String orderId, String customerName, String orderType) {
@@ -37,6 +39,18 @@ public class PendingOrder {
         this.totalAmount = 0.0;
         this.status = STATUS_PENDING;
         this.orderType = orderType;
+        this.cashierId = ""; // default empty
+    }
+    
+    public PendingOrder(String orderId, String customerName, String orderType, String cashierId) {
+        this.orderId = orderId;
+        this.customerName = customerName;
+        this.orderTime = LocalDateTime.now();
+        this.items = new ArrayList<>();
+        this.totalAmount = 0.0;
+        this.status = STATUS_PENDING;
+        this.orderType = orderType;
+        this.cashierId = cashierId != null ? cashierId : "";
     }
 
     // Helper: escape commas so item-level splitting by comma is safe
@@ -93,6 +107,7 @@ public class PendingOrder {
         sb.append(totalAmount).append("|");
         sb.append(status).append("|");
         sb.append(orderType != null ? orderType : "Dine In").append("|");
+        sb.append(cashierId != null ? cashierId : "").append("|");
         
         // Encode items as JSON-like string
         sb.append("[");
@@ -129,9 +144,10 @@ public class PendingOrder {
 
         String[] parts = meta.split("\\|");
         if (parts.length >= 5) {
-            // Expected meta: orderId|customerName|orderTime|totalAmount|status|[orderType]
+            // Expected meta: orderId|customerName|orderTime|totalAmount|status|[orderType]|[cashierId]
             String orderType = parts.length >= 6 ? parts[5] : "Dine In";
-            PendingOrder order = new PendingOrder(parts[0], parts[1], orderType);
+            String cashierId = parts.length >= 7 ? parts[6] : "";
+            PendingOrder order = new PendingOrder(parts[0], parts[1], orderType, cashierId);
 
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             try {
@@ -242,6 +258,14 @@ public class PendingOrder {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+    
+    public String getCashierId() {
+        return cashierId;
+    }
+    
+    public void setCashierId(String cashierId) {
+        this.cashierId = cashierId != null ? cashierId : "";
     }
     // paymentMethod removed in revert
 
