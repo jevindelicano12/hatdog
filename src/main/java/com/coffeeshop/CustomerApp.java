@@ -3449,11 +3449,35 @@ public class CustomerApp extends Application {
             currentOrder = new Order(UUID.randomUUID().toString().substring(0, 8));
             showMainMenu();
             
+        } catch (IllegalStateException e) {
+            // Handle inventory issues specifically
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.contains("Insufficient")) {
+                String insufficientItem = store.getInsufficientIngredient(currentOrder);
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Order Failed");
+                errorAlert.setHeaderText("Insufficient Inventory");
+                errorAlert.setContentText("Sorry, we don't have enough " + (insufficientItem != null ? insufficientItem : "ingredients") + " to complete this order.\n\nPlease try again later.");
+                errorAlert.showAndWait();
+            } else {
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Order Failed");
+                errorAlert.setHeaderText("Payment Failed");
+                errorAlert.setContentText(errorMsg != null ? errorMsg : "There was an error processing your order. Please try again.");
+                errorAlert.showAndWait();
+            }
+        } catch (NullPointerException e) {
+            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+            errorAlert.setTitle("Order Failed");
+            errorAlert.setHeaderText("Invalid Order");
+            errorAlert.setContentText("One or more items in your order are invalid.\n\nPlease try again.");
+            errorAlert.showAndWait();
         } catch (Exception e) {
+            e.printStackTrace();
             Alert errorAlert = new Alert(Alert.AlertType.ERROR);
             errorAlert.setTitle("Order Failed");
             errorAlert.setHeaderText("Payment Failed");
-            errorAlert.setContentText("There was an error processing your order. Please try again.");
+            errorAlert.setContentText("There was an error processing your order.\n\nError: " + e.getMessage());
             errorAlert.showAndWait();
         }
     }

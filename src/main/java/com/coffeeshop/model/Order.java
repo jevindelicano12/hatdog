@@ -90,7 +90,12 @@ public class Order {
                 receipt.append("  Add-ons: ").append(item.getAddOns()).append("\n");
             }
             if (item.getSpecialRequest() != null && !item.getSpecialRequest().isEmpty()) {
-                receipt.append("  Remarks: ").append(item.getSpecialRequest()).append("\n");
+                // Split special requests by comma and display each on its own line
+                String[] requests = item.getSpecialRequest().split(",");
+                receipt.append("  Remarks:\n");
+                for (String request : requests) {
+                    receipt.append("    - ").append(request.trim()).append("\n");
+                }
             }
             receipt.append("  Subtotal: ₱").append(String.format("%.2f", item.getSubtotal())).append("\n");
             receipt.append("───────────────────────────────────────\n");
