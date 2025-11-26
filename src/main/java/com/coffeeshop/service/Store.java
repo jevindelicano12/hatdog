@@ -12,6 +12,7 @@ public class Store {
     private java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
     private java.util.List<Runnable> categoryListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> productListeners = new java.util.ArrayList<>();
+    private java.util.List<Runnable> inventoryListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> specialRequestListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> addOnListeners = new java.util.ArrayList<>();
     private java.util.List<Runnable> complaintListeners = new java.util.ArrayList<>();
@@ -86,6 +87,8 @@ public class Store {
     public void saveData() {
         PersistenceManager.saveProducts(products);
         PersistenceManager.saveInventory(inventory);
+        // Notify any listeners that inventory (or removed inventory) may have changed
+        notifyInventoryListeners();
         try { PersistenceManager.saveRemovedInventory(removedInventory); } catch (Exception ignored) {}
         try {
             PersistenceManager.saveAccounts(cashiers);
@@ -93,6 +96,8 @@ public class Store {
         // save explicit categories file too
         try {
             PersistenceManager.saveCategories(new java.util.ArrayList<>(categories));
+            // Notify listeners that products (or categories/inventory) may have changed
+            notifyProductListeners();
         } catch (Exception ignored) {}
         // save add-ons
         try {
@@ -354,6 +359,12 @@ public class Store {
         }
     }
 
+    private void notifyInventoryListeners() {
+        for (Runnable r : new java.util.ArrayList<>(inventoryListeners)) {
+            try { r.run(); } catch (Exception ignored) {}
+        }
+    }
+
     private void notifyComplaintListeners() {
         for (Runnable r : new java.util.ArrayList<>(complaintListeners)) {
             try { r.run(); } catch (Exception ignored) {}
@@ -363,6 +374,16 @@ public class Store {
     public void addCategoryChangeListener(Runnable r) {
         if (r == null) return;
         categoryListeners.add(r);
+    }
+
+    public void addInventoryChangeListener(Runnable r) {
+        if (r == null) return;
+        inventoryListeners.add(r);
+    }
+
+    public void removeInventoryChangeListener(Runnable r) {
+        if (r == null) return;
+        inventoryListeners.remove(r);
     }
 
     public void addProductChangeListener(Runnable r) {

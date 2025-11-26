@@ -108,6 +108,14 @@ public class AdminApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         store = Store.getInstance();
+        // Listen for inventory changes so admin UI updates ingredient lists and inventory table
+        try {
+            Store.getInstance().addInventoryChangeListener(() -> {
+                javafx.application.Platform.runLater(() -> {
+                    try { refreshData(); } catch (Exception ignored) {}
+                });
+            });
+        } catch (Exception ignored) {}
 
         primaryStage.setTitle("brewise - Admin Panel");
 
@@ -2692,6 +2700,10 @@ public class AdminApp extends Application {
         styleSuccessButton(addIngredientButton);
         addIngredientButton.setOnAction(e -> addIngredient());
 
+        Button importFromProductsButton = new Button("📥 Import Ingredients from Products");
+        styleSecondaryButton(importFromProductsButton);
+        importFromProductsButton.setOnAction(e -> importIngredientsFromProducts());
+
         Button undoButton = new Button("↶ Undo");
         styleSecondaryButton(undoButton);
         undoButton.setOnAction(e -> undoLastAction());
@@ -2700,7 +2712,7 @@ public class AdminApp extends Application {
         styleSecondaryButton(refreshButton);
         refreshButton.setOnAction(e -> refreshData());
 
-        controls.getChildren().addAll(refillIngredientButton, deductQuantityButton, deleteIngredientButton, addIngredientButton, undoButton, refreshButton);
+        controls.getChildren().addAll(refillIngredientButton, deductQuantityButton, deleteIngredientButton, addIngredientButton, importFromProductsButton, undoButton, refreshButton);
 
         panel.getChildren().addAll(title, inventoryTable, controls);
         return panel;
@@ -3144,6 +3156,9 @@ public class AdminApp extends Application {
             }
         };
 
+        // register an inventory listener so ingredient choices update if inventory changes while dialog is open
+        final Runnable invListenerAdd = () -> javafx.application.Platform.runLater(rebuild);
+        try { store.addInventoryChangeListener(invListenerAdd); } catch (Exception ignored) {}
         // initial build and rebuild on category change
         rebuild.run();
         categoryBox.valueProperty().addListener((obs, o, n) -> rebuild.run());
@@ -3220,7 +3235,9 @@ public class AdminApp extends Application {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(product -> {
+        java.util.Optional<Product> dlgRes = dialog.showAndWait();
+        try { store.removeInventoryChangeListener(invListenerAdd); } catch (Exception ignored) {}
+        dlgRes.ifPresent(product -> {
             if (product != null) {
                 try {
                     String chosenCat = product.getCategory();
@@ -3389,7 +3406,8 @@ public class AdminApp extends Application {
         grid.add(imageSection, 0, 4, 2, 1);
 
         // Ingredients editor: allow admin to edit which ingredients and quantities are associated with the product
-        Label ingredientLabel = new Label("🧪 Edit Ingredients:");
+        // NOTE: quantities entered here are the amount deducted from inventory when a single product is sold (use inventory unit)
+        Label ingredientLabel = new Label("🧪 Edit Ingredients (amount to deduct per product in inventory unit):");
         ingredientLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
         grid.add(ingredientLabel, 0, 5, 2, 1);
 
@@ -3456,7 +3474,10 @@ public class AdminApp extends Application {
                 checkBox.setStyle("-fx-font-size: 11;");
 
                 TextField quantityField = new TextField();
-                quantityField.setPromptText("Qty (e.g. 100.0)");
+                com.coffeeshop.model.InventoryItem invItem = null;
+                try { invItem = store.getInventoryItem(ingredientName); } catch (Exception ignored) {}
+                String unitHint = invItem == null ? "" : (invItem.getUnit() == null ? "" : " " + invItem.getUnit());
+                quantityField.setPromptText("Qty (e.g. 100.0" + unitHint + ")");
                 quantityField.setPrefWidth(100);
                 quantityField.setDisable(true);
                 // Restrict to numeric input
@@ -3499,6 +3520,9 @@ public class AdminApp extends Application {
             }
         };
 
+        // register an inventory listener so ingredient choices update if inventory changes while dialog is open
+        final Runnable invListenerEdit = () -> javafx.application.Platform.runLater(rebuildEdit);
+        try { store.addInventoryChangeListener(invListenerEdit); } catch (Exception ignored) {}
         // initial build
         rebuildEdit.run();
 
@@ -3525,7 +3549,11 @@ public class AdminApp extends Application {
             HBox ingredientRow = new HBox(10);
             ingredientRow.setAlignment(Pos.CENTER_LEFT);
             CheckBox checkBox = new CheckBox(choice); checkBox.setStyle("-fx-font-size: 11;"); checkBox.setSelected(true);
-            TextField quantityField = new TextField("1.0"); quantityField.setPromptText("Qty (e.g. 100.0)"); quantityField.setPrefWidth(100); quantityField.setDisable(false);
+            TextField quantityField = new TextField("1.0");
+            com.coffeeshop.model.InventoryItem ii = null; try { ii = store.getInventoryItem(choice); } catch (Exception ignored) {}
+            String unitHint2 = ii == null ? "" : (ii.getUnit() == null ? "" : " " + ii.getUnit());
+            quantityField.setPromptText("Qty (e.g. 100.0" + unitHint2 + ")");
+            quantityField.setPrefWidth(100); quantityField.setDisable(false);
             checkBox.setOnAction(e2 -> { if (!checkBox.isSelected()) { quantityField.setDisable(true); selectedIngredients.remove(choice); } else { quantityField.setDisable(false); try { selectedIngredients.put(choice, Double.parseDouble(quantityField.getText())); } catch (Exception ignored) {} } });
             quantityField.setOnKeyReleased(e2 -> { try { if (!quantityField.getText().isEmpty()) selectedIngredients.put(choice, Double.parseDouble(quantityField.getText())); } catch (Exception ignored) {} });
             ingredientRow.getChildren().addAll(checkBox, quantityField);
@@ -3625,7 +3653,9 @@ public class AdminApp extends Application {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(updatedProduct -> {
+        java.util.Optional<Product> dlgRes = dialog.showAndWait();
+        try { store.removeInventoryChangeListener(invListenerEdit); } catch (Exception ignored) {}
+        dlgRes.ifPresent(updatedProduct -> {
             if (updatedProduct != null) {
                 showAlert("Success", "Product updated successfully!", Alert.AlertType.INFORMATION);
                 refreshData();
@@ -3747,6 +3777,41 @@ public class AdminApp extends Application {
                 refreshData();
             }
         }
+    }
+
+    private void importIngredientsFromProducts() {
+        // Collect all ingredient names referenced by product recipes
+        java.util.Set<String> referenced = new java.util.HashSet<>();
+        for (Product p : store.getProducts()) {
+            try {
+                if (p.getRecipe() != null) referenced.addAll(p.getRecipe().keySet());
+            } catch (Exception ignored) {}
+        }
+
+        if (referenced.isEmpty()) {
+            showAlert("No Ingredients Found", "No ingredients were found in any product recipes.", Alert.AlertType.INFORMATION);
+            return;
+        }
+
+        int added = 0;
+        for (String name : referenced) {
+            if (name == null) continue;
+            String key = name.trim();
+            if (key.isEmpty()) continue;
+            if (store.getInventoryItem(key) == null && !store.getRemovedInventory().containsKey(key)) {
+                // Create with zero quantity and default unit "pcs"
+                com.coffeeshop.model.InventoryItem it = new com.coffeeshop.model.InventoryItem(key, 0.0, "pcs");
+                store.addInventoryItem(it);
+                added++;
+            }
+        }
+
+        if (added > 0) {
+            showAlert("Imported", String.format("Added %d missing ingredient(s) to inventory.", added), Alert.AlertType.INFORMATION);
+        } else {
+            showAlert("Up to Date", "All ingredients referenced by products are already present in inventory.", Alert.AlertType.INFORMATION);
+        }
+        refreshData();
     }
 
     private static class UndoAction {

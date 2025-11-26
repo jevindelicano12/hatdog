@@ -1442,7 +1442,7 @@ public class CustomerApp extends Application {
         headerRow.getChildren().addAll(leftHeader, spacer1, closeBtn);
         
         // Content: Size, Milk Options, Add-ons in a grid
-        Label totalPrice = new Label("₱" + String.format("%.2f", product.getPrice() + 30)); // Default Large size
+        Label totalPrice = new Label("₱" + String.format("%.2f", product.getPrice())); // Default Small size
         VBox customContent = createCompactCustomizationForm(product, totalPrice);
         
         // Bottom section: Quantity, Total, Add to Order button
@@ -1556,7 +1556,11 @@ public class CustomerApp extends Application {
             HBox sizeButtons = new HBox(10);
             sizeButtons.setAlignment(Pos.CENTER_LEFT);
             
-            final double[] selectedSizeCost = {30}; // Default to Large
+            Label sizeDefault = new Label("(Small is selected by default)");
+            sizeDefault.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
+            sizeDefault.setTextFill(Color.web("#888888"));
+            
+            final double[] selectedSizeCost = {0}; // Default to Small
             
             final Button[] smallBtnRef = new Button[1];
             final Button[] mediumBtnRef = new Button[1];
@@ -1606,7 +1610,7 @@ public class CustomerApp extends Application {
             largeBtnRef[0] = largeBtn;
             largeBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
             largeBtn.setPadding(new Insets(8, 16, 8, 16));
-            largeBtn.setStyle(getPillSelectedStyle()); // Start selected
+            largeBtn.setStyle(getPillDefaultStyle());
             largeBtn.setOnAction(e -> {
                 selectedSizeCost[0] = 30;
                 smallBtnRef[0].setStyle(getPillDefaultStyle());
@@ -1623,7 +1627,7 @@ public class CustomerApp extends Application {
             });
             
             sizeButtons.getChildren().addAll(smallBtn, mediumBtn, largeBtn);
-            sizeSection.getChildren().addAll(sizeTitle, sizeButtons);
+            sizeSection.getChildren().addAll(sizeTitle, sizeDefault, sizeButtons);
             form.getChildren().add(sizeSection);
             
             // Store the selected size cost in the form's user data for later retrieval
@@ -1740,7 +1744,7 @@ public class CustomerApp extends Application {
             // Recompute function: recompute total price including size, milk, and selected dynamic add-ons
             recomputeRef[0] = () -> {
                 try {
-                    double total = product.getPrice() + selectedMilkCost[0];
+                    double total = product.getPrice() + selectedSizeCost[0] + selectedMilkCost[0];
                     // Sum selected dynamic add-ons from addOnsGrid
                     for (javafx.scene.Node n : addOnsGrid.getChildren()) {
                         if (n instanceof javafx.scene.control.Button) {
@@ -1753,7 +1757,8 @@ public class CustomerApp extends Application {
                             }
                         }
                     }
-                    totalPrice.setText("₱" + String.format("%.2f", total));
+                    final double finalTotal = total;
+                    javafx.application.Platform.runLater(() -> totalPrice.setText("₱" + String.format("%.2f", finalTotal)));
                 } catch (Exception ignored) {}
             };
             // Initial compute
