@@ -50,3 +50,8 @@ Croissants|100.0|Hot|Regular|0
 Iced Frappe|4.5|Hot|Regular|0
 Latte|50.0|Hot|Regular|0
 Cappuccino|60.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0
+Matcha Latte|30.0|Hot|Regular|0
+Espresso|50.0|Hot|Regular|0
+Latte|50.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0

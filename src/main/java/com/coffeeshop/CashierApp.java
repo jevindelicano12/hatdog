@@ -106,22 +106,34 @@ public class CashierApp extends Application {
         tabPane.setStyle("-fx-background-color: #FFFFFF; -fx-tab-min-height: 50px; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 1 0;");
         
         // Tab 1: Order Queue
-        Tab ordersTab = new Tab("   📋 Order Queue   ");
+        Tab ordersTab = new Tab("   📦 Order Queue   ");
         ordersTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         ordersTab.setContent(createOrderQueuePanel());
         
-        // Tab 2: Returns
-        Tab returnsTab = new Tab("   ↩ Returns   ");
+        // Tab 2: Order Status Board (Customer Display)
+        Tab orderStatusTab = new Tab("   📺 Order Status   ");
+        orderStatusTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
+        orderStatusTab.setContent(createOrderStatusPanel());
+        
+        // Refresh order status when tab is selected
+        orderStatusTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                orderStatusTab.setContent(createOrderStatusPanel());
+            }
+        });
+        
+        // Tab 3: Returns
+        Tab returnsTab = new Tab("   🔄 Returns   ");
         returnsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         returnsTab.setContent(createReturnsPanel());
         
         // Tab 3: Receipt History
-        Tab receiptHistoryTab = new Tab("   📜 Receipt History   ");
+        Tab receiptHistoryTab = new Tab("   📋 Receipt History   ");
         receiptHistoryTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         receiptHistoryTab.setContent(createReceiptHistoryPanel());
         
         // Tab 4: Complaints
-        Tab complaintsTab = new Tab("   📝 Complaints   ");
+        Tab complaintsTab = new Tab("   😕 Complaints   ");
         complaintsTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
         complaintsTab.setContent(createComplaintsPanel());
         
@@ -149,7 +161,7 @@ public class CashierApp extends Application {
             }
         });
 
-        tabPane.getTabs().addAll(ordersTab, returnsTab, receiptHistoryTab, complaintsTab, reportsTab, remittanceTab);
+        tabPane.getTabs().addAll(ordersTab, orderStatusTab, returnsTab, receiptHistoryTab, complaintsTab, reportsTab, remittanceTab);
         
         rootPane.setCenter(tabPane);
 
@@ -339,7 +351,7 @@ public class CashierApp extends Application {
         titleLabel.setTextFill(Color.web("#2C3E50"));
         titleLabel.setStyle("-fx-font-weight: bold; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);");
         
-        Label subtitleLabel = new Label("🎯 Please sign in to continue");
+        Label subtitleLabel = new Label("✓ Please sign in to continue");
         subtitleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 15));
         subtitleLabel.setTextFill(Color.web("#34495E"));
         
@@ -352,7 +364,7 @@ public class CashierApp extends Application {
         userField.setStyle("-fx-font-size: 15px; -fx-padding: 12; -fx-background-radius: 8; -fx-border-color: #3498DB; -fx-border-width: 2; -fx-border-radius: 8; -fx-background-color: white;");
         userField.setPrefWidth(300);
 
-        Label passLbl = new Label("🔑 Password:");
+        Label passLbl = new Label("🔒 Password:");
         passLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
         passLbl.setTextFill(Color.web("#2C3E50"));
         
@@ -377,11 +389,11 @@ public class CashierApp extends Application {
         msg.setTextFill(javafx.scene.paint.Color.web("#D32F2F"));
         msg.setFont(Font.font("Segoe UI", 12));
 
-        Button loginBtn = new Button("✅ Login");
+        Button loginBtn = new Button("✓ Login");
         loginBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #27AE60, #229954); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 14 40; -fx-background-radius: 10; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         loginBtn.setPrefWidth(140);
         
-        Button cancelBtn = new Button("❌ Cancel");
+        Button cancelBtn = new Button("✗ Cancel");
         cancelBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #E74C3C, #C0392B); -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 14 40; -fx-background-radius: 10; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 5, 0, 0, 2);");
         cancelBtn.setPrefWidth(140);
 
@@ -524,9 +536,9 @@ public class CashierApp extends Application {
         StringBuilder receipt = new StringBuilder();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append("         BREWISE COFFEE SHOP\n");
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append("Order ID: ").append(order.getOrderId()).append("\n");
         receipt.append("Customer: ").append(customerName != null ? customerName : "Walk-in").append("\n");
         receipt.append("Order Type: ").append(orderType).append("\n");
@@ -534,10 +546,10 @@ public class CashierApp extends Application {
             receipt.append("Cashier: ").append(currentCashierId).append("\n");
         }
         receipt.append("Date: ").append(java.time.LocalDateTime.now().format(formatter)).append("\n");
-        receipt.append("═══════════════════════════════════════\n\n");
+        receipt.append("\n\n");
         
         receipt.append("ITEMS:\n");
-        receipt.append("───────────────────────────────────────\n");
+        receipt.append("\n");
         
         for (OrderItem item : order.getItems()) {
             receipt.append(String.format("%-20s  ₱%.2f\n", 
@@ -564,7 +576,7 @@ public class CashierApp extends Application {
             receipt.append("\n");
         }
         
-        receipt.append("───────────────────────────────────────\n");
+        receipt.append("\n");
         // Calculate VAT breakdown (assume order.getTotalAmount() includes VAT)
         double total = order.getTotalAmount();
         double subtotal = total / 1.12; // remove 12% VAT to get base
@@ -574,12 +586,12 @@ public class CashierApp extends Application {
         receipt.append(String.format("TOTAL:            ₱%.2f\n", total));
 
         // Show cash paid and change immediately below the TOTAL
-        receipt.append("───────────────────────────────────────\n");
+        receipt.append("\n");
         receipt.append(String.format("Cash Paid: ₱%.2f\n", cashPaid));
         receipt.append(String.format("Change:    ₱%.2f\n", change));
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append("       Thank you for your order!\n");
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         
         return receipt.toString();
     }
@@ -622,7 +634,7 @@ public class CashierApp extends Application {
                         // reload all pending orders and populate stage lists
                         loadPendingOrdersFromFile();
 
-                        // Avoid clearing or reconstructing the dashboard VBox here —
+                        // Avoid clearing or reconstructing the dashboard VBox here -
                         // removing its children on the FX thread can produce a
                         // brief empty view (observed as the dashboard disappearing)
                         // while the scheduler is running. Instead, keep dashboard
@@ -726,7 +738,7 @@ public class CashierApp extends Application {
         if (PendingOrder.STATUS_PAID.equals(status)) return "Paid";
         if (PendingOrder.STATUS_PREPARING.equals(status)) return "Preparing";
         if (PendingOrder.STATUS_COMPLETED.equals(status)) return "Completed";
-        return status != null ? status : "—";
+        return status != null ? status : "-";
     }
 
     // Primary action handler for lifecycle transitions
@@ -925,7 +937,7 @@ public class CashierApp extends Application {
         leftPanel.setStyle("-fx-background-color: white;");
         
         // Back arrow
-        Label backArrow = new Label("← PAYMENT DETAILS");
+        Label backArrow = new Label("💳 PAYMENT DETAILS");
         backArrow.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
         backArrow.setTextFill(Color.web("#6B7280"));
         backArrow.setCursor(javafx.scene.Cursor.HAND);
@@ -1015,7 +1027,7 @@ public class CashierApp extends Application {
         noticeBox.setPadding(new Insets(12, 16, 12, 16));
         noticeBox.setAlignment(Pos.CENTER_LEFT);
         noticeBox.setStyle("-fx-background-color: #FEF3C7; -fx-background-radius: 8;");
-        Label noticeIcon = new Label("💵");
+        Label noticeIcon = new Label("ℹ️");
         noticeIcon.setFont(Font.font(16));
         Label noticeText = new Label("Payment Required\nPlease enter cash amount received.");
         noticeText.setFont(Font.font("Segoe UI", 12));
@@ -1069,7 +1081,7 @@ public class CashierApp extends Application {
             {"1", "2", "3"},
             {"4", "5", "6"},
             {"7", "8", "9"},
-            {".", "0", "⌫"}
+            {".", "0", "C"}
         };
         
         for (int row = 0; row < keys.length; row++) {
@@ -1078,7 +1090,7 @@ public class CashierApp extends Application {
                 Button btn = new Button(key);
                 btn.setPrefSize(80, 60);
                 
-                if (key.equals("⌫")) {
+                if (key.equals("C")) {
                     btn.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #DC2626; -fx-font-size: 22px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;");
                     btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #FECACA; -fx-text-fill: #DC2626; -fx-font-size: 22px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;"));
                     btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #DC2626; -fx-font-size: 22px; -fx-font-weight: bold; -fx-background-radius: 12; -fx-border-width: 0; -fx-cursor: hand;"));
@@ -1092,7 +1104,7 @@ public class CashierApp extends Application {
                     String current = amountField.getText();
                     if (current.equals("0.00")) current = "";
                     
-                    if (key.equals("⌫")) {
+                    if (key.equals("C")) {
                         if (!current.isEmpty()) {
                             current = current.substring(0, current.length() - 1);
                             if (current.isEmpty()) current = "0.00";
@@ -1405,7 +1417,7 @@ public class CashierApp extends Application {
             StackPane iconCircle1 = new StackPane();
             iconCircle1.setPrefSize(60, 60);
             iconCircle1.setStyle("-fx-background-color: linear-gradient(to bottom right, #667eea, #764ba2); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
-            Label icon1 = new Label("💵");
+            Label icon1 = new Label("💰");
             icon1.setFont(Font.font(28));
             iconCircle1.getChildren().add(icon1);
             
@@ -1428,7 +1440,7 @@ public class CashierApp extends Application {
             StackPane iconCircle2 = new StackPane();
             iconCircle2.setPrefSize(60, 60);
             iconCircle2.setStyle("-fx-background-color: linear-gradient(to bottom right, #0ba360, #3cba92); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
-            Label icon2 = new Label("📈");
+            Label icon2 = new Label("📊");
             icon2.setFont(Font.font(28));
             iconCircle2.getChildren().add(icon2);
             
@@ -1456,7 +1468,7 @@ public class CashierApp extends Application {
             StackPane iconCircle3 = new StackPane();
             iconCircle3.setPrefSize(60, 60);
             iconCircle3.setStyle("-fx-background-color: linear-gradient(to bottom right, #4facfe, #00f2fe); -fx-background-radius: 30; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);");
-            Label icon3 = new Label("🛍️");
+            Label icon3 = new Label("✅");
             icon3.setFont(Font.font(28));
             iconCircle3.getChildren().add(icon3);
             
@@ -1518,7 +1530,7 @@ public class CashierApp extends Application {
         searchSection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
         searchSection.setPrefWidth(600);
         
-        Label searchLabel = new Label("📋 Enter Order ID:");
+        Label searchLabel = new Label("🔍 Enter Order ID:");
         searchLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         searchLabel.setTextFill(Color.web("#374151"));
         
@@ -1530,7 +1542,7 @@ public class CashierApp extends Application {
         orderIdField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-border-radius: 8; -fx-border-color: #E5E7EB;");
         orderIdField.setPrefWidth(300);
         
-        Button searchBtn = new Button("🔍 Search");
+        Button searchBtn = new Button("\ud83d\udd0d Search");
         searchBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; -fx-cursor: hand;");
         searchBtn.setPrefWidth(120);
         
@@ -1550,7 +1562,7 @@ public class CashierApp extends Application {
         resultsPanel.setPrefHeight(500);
         resultsPanel.setMaxHeight(Double.MAX_VALUE);
         
-        Label resultsTitle = new Label("📄 Order Details");
+        Label resultsTitle = new Label("📋 Order Details");
         resultsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
         resultsTitle.setTextFill(Color.web("#111827"));
         
@@ -1575,12 +1587,12 @@ public class CashierApp extends Application {
         payBtn.setPrefWidth(200);
         payBtn.setVisible(false);
         
-        Button completeBtn = new Button("✅ Complete & Pickup");
+        Button completeBtn = new Button("✓ Complete & Pickup");
         completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         completeBtn.setPrefWidth(200);
         completeBtn.setVisible(false);
         
-        Button cancelBtn = new Button("❌ Cancel Order");
+        Button cancelBtn = new Button("✗ Cancel Order");
         cancelBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         cancelBtn.setPrefWidth(150);
         cancelBtn.setVisible(false);
@@ -1595,7 +1607,7 @@ public class CashierApp extends Application {
         Runnable searchOrder = () -> {
             String orderIdToFind = orderIdField.getText().trim();
             if (orderIdToFind.isEmpty()) {
-                statusLabel.setText("❌ Enter an order ID");
+                statusLabel.setText("✗ Enter an order ID");
                 statusLabel.setTextFill(Color.web("#EF4444"));
                 payBtn.setVisible(false);
                 completeBtn.setVisible(false);
@@ -1614,7 +1626,7 @@ public class CashierApp extends Application {
             }
             
             if (foundOrder == null) {
-                statusLabel.setText("❌ Order not found");
+                statusLabel.setText("✗ Order not found");
                 statusLabel.setTextFill(Color.web("#EF4444"));
                 payBtn.setVisible(false);
                 completeBtn.setVisible(false);
@@ -1624,20 +1636,20 @@ public class CashierApp extends Application {
             }
             
             // Order found - show details
-            statusLabel.setText("✅ Order found");
+            statusLabel.setText("✓ Order found");
             statusLabel.setTextFill(Color.web("#10B981"));
             
             String customerName = orderCustomerNames.getOrDefault(foundOrder.getOrderId(), "Unknown");
             StringBuilder details = new StringBuilder();
             details.append("ORDER DETAILS\n");
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
             details.append(String.format("Order #:    %s\n", foundOrder.getOrderId()));
             details.append(String.format("Customer:   %s\n", customerName));
             details.append(String.format("Time:       %s\n", 
                 foundOrder.getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
             details.append(String.format("Status:     %s\n\n", mapStatusToLabel(foundOrder.getStatus())));
             details.append("ITEMS\n");
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
 
             if (foundOrder.getItems().isEmpty()) {
                 details.append("No items.\n");
@@ -1660,7 +1672,7 @@ public class CashierApp extends Application {
                 }
             }
 
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
             details.append(String.format("TOTAL:      ₱%.2f\n", foundOrder.getTotalAmount()));
 
             orderDetailsArea.setText(details.toString());
@@ -1673,7 +1685,7 @@ public class CashierApp extends Application {
             if (PendingOrder.STATUS_PENDING.equals(foundOrder.getStatus())) {
                 payBtn.setVisible(true);
             } else if (PendingOrder.STATUS_PAID.equals(foundOrder.getStatus())) {
-                payBtn.setText("👨‍🍳 Start Preparing");
+                payBtn.setText("\ud83c\udf74 Start Preparing");
                 payBtn.setVisible(true);
             } else if (PendingOrder.STATUS_PREPARING.equals(foundOrder.getStatus())) {
                 completeBtn.setVisible(true);
@@ -1704,7 +1716,7 @@ public class CashierApp extends Application {
                         po.setStatus(PendingOrder.STATUS_PREPARING);
                         TextDatabase.savePendingOrder(po);
                         loadPendingOrdersFromFile();
-                        statusLabel.setText("✅ Order moved to Preparing");
+                        statusLabel.setText("✓ Order moved to Preparing");
                     }
                     searchOrder.run();
                     break;
@@ -1733,11 +1745,11 @@ public class CashierApp extends Application {
             confirmDialog.setHeaderText("Are you sure?");
             confirmDialog.setContentText("This will permanently delete the order: " + orderIdToFind);
             
-            if (confirmDialog.showAndWait().orElse(Alert.ButtonType.CANCEL) == Alert.ButtonType.OK) {
+            if (confirmDialog.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
                 TextDatabase.deletePendingOrder(orderIdToFind);
                 loadPendingOrdersFromFile();
                 orderIdField.clear();
-                statusLabel.setText("✅ Order cancelled");
+                statusLabel.setText("✓ Order cancelled");
                 orderDetailsArea.setText("Order deleted. Enter another order ID...");
             }
         });
@@ -1754,391 +1766,6 @@ public class CashierApp extends Application {
 
         return outerScroll;
     }
-        
-        // Removed search box to simplify UI; order queue expanded instead
-        
-        // Build three tables for the 3 steps: Paid, Preparing, Completed (use class-level lists)
-        // paidList, preparingList, completedList are class fields
-        pendingTable = new TableView<>(pendingList);
-        preparingTable = new TableView<>(preparingList);
-        completedTable = new TableView<>(completedList);
-
-        // Create separate column instances for each table (TableColumn cannot be shared between TableViews)
-        // Pending table columns
-        TableColumn<PendingOrder, String> idColP = new TableColumn<>("Order #");
-        idColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
-        idColP.setPrefWidth(100);
-
-        TableColumn<PendingOrder, String> customerColP = new TableColumn<>("Customer");
-        customerColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—")));
-        customerColP.setPrefWidth(140);
-
-        TableColumn<PendingOrder, String> timeColP = new TableColumn<>("Time");
-        timeColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            data.getValue().getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
-        timeColP.setPrefWidth(100);
-
-        TableColumn<PendingOrder, Integer> itemsColP = new TableColumn<>("Items");
-        itemsColP.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
-            data.getValue().getItems().size()).asObject());
-        itemsColP.setPrefWidth(70);
-
-        TableColumn<PendingOrder, String> totalColP = new TableColumn<>("Total");
-        totalColP.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
-        totalColP.setPrefWidth(90);
-
-        // Preparing table columns
-        TableColumn<PendingOrder, String> idColM = new TableColumn<>("Order #");
-        idColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
-        idColM.setPrefWidth(100);
-
-        TableColumn<PendingOrder, String> customerColM = new TableColumn<>("Customer");
-        customerColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—")));
-        customerColM.setPrefWidth(140);
-
-        TableColumn<PendingOrder, String> timeColM = new TableColumn<>("Time");
-        timeColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            data.getValue().getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
-        timeColM.setPrefWidth(100);
-
-        TableColumn<PendingOrder, Integer> itemsColM = new TableColumn<>("Items");
-        itemsColM.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
-            data.getValue().getItems().size()).asObject());
-        itemsColM.setPrefWidth(70);
-
-        TableColumn<PendingOrder, String> totalColM = new TableColumn<>("Total");
-        totalColM.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
-        totalColM.setPrefWidth(90);
-
-        // Completed table columns
-        TableColumn<PendingOrder, String> idColD = new TableColumn<>("Order #");
-        idColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
-        idColD.setPrefWidth(100);
-
-        TableColumn<PendingOrder, String> customerColD = new TableColumn<>("Customer");
-        customerColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            orderCustomerNames.getOrDefault(data.getValue().getOrderId(), "—")));
-        customerColD.setPrefWidth(140);
-
-        TableColumn<PendingOrder, String> timeColD = new TableColumn<>("Time");
-        timeColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            data.getValue().getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
-        timeColD.setPrefWidth(100);
-
-        TableColumn<PendingOrder, Integer> itemsColD = new TableColumn<>("Items");
-        itemsColD.setCellValueFactory(data -> new javafx.beans.property.SimpleIntegerProperty(
-            data.getValue().getItems().size()).asObject());
-        itemsColD.setPrefWidth(70);
-
-        TableColumn<PendingOrder, String> totalColD = new TableColumn<>("Total");
-        totalColD.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
-            "₱" + String.format("%.2f", data.getValue().getTotalAmount())));
-        totalColD.setPrefWidth(90);
-
-        // Pending table action: Pay (cashier will mark paid and ready for preparing)
-        TableColumn<PendingOrder, Void> pendingAction = new TableColumn<>("Actions");
-        pendingAction.setPrefWidth(160);
-        pendingAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
-            private final Button actionBtn = new Button();
-            private final Button removeBtn = new Button("✕");
-            {
-                actionBtn.setStyle("-fx-font-weight: bold; -fx-cursor: hand;");
-                actionBtn.getStyleClass().add("cashier-accent");
-                removeBtn.setStyle("-fx-background-color: #FFEBEE; -fx-text-fill: #D32F2F; -fx-font-weight: bold;");
-                actionBtn.setOnAction(e -> {
-                    PendingOrder p = getTableView().getItems().get(getIndex());
-                    // Pay and immediately mark as ready for preparing
-                    payAndStartPreparing(p);
-                });
-                removeBtn.setOnAction(e -> {
-                    PendingOrder p = getTableView().getItems().get(getIndex());
-                    TextDatabase.deletePendingOrder(p.getOrderId());
-                    loadPendingOrdersFromFile();
-                });
-            }
-
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) { setGraphic(null); return; }
-                PendingOrder p = getTableView().getItems().get(getIndex());
-                if (p == null) { setGraphic(null); return; }
-                String st = p.getStatus();
-                // Paid table should only contain PAID orders, so show Start Preparing action
-                if (PendingOrder.STATUS_PENDING.equals(st)) {
-                    actionBtn.setText("💳 Pay");
-                    actionBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-cursor: hand;");
-                    removeBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 12; -fx-background-radius: 8; -fx-cursor: hand;");
-                    setGraphic(new HBox(8, actionBtn, removeBtn));
-                } else {
-                    setGraphic(null);
-                }
-            }
-        });
-
-        // Preparing table action: Complete
-        TableColumn<PendingOrder, Void> prepAction = new TableColumn<>("Actions");
-        prepAction.setPrefWidth(120);
-        prepAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
-            private final Button completeBtn = new Button("✅ Complete");
-            {
-                completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 8; -fx-cursor: hand;");
-                completeBtn.getStyleClass().add("cashier-accent");
-                completeBtn.setOnAction(e -> {
-                    PendingOrder p = getTableView().getItems().get(getIndex());
-                    completePickup(p);
-                    loadPendingOrdersFromFile();
-                });
-            }
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) { setGraphic(null); return; }
-                setGraphic(completeBtn);
-            }
-        });
-
-        // Completed table has no actions
-        TableColumn<PendingOrder, Void> doneAction = new TableColumn<>("Actions");
-        doneAction.setPrefWidth(80);
-        doneAction.setCellFactory(col -> new TableCell<PendingOrder, Void>() {
-            @Override protected void updateItem(Void item, boolean empty) { super.updateItem(item, empty); setGraphic(null); }
-        });
-
-        // Assemble columns for each table
-        pendingTable.getColumns().addAll(idColP, customerColP, timeColP, itemsColP, totalColP, pendingAction);
-        preparingTable.getColumns().addAll(idColM, customerColM, timeColM, itemsColM, totalColM, prepAction);
-        completedTable.getColumns().addAll(idColD, customerColD, timeColD, itemsColD, totalColD, doneAction);
-
-        // Make tables taller and let columns resize to avoid horizontal scrolling
-        pendingTable.setPrefHeight(600);
-        preparingTable.setPrefHeight(600);
-        completedTable.setPrefHeight(600);
-        pendingTable.setMinHeight(300);
-        preparingTable.setMinHeight(300);
-        completedTable.setMinHeight(300);
-        pendingTable.setMaxHeight(Double.MAX_VALUE);
-        preparingTable.setMaxHeight(Double.MAX_VALUE);
-        completedTable.setMaxHeight(Double.MAX_VALUE);
-
-        // Ensure tables expand horizontally and columns fill available width
-        pendingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        preparingTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        completedTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
-        pendingTable.setMaxWidth(Double.MAX_VALUE);
-        preparingTable.setMaxWidth(Double.MAX_VALUE);
-        completedTable.setMaxWidth(Double.MAX_VALUE);
-
-        // Modern column headers with badges
-        HBox pendingHeader = new HBox(10);
-        pendingHeader.setAlignment(Pos.CENTER_LEFT);
-        pendingHeader.setPadding(new Insets(15));
-        pendingHeader.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12 12 0 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 2 0;");
-        
-        Label pendingIcon = new Label("⏳");
-        pendingIcon.setFont(Font.font(18));
-        Label pendingLabel = new Label("Pending");
-        pendingLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        pendingLabel.setTextFill(Color.web("#374151"));
-        Label pendingBadge = new Label("0");
-        pendingBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        pendingBadge.setTextFill(Color.web("#F59E0B"));
-        pendingBadge.setStyle("-fx-background-color: #FEF3C7; -fx-padding: 4 12; -fx-background-radius: 12;");
-        pendingList.addListener((javafx.collections.ListChangeListener<PendingOrder>) c -> 
-            pendingBadge.setText(String.valueOf(pendingList.size())));
-        pendingHeader.getChildren().addAll(pendingIcon, pendingLabel, pendingBadge);
-        
-        HBox preparingHeader = new HBox(10);
-        preparingHeader.setAlignment(Pos.CENTER_LEFT);
-        preparingHeader.setPadding(new Insets(15));
-        preparingHeader.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12 12 0 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 2 0;");
-        
-        Label preparingIcon = new Label("⏱️");
-        preparingIcon.setFont(Font.font(18));
-        Label preparingLabel = new Label("Preparing");
-        preparingLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        preparingLabel.setTextFill(Color.web("#374151"));
-        Label preparingBadge = new Label("0");
-        preparingBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        preparingBadge.setTextFill(Color.web("#3B82F6"));
-        preparingBadge.setStyle("-fx-background-color: #DBEAFE; -fx-padding: 4 12; -fx-background-radius: 12;");
-        preparingList.addListener((javafx.collections.ListChangeListener<PendingOrder>) c -> 
-            preparingBadge.setText(String.valueOf(preparingList.size())));
-        preparingHeader.getChildren().addAll(preparingIcon, preparingLabel, preparingBadge);
-        
-        HBox completedHeader = new HBox(10);
-        completedHeader.setAlignment(Pos.CENTER_LEFT);
-        completedHeader.setPadding(new Insets(15));
-        completedHeader.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12 12 0 0; -fx-border-color: #E0E0E0; -fx-border-width: 0 0 2 0;");
-        
-        Label completedIcon = new Label("✅");
-        completedIcon.setFont(Font.font(18));
-        Label completedLabel = new Label("Completed");
-        completedLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        completedLabel.setTextFill(Color.web("#374151"));
-        Label completedBadge = new Label("0");
-        completedBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
-        completedBadge.setTextFill(Color.web("#10B981"));
-        completedBadge.setStyle("-fx-background-color: #D1FAE5; -fx-padding: 4 12; -fx-background-radius: 12;");
-        completedList.addListener((javafx.collections.ListChangeListener<PendingOrder>) c -> 
-            completedBadge.setText(String.valueOf(completedList.size())));
-        completedHeader.getChildren().addAll(completedIcon, completedLabel, completedBadge);
-        
-        VBox pendingBox = new VBox(0);
-        pendingBox.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        pendingTable.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
-        pendingBox.getChildren().addAll(pendingHeader, pendingTable);
-        
-        VBox preparingBox = new VBox(0);
-        preparingBox.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        preparingTable.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
-        preparingBox.getChildren().addAll(preparingHeader, preparingTable);
-        
-        VBox completedBox = new VBox(0);
-        completedBox.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        completedTable.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
-        completedBox.getChildren().addAll(completedHeader, completedTable);
-
-        // Allow the boxes to grow vertically so tables can expand
-        VBox.setVgrow(pendingTable, Priority.ALWAYS);
-        VBox.setVgrow(preparingTable, Priority.ALWAYS);
-        VBox.setVgrow(completedTable, Priority.ALWAYS);
-        VBox.setVgrow(pendingBox, Priority.ALWAYS);
-        VBox.setVgrow(preparingBox, Priority.ALWAYS);
-        VBox.setVgrow(completedBox, Priority.ALWAYS);
-
-        HBox tablesRow = new HBox(12, pendingBox, preparingBox, completedBox);
-        tablesRow.setPrefWidth(Double.MAX_VALUE);
-        HBox.setHgrow(pendingBox, Priority.ALWAYS);
-        HBox.setHgrow(preparingBox, Priority.ALWAYS);
-        HBox.setHgrow(completedBox, Priority.ALWAYS);
-
-        // Replace old single-table UI: we will populate these lists from file loader
-        panel.getChildren().addAll(title, subtitle, new Separator(), tablesRow, new Separator());
-        
-        // Order details panel with modern design
-        VBox detailsPanel = new VBox(15);
-        detailsPanel.setPadding(new Insets(20));
-        detailsPanel.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        detailsPanel.getStyleClass().add("panel-card");
-        detailsPanel.setPrefHeight(380);
-        detailsPanel.setMinHeight(300);
-
-        Label detailsTitle = new Label("📄 Receipt View");
-        detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        detailsTitle.setTextFill(Color.web("#111827"));
-
-        TextArea orderDetailsArea = new TextArea();
-        orderDetailsArea.setEditable(false);
-        orderDetailsArea.setWrapText(true);
-        // Use larger monospace font for alignment and readability
-        orderDetailsArea.setFont(Font.font("Consolas", 15));
-        orderDetailsArea.setText("👆 Select an order to view details...");
-        orderDetailsArea.setPrefHeight(320);
-        orderDetailsArea.setMaxHeight(Double.MAX_VALUE);
-        orderDetailsArea.setPrefWidth(Double.MAX_VALUE);
-        orderDetailsArea.setStyle("-fx-control-inner-background: #F9FAFB; -fx-background-color: #F9FAFB; -fx-font-size: 13px; -fx-border-color: #E5E7EB; -fx-border-width: 1; -fx-border-radius: 8;");
-        VBox.setVgrow(orderDetailsArea, Priority.ALWAYS);
-
-        detailsPanel.getChildren().addAll(detailsTitle, orderDetailsArea);
-        
-        // Add selection listeners to each table to show order details (for PendingOrder)
-        javafx.beans.value.ChangeListener<PendingOrder> detailsListener = (obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                String customerName = orderCustomerNames.getOrDefault(newSelection.getOrderId(), "Unknown");
-                StringBuilder details = new StringBuilder();
-                details.append("ORDER DETAILS\n");
-                details.append("-------------------------------------------\n");
-                details.append(String.format("Order #:    %s\n", newSelection.getOrderId()));
-                details.append(String.format("Customer:   %s\n", customerName));
-                details.append(String.format("Time:       %s\n", 
-                    newSelection.getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
-                details.append(String.format("Status:     %s\n\n", mapStatusToLabel(newSelection.getStatus())));
-                details.append("ITEMS\n");
-                details.append("-------------------------------------------\n");
-
-                if (newSelection.getItems().isEmpty()) {
-                    details.append("No items.\n");
-                } else {
-                    java.util.Map<String, Integer> qtyMap = new java.util.LinkedHashMap<>();
-                    java.util.Map<String, Double> priceMap = new java.util.HashMap<>();
-                    for (PendingOrder.OrderItemData item : newSelection.getItems()) {
-                        String name = item.productName;
-                        qtyMap.put(name, qtyMap.getOrDefault(name, 0) + item.quantity);
-                        Product product = store.getProducts().stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
-                        priceMap.put(name, product != null ? product.getPrice() : item.price);
-                    }
-
-                    for (java.util.Map.Entry<String, Integer> e : qtyMap.entrySet()) {
-                        String name = e.getKey();
-                        int qty = e.getValue();
-                        double price = priceMap.getOrDefault(name, 0.0);
-                        double subtotal = price * qty;
-                        details.append(String.format("%-20s x%d   ₱%.2f\n", name, qty, subtotal));
-                    }
-                }
-
-                details.append("-------------------------------------------\n");
-                details.append(String.format("TOTAL:      ₱%.2f\n", newSelection.getTotalAmount()));
-
-                orderDetailsArea.setText(details.toString());
-            } else {
-                orderDetailsArea.setText("Select an order to view details...");
-            }
-        };
-
-        pendingTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
-        preparingTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
-        completedTable.getSelectionModel().selectedItemProperty().addListener(detailsListener);
-        
-        HBox activeOrdersBox = new HBox(12);
-        activeOrdersBox.setAlignment(Pos.CENTER_LEFT);
-        activeOrdersBox.setPadding(new Insets(15));
-        activeOrdersBox.setStyle("-fx-background-color: #EEF2FF; -fx-background-radius: 10;");
-        
-        Label activeIcon = new Label("📈");
-        activeIcon.setFont(Font.font(16));
-        
-        Label queueCount = new Label("0 Active Orders");
-        queueCount.setFont(Font.font("Segoe UI", FontWeight.BOLD, 15));
-        queueCount.setTextFill(Color.web("#6366F1"));
-        
-        activeOrdersBox.getChildren().addAll(activeIcon, queueCount);
-        // update count based on all three lists
-        javafx.collections.ListChangeListener<PendingOrder> updateCount = c -> {
-            int total = pendingList.size() + preparingList.size() + completedList.size();
-            queueCount.setText(total + " Active Orders");
-        };
-        pendingList.addListener(updateCount);
-        preparingList.addListener(updateCount);
-        completedList.addListener(updateCount);
-        
-        panel.getChildren().addAll(activeOrdersBox, detailsPanel);
-
-        // Wrap the panel in a ScrollPane so the entire Order Queue area can scroll vertically
-        ScrollPane outerScroll = new ScrollPane(panel);
-        outerScroll.setFitToWidth(true);
-        // Allow the content to be taller than the viewport (so tables can be tall and scroll vertically)
-        outerScroll.setFitToHeight(false);
-        outerScroll.setPrefViewportHeight(820);
-        outerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        outerScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        outerScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-
-        // Prefer a taller panel so the tables have room before scrolling
-        panel.setPrefHeight(1200);
-
-        return outerScroll;
-    }
-    
-    // Search functionality removed — orders are visible in the main queue and updated in real-time.
-    
-    
     
     // ==================== RETURNS PANEL ====================
     
@@ -2149,7 +1776,7 @@ public class CashierApp extends Application {
         panel.setAlignment(Pos.TOP_CENTER);
         
         // Header
-        Label title = new Label("↩ Return / Exchange Items");
+        Label title = new Label("🔄 Return / Exchange Items");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
         title.setTextFill(Color.web("#ff9800"));
         
@@ -2165,7 +1792,7 @@ public class CashierApp extends Application {
         card.setAlignment(Pos.CENTER);
         
         // Icon
-        Label icon = new Label("📋");
+        Label icon = new Label("📦");
         icon.setFont(Font.font(80));
         
         // Order ID input
@@ -2205,7 +1832,7 @@ public class CashierApp extends Application {
         infoBox.setPadding(new Insets(20));
         infoBox.setStyle("-fx-background-color: #fff3e0; -fx-background-radius: 10; -fx-border-color: #ff9800; -fx-border-width: 1; -fx-border-radius: 10;");
         
-        Label infoTitle = new Label("⏰ Return Policy");
+        Label infoTitle = new Label("📋 Return Policy");
         infoTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         infoTitle.setTextFill(Color.web("#e65100"));
         
@@ -2267,7 +1894,7 @@ public class CashierApp extends Application {
         panel.setAlignment(Pos.TOP_CENTER);
         
         // Header
-        Label title = new Label("📝 Order Complaints");
+        Label title = new Label("😕 Order Complaints");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
         title.setTextFill(Color.web("#3b82f6"));
         
@@ -2283,7 +1910,7 @@ public class CashierApp extends Application {
         card.setAlignment(Pos.TOP_LEFT);
         
         // Icon
-        Label icon = new Label("📋");
+        Label icon = new Label("😕");
         icon.setFont(Font.font(80));
         icon.setAlignment(Pos.CENTER);
         VBox iconBox = new VBox(icon);
@@ -2428,7 +2055,7 @@ public class CashierApp extends Application {
 
                 Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
                 successAlert.setTitle("Complaint Submitted");
-                successAlert.setHeaderText("✅ Complaint filed successfully");
+                successAlert.setHeaderText("✓ Complaint filed successfully");
                 successAlert.setContentText(complaintRecord);
                 successAlert.showAndWait();
 
@@ -2464,7 +2091,7 @@ public class CashierApp extends Application {
         infoBox.setPadding(new Insets(20));
         infoBox.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 10; -fx-border-color: #3b82f6; -fx-border-width: 1; -fx-border-radius: 10;");
         
-        Label infoTitle = new Label("ℹ️ Complaint Guidelines");
+        Label infoTitle = new Label("⚠️ Complaint Guidelines");
         infoTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         infoTitle.setTextFill(Color.web("#1e40af"));
         
@@ -2526,7 +2153,7 @@ public class CashierApp extends Application {
         searchField.setStyle("-fx-background-color: #343a40; -fx-text-fill: white; -fx-prompt-text-fill: #6c757d; -fx-background-radius: 8; -fx-padding: 12 15; -fx-font-size: 14px; -fx-border-color: transparent;");
         HBox.setHgrow(searchField, Priority.ALWAYS);
         
-        Button searchBtn = new Button("🔍 Search");
+        Button searchBtn = new Button("\ud83d\udd0d Search");
         searchBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-size: 14px;");
         searchBtn.setOnAction(e -> searchReceipts(searchField.getText()));
         
@@ -2579,7 +2206,7 @@ public class CashierApp extends Application {
         TableColumn<Receipt, Void> actionCol = new TableColumn<>("");
         actionCol.setPrefWidth(80);
         actionCol.setCellFactory(param -> new TableCell<>() {
-            private final Button viewBtn = new Button("›");
+            private final Button viewBtn = new Button("🔍");
             {
                 viewBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5;");
                 viewBtn.setOnMouseEntered(ev -> viewBtn.setStyle("-fx-background-color: #f8f9fa; -fx-text-fill: #495057; -fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 5; -fx-background-radius: 5;"));
@@ -2611,7 +2238,7 @@ public class CashierApp extends Application {
         detailsBox.setPadding(new Insets(25));
         detailsBox.setStyle("-fx-background-color: white; -fx-background-radius: 15; -fx-border-color: #6366f1; -fx-border-width: 2; -fx-border-radius: 15; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);");
         
-        Label detailsTitle = new Label("📄 Receipt View");
+        Label detailsTitle = new Label("📋 Receipt View");
         detailsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         detailsTitle.setTextFill(Color.web("#1a1a1a"));
         
@@ -2625,10 +2252,10 @@ public class CashierApp extends Application {
         receiptDetailArea.setFont(Font.font("Consolas", 13));
         receiptDetailArea.setPrefWidth(400);
         receiptDetailArea.setWrapText(true);
-        receiptDetailArea.setText("👆 Select a receipt to view details");
+        receiptDetailArea.setText("📄 Select a receipt to view details");
         receiptDetailArea.setStyle("-fx-control-inner-background: #F8F9FA; -fx-border-color: #dee2e6; -fx-border-width: 1; -fx-border-radius: 8;");
         
-        Button printBtn = new Button("🖨️ Print Receipt");
+        Button printBtn = new Button("\ud83d\udda8 Print Receipt");
         printBtn.setStyle("-fx-background-color: #6366f1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 14 20; -fx-background-radius: 10; -fx-cursor: hand;");
         printBtn.setPrefWidth(Double.MAX_VALUE);
         
@@ -2682,15 +2309,15 @@ public class CashierApp extends Application {
             receiptDetailArea.setText(receipt.getReceiptContent());
         } else {
             StringBuilder details = new StringBuilder();
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
             details.append("          COFFEE SHOP RECEIPT\n");
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
             details.append("Receipt ID: ").append(receipt.getReceiptId()).append("\n");
             details.append("Order ID: ").append(receipt.getOrderId()).append("\n");
             details.append("Customer: ").append(receipt.getUserName()).append("\n");
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             details.append("Date: ").append(receipt.getReceiptTime().format(formatter)).append("\n");
-            details.append("───────────────────────────────────────\n");
+            details.append("\n");
             // Show VAT breakdown if possible (assume total includes VAT)
             double totalAmt = receipt.getTotalAmount();
             double subtotalAmt = totalAmt / 1.12;
@@ -2700,9 +2327,9 @@ public class CashierApp extends Application {
             details.append(String.format("TOTAL:         ₱%.2f\n", totalAmt));
             details.append(String.format("Cash Paid:     ₱%.2f\n", receipt.getCashPaid()));
             details.append(String.format("Change:        ₱%.2f\n", receipt.getChange()));
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
             details.append("       Thank you for your order!\n");
-            details.append("═══════════════════════════════════════\n");
+            details.append("\n");
             
             receiptDetailArea.setText(details.toString());
         }
@@ -2744,7 +2371,7 @@ public class CashierApp extends Application {
         header.setPadding(new Insets(20));
         header.setStyle("-fx-background-color: #ff9800;");
         
-        Label title = new Label("↩ Return / Exchange Items");
+        Label title = new Label("🔄 Return / Exchange Items");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         title.setTextFill(Color.WHITE);
         
@@ -3331,20 +2958,20 @@ public class CashierApp extends Application {
         StringBuilder receipt = new StringBuilder();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append("         BREWISE COFFEE SHOP\n");
         receipt.append("        RETURN/EXCHANGE RECEIPT\n");
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append("Return ID: ").append(returnTx.getReturnId()).append("\n");
         receipt.append("Original Receipt: ").append(originalReceipt.getReceiptId()).append("\n");
         receipt.append("Customer: ").append(originalReceipt.getUserName()).append("\n");
         receipt.append("Cashier: ").append(returnTx.getCashierId()).append("\n");
         receipt.append("Date: ").append(returnTx.getReturnTime().format(formatter)).append("\n");
-        receipt.append("═══════════════════════════════════════\n\n");
+        receipt.append("\n\n");
         
         if (!returnTx.getReturnedItems().isEmpty()) {
             receipt.append("RETURNED ITEMS:\n");
-            receipt.append("───────────────────────────────────────\n");
+            receipt.append("\n");
             for (com.coffeeshop.model.ReturnTransaction.ReturnItem item : returnTx.getReturnedItems()) {
                 receipt.append(String.format("- %-20s  -₱%.2f\n", item.getProductName(), item.getItemSubtotal()));
                 receipt.append("  Reason: ").append(item.getReason()).append("\n");
@@ -3354,7 +2981,7 @@ public class CashierApp extends Application {
         
         if (!returnTx.getExchangeItems().isEmpty()) {
             receipt.append("EXCHANGE ITEMS:\n");
-            receipt.append("───────────────────────────────────────\n");
+            receipt.append("\n");
             for (com.coffeeshop.model.OrderItem item : returnTx.getExchangeItems()) {
                 receipt.append(String.format("+ %-20s (x%d)  +₱%.2f\n", 
                     item.getProduct().getName(), item.getQuantity(), item.getSubtotal()));
@@ -3367,11 +2994,11 @@ public class CashierApp extends Application {
             receipt.append("\n");
         }
         
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append(String.format("Original Total:       ₱%.2f\n", returnTx.getOriginalTotal()));
         receipt.append(String.format("Return Credit:       -₱%.2f\n", returnTx.getReturnCredit()));
         receipt.append(String.format("Exchange Total:      +₱%.2f\n", returnTx.getExchangeTotal()));
-        receipt.append("───────────────────────────────────────\n");
+        receipt.append("\n");
         if (returnTx.getRefundAmount() >= 0) {
             receipt.append(String.format("REFUND DUE:          ₱%.2f\n", returnTx.getRefundAmount()));
         } else {
@@ -3386,11 +3013,276 @@ public class CashierApp extends Application {
                 receipt.append(String.format("Change:              ₱%.2f\n", returnTx.getChangeAmount()));
             }
         }
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         receipt.append("       Thank you for your patronage!\n");
-        receipt.append("═══════════════════════════════════════\n");
+        receipt.append("\n");
         
         System.out.println(receipt.toString());
+    }
+
+    /**
+     * Creates the Order Status Board panel - a customer-facing display showing
+     * orders that are being prepared and orders ready for pickup.
+     * Designed with HCI principles: clear visual hierarchy, high contrast, 
+     * intuitive icons, and accessible interactions.
+     */
+    private VBox createOrderStatusPanel() {
+        VBox panel = new VBox(0);
+        panel.setStyle("-fx-background-color: #0a0a0a;");
+        panel.setAlignment(Pos.TOP_CENTER);
+        panel.setFillWidth(true);
+        
+        // Header - Clean, minimal with good contrast
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER);
+        header.setPadding(new Insets(30, 20, 20, 20));
+        header.setStyle("-fx-background-color: #0a0a0a;");
+        
+        Label titleLabel = new Label("ORDER STATUS");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 42));
+        titleLabel.setTextFill(Color.WHITE);
+        
+        header.getChildren().add(titleLabel);
+        
+        // Main content - two columns with clear separation
+        HBox columnsContainer = new HBox(40);
+        columnsContainer.setAlignment(Pos.TOP_CENTER);
+        columnsContainer.setPadding(new Insets(20, 50, 20, 50));
+        columnsContainer.setFillHeight(true);
+        HBox.setHgrow(columnsContainer, Priority.ALWAYS);
+        
+        // Left Column - PREPARING (Warm Orange)
+        VBox preparingColumn = createCleanStatusColumn(
+            "PREPARING",
+            "#FF9500",  // Warm orange
+            preparingList,
+            false
+        );
+        HBox.setHgrow(preparingColumn, Priority.ALWAYS);
+        
+        // Right Column - READY FOR PICKUP (Success Green)
+        VBox readyColumn = createCleanStatusColumn(
+            "READY FOR PICKUP", 
+            "#34C759",  // Success green
+            completedList,
+            true
+        );
+        HBox.setHgrow(readyColumn, Priority.ALWAYS);
+        
+        columnsContainer.getChildren().addAll(preparingColumn, readyColumn);
+        
+        // Footer with timestamp
+        HBox footer = new HBox(20);
+        footer.setAlignment(Pos.CENTER);
+        footer.setPadding(new Insets(20));
+        footer.setStyle("-fx-background-color: #0a0a0a;");
+        
+        Label timeLabel = new Label(java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy  •  hh:mm a")));
+        timeLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
+        timeLabel.setTextFill(Color.web("#666666"));
+        
+        footer.getChildren().add(timeLabel);
+        
+        VBox.setVgrow(columnsContainer, Priority.ALWAYS);
+        panel.getChildren().addAll(header, columnsContainer, footer);
+        
+        return panel;
+    }
+    
+    /**
+     * Creates a clean, HCI-compliant status column.
+     * Principles: Clear visual hierarchy, adequate spacing, readable fonts, 
+     * consistent alignment, and intuitive feedback.
+     */
+    private VBox createCleanStatusColumn(String title, String accentColor,
+                                          ObservableList<PendingOrder> orders, boolean isReady) {
+        VBox column = new VBox(0);
+        column.setStyle("-fx-background-color: #1a1a1a; -fx-background-radius: 20;");
+        column.setMinWidth(400);
+        column.setMaxWidth(550);
+        column.setAlignment(Pos.TOP_CENTER);
+        
+        // Column header with icon
+        VBox headerBox = new VBox(8);
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(25, 20, 20, 20));
+        headerBox.setStyle("-fx-background-color: " + accentColor + "; -fx-background-radius: 20 20 0 0;");
+        
+        // Status icon
+        Label iconLabel = new Label(isReady ? "✓" : "⏳");
+        iconLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
+        iconLabel.setTextFill(Color.WHITE);
+        
+        // Title
+        Label headerLabel = new Label(title);
+        headerLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        headerLabel.setTextFill(Color.WHITE);
+        
+        // Order count badge
+        Label countBadge = new Label(orders.size() + " order" + (orders.size() != 1 ? "s" : ""));
+        countBadge.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        countBadge.setTextFill(Color.WHITE);
+        countBadge.setOpacity(0.85);
+        
+        headerBox.getChildren().addAll(iconLabel, headerLabel, countBadge);
+        
+        // Order list container
+        VBox ordersList = new VBox(12);
+        ordersList.setAlignment(Pos.TOP_CENTER);
+        ordersList.setPadding(new Insets(20));
+        ordersList.setStyle("-fx-background-color: transparent;");
+        
+        if (orders.isEmpty()) {
+            // Empty state with helpful message
+            VBox emptyState = new VBox(10);
+            emptyState.setAlignment(Pos.CENTER);
+            emptyState.setPadding(new Insets(40, 20, 40, 20));
+            
+            Label emptyIcon = new Label(isReady ? "📭" : "☕");
+            emptyIcon.setFont(Font.font("Segoe UI", 48));
+            
+            Label emptyLabel = new Label(isReady ? "No orders ready yet" : "No orders in queue");
+            emptyLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 16));
+            emptyLabel.setTextFill(Color.web("#666666"));
+            
+            emptyState.getChildren().addAll(emptyIcon, emptyLabel);
+            ordersList.getChildren().add(emptyState);
+        } else {
+            // Display orders as clean cards
+            for (PendingOrder order : orders) {
+                HBox orderCard = createCleanOrderCard(order, accentColor, isReady);
+                ordersList.getChildren().add(orderCard);
+            }
+        }
+        
+        // ScrollPane for overflow
+        ScrollPane scrollPane = new ScrollPane(ordersList);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #1a1a1a; -fx-background-color: #1a1a1a;");
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setMinHeight(300);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        
+        column.getChildren().addAll(headerBox, scrollPane);
+        
+        return column;
+    }
+    
+    /**
+     * Creates a clean order card with HCI-friendly design.
+     * For ready orders, includes a "Picked Up" button to remove from queue.
+     */
+    private HBox createCleanOrderCard(PendingOrder order, String accentColor, boolean isReady) {
+        HBox card = new HBox(15);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(18, 20, 18, 20));
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        
+        // Card styling - clean, modern look
+        String bgColor = isReady ? "#1e3d2f" : "#2d2d44";
+        String borderColor = isReady ? "#34C759" : "#FF9500";
+        
+        card.setStyle("-fx-background-color: " + bgColor + "; " +
+                     "-fx-background-radius: 12; " +
+                     "-fx-border-color: " + borderColor + "; " +
+                     "-fx-border-width: 0 0 0 5; " +  // Left accent border only
+                     "-fx-border-radius: 12;");
+        
+        // Order number - large and prominent
+        VBox orderInfo = new VBox(4);
+        orderInfo.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(orderInfo, Priority.ALWAYS);
+        
+        Label numberLabel = new Label("#" + order.getOrderId());
+        numberLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
+        numberLabel.setTextFill(Color.WHITE);
+        
+        // Customer name
+        String customerName = orderCustomerNames.getOrDefault(order.getOrderId(), order.getCustomerName());
+        if (customerName == null || customerName.isEmpty()) {
+            customerName = "Guest";
+        }
+        
+        Label nameLabel = new Label(customerName);
+        nameLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
+        nameLabel.setTextFill(Color.web("#aaaaaa"));
+        
+        orderInfo.getChildren().addAll(numberLabel, nameLabel);
+        card.getChildren().add(orderInfo);
+        
+        // For ready orders, add "Picked Up" button
+        if (isReady) {
+            Button pickedUpBtn = new Button("✓ Picked Up");
+            pickedUpBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
+            pickedUpBtn.setStyle("-fx-background-color: #34C759; " +
+                               "-fx-text-fill: white; " +
+                               "-fx-padding: 10 18; " +
+                               "-fx-background-radius: 8; " +
+                               "-fx-cursor: hand;");
+            
+            // Hover effect
+            pickedUpBtn.setOnMouseEntered(e -> 
+                pickedUpBtn.setStyle("-fx-background-color: #2da84a; " +
+                                   "-fx-text-fill: white; " +
+                                   "-fx-padding: 10 18; " +
+                                   "-fx-background-radius: 8; " +
+                                   "-fx-cursor: hand;"));
+            pickedUpBtn.setOnMouseExited(e -> 
+                pickedUpBtn.setStyle("-fx-background-color: #34C759; " +
+                                   "-fx-text-fill: white; " +
+                                   "-fx-padding: 10 18; " +
+                                   "-fx-background-radius: 8; " +
+                                   "-fx-cursor: hand;"));
+            
+            // Action: Remove from completed list and delete from database
+            pickedUpBtn.setOnAction(e -> {
+                // Confirm before removing
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                confirm.setTitle("Confirm Pickup");
+                confirm.setHeaderText("Order #" + order.getOrderId());
+                confirm.setContentText("Mark this order as picked up?\nIt will be removed from the status board.");
+                
+                java.util.Optional<ButtonType> result = confirm.showAndWait();
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    // Remove from lists
+                    completedList.remove(order);
+                    orderQueue.remove(order);
+                    
+                    // Delete from database
+                    TextDatabase.deletePendingOrder(order.getOrderId());
+                    
+                    // Refresh the panel
+                    Tab currentTab = null;
+                    for (Tab tab : ((TabPane) rootPane.getCenter()).getTabs()) {
+                        if (tab.getText().contains("Order Status")) {
+                            currentTab = tab;
+                            break;
+                        }
+                    }
+                    if (currentTab != null) {
+                        currentTab.setContent(createOrderStatusPanel());
+                    }
+                    
+                    // Show brief confirmation
+                    showAlert("Order Picked Up", 
+                             "Order #" + order.getOrderId() + " has been marked as picked up.", 
+                             Alert.AlertType.INFORMATION);
+                }
+            });
+            
+            card.getChildren().add(pickedUpBtn);
+        } else {
+            // For preparing orders, show time indicator
+            Label timeLabel = new Label("In Progress...");
+            timeLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+            timeLabel.setTextFill(Color.web("#FF9500"));
+            card.getChildren().add(timeLabel);
+        }
+        
+        return card;
     }
 
     private VBox createRemittancePanel() {
@@ -3413,9 +3305,9 @@ public class CashierApp extends Application {
         HBox summaryBox = new HBox(15);
         summaryBox.setPrefHeight(120);
 
-        VBox totalSalesBox = createSummaryCard("💰 Total Sales", "₱0.00", "#28a745");
-        VBox totalRefundsBox = createSummaryCard("↩ Total Refunds", "₱0.00", "#dc3545");
-        VBox netBox = createSummaryCard("📊 Net Amount", "₱0.00", "#007bff");
+        VBox totalSalesBox = createSummaryCard("\ud83d\udcb5 Total Sales", "\u20b10.00", "#28a745");
+        VBox totalRefundsBox = createSummaryCard("\ud83d\udd04 Total Refunds", "\u20b10.00", "#dc3545");
+        VBox netBox = createSummaryCard("\ud83d\udcc8 Net Amount", "\u20b10.00", "#007bff");
 
         summaryBox.getChildren().addAll(totalSalesBox, totalRefundsBox, netBox);
         HBox.setHgrow(totalSalesBox, Priority.ALWAYS);

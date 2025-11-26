@@ -302,6 +302,12 @@ public class TextDatabase {
         } catch (IOException e) {
             System.err.println("Error loading receipts: " + e.getMessage());
         }
+        // Ensure newest receipts are returned first (most recent on top)
+        try {
+            receipts.sort(java.util.Comparator.comparing(com.coffeeshop.model.Receipt::getReceiptTime).reversed());
+        } catch (Exception ignore) {
+            // If sorting fails for any reason, fall back to original order
+        }
         return receipts;
     }
 
@@ -602,5 +608,73 @@ public class TextDatabase {
         return loadCashTransactionsByCashier(cashierId).stream()
             .mapToDouble(com.coffeeshop.model.CashTransaction::getAmount)
             .sum();
+    }
+
+    // ==================== ORDER NUMBER GENERATOR ====================
+    
+    private static final String ORDER_COUNTER_FILE = DATA_DIR + "/order_counter.txt";
+    
+    /**
+     * Generates the next sequential order number (like a kiosk: 001, 002, etc.)
+     * Resets daily at midnight.
+     */
+    public static synchronized String getNextOrderNumber() {
+        ensureDataDirectory();
+        int counter = 1;
+        String today = java.time.LocalDate.now().toString(); // e.g., "2025-11-27"
+        
+        File file = new File(ORDER_COUNTER_FILE);
+        if (file.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String dateLine = reader.readLine();
+                String counterLine = reader.readLine();
+                
+                if (dateLine != null && counterLine != null) {
+                    if (dateLine.equals(today)) {
+                        // Same day, increment counter
+                        counter = Integer.parseInt(counterLine) + 1;
+                    }
+                    // If different day, counter resets to 1
+                }
+            } catch (Exception e) {
+                System.err.println("Error reading order counter: " + e.getMessage());
+            }
+        }
+        
+        // Save the new counter
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            writer.write(today);
+            writer.newLine();
+            writer.write(String.valueOf(counter));
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error saving order counter: " + e.getMessage());
+        }
+        
+        // Return formatted number: 001, 002, ..., 999
+        return String.format("%03d", counter);
+    }
+    
+    /**
+     * Gets the current order count for today (without incrementing)
+     */
+    public static int getTodayOrderCount() {
+        ensureDataDirectory();
+        String today = java.time.LocalDate.now().toString();
+        
+        File file = new File(ORDER_COUNTER_FILE);
+        if (file.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String dateLine = reader.readLine();
+                String counterLine = reader.readLine();
+                
+                if (dateLine != null && counterLine != null && dateLine.equals(today)) {
+                    return Integer.parseInt(counterLine);
+                }
+            } catch (Exception e) {
+                System.err.println("Error reading order counter: " + e.getMessage());
+            }
+        }
+        return 0;
     }
 }

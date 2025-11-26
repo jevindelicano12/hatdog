@@ -1,11 +1,16 @@
 package com.coffeeshop.service;
 
 import com.coffeeshop.model.*;
+import com.coffeeshop.util.BackupManager;
+import com.coffeeshop.util.Logger;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class Store {
+    private static final Logger logger = Logger.getLogger(Store.class);
+    private long lastBackupTime = 0;
+    private static final long BACKUP_INTERVAL_MS = 3600000; // 1 hour
     private List<Product> products;
     private Map<String, InventoryItem> inventory;
     private Map<String, InventoryItem> removedInventory = new HashMap<>();
@@ -85,6 +90,7 @@ public class Store {
     }
 
     public void saveData() {
+        logger.debug("Saving data...");
         PersistenceManager.saveProducts(products);
         PersistenceManager.saveInventory(inventory);
         // Notify any listeners that inventory (or removed inventory) may have changed
@@ -113,6 +119,18 @@ public class Store {
         notifySpecialRequestListeners();
         // Notify listeners that products (or categories/inventory) may have changed
         notifyProductListeners();
+        
+        // Auto-backup every hour
+        long now = System.currentTimeMillis();
+        if (now - lastBackupTime > BACKUP_INTERVAL_MS) {
+            try {
+                BackupManager.createBackup();
+                lastBackupTime = now;
+                logger.info("Auto-backup created successfully");
+            } catch (Exception e) {
+                logger.warn("Auto-backup failed: " + e.getMessage());
+            }
+        }
     }
 
     // Reload products from disk (called by other processes via file-watch)

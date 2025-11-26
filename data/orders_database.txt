@@ -50,3 +50,8 @@ fbbda866|asdjioasihdoasd|2025-11-26 04:32:46|Croissants|Regular|Hot
 fbbda866|asdjioasihdoasd|2025-11-26 04:32:46|Iced Frappe|Regular|Hot
 fbbda866|asdjioasihdoasd|2025-11-26 04:32:46|Latte|Regular|Hot
 0a5146ba|asdasd|2025-11-26 04:38:34|Cappuccino|Regular|Hot
+bdeddf21|asdasda|2025-11-27 00:40:37|Cappuccino|Regular|Hot
+62bca307|Guest|2025-11-27 00:41:03|Matcha Latte|Regular|Hot
+859e832e|Guest|2025-11-27 02:09:53|Espresso|Regular|Hot
+859e832e|Guest|2025-11-27 02:09:53|Latte|Regular|Hot
+001|jerwin|2025-11-27 02:49:49|Cappuccino|Regular|Hot

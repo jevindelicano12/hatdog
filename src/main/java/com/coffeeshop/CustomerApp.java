@@ -687,7 +687,7 @@ public class CustomerApp extends Application {
     
     private void showMenuScreen() {
         if (currentOrder == null) {
-            currentOrder = new Order(UUID.randomUUID().toString().substring(0, 8));
+            currentOrder = new Order(TextDatabase.getNextOrderNumber());
         }
         
         BorderPane root = new BorderPane();
@@ -2634,7 +2634,7 @@ public class CustomerApp extends Application {
                     System.out.println("Debug: CurrentOrder before add - items: " + (currentOrder != null ? currentOrder.getItems().size() : "null"));
                     if (currentOrder == null) {
                         System.err.println("WARNING: currentOrder is null! Creating new order...");
-                        currentOrder = new Order(UUID.randomUUID().toString().substring(0, 8));
+                        currentOrder = new Order(TextDatabase.getNextOrderNumber());
                     }
                     currentOrder.addItem(item);
                     // Add any selected suggestions to the order as separate items
@@ -3470,7 +3470,7 @@ public class CustomerApp extends Application {
             }
 
             // Reset for new order and go back to main menu
-            currentOrder = new Order(UUID.randomUUID().toString().substring(0, 8));
+            currentOrder = new Order(TextDatabase.getNextOrderNumber());
             showMainMenu();
             
         } catch (IllegalStateException e) {

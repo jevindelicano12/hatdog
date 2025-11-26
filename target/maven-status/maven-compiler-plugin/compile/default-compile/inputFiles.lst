@@ -3,6 +3,7 @@ C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\Cash
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\CustomerApp.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\model\AddOn.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\model\CashierAccount.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\model\CashTransaction.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\model\Complaint.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\model\InventoryItem.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\model\ItemRecord.java
@@ -20,4 +21,10 @@ C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\serv
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\service\Store.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\service\TextDatabase.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\UIUtils.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\util\AlertUtils.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\util\BackupManager.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\util\Constants.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\util\Logger.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\util\StyleUtils.java
+C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\com\coffeeshop\util\ValidationUtils.java
 C:\Users\jevin\OneDrive\Desktop\GUI nila jevin\src\main\java\module-info.java
