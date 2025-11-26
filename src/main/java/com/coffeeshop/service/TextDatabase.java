@@ -557,4 +557,50 @@ public class TextDatabase {
         }
         return out;
     }
+
+    // ==================== CASH TRANSACTIONS DATABASE ====================
+
+    private static final String CASH_TRANSACTIONS_DB = DATA_DIR + "/cash_transactions.txt";
+
+    public static void saveCashTransaction(com.coffeeshop.model.CashTransaction transaction) {
+        ensureDataDirectory();
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(CASH_TRANSACTIONS_DB, true))) {
+            writer.write(transaction.toTextRecord());
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error saving cash transaction: " + e.getMessage());
+        }
+    }
+
+    public static java.util.List<com.coffeeshop.model.CashTransaction> loadAllCashTransactions() {
+        java.util.List<com.coffeeshop.model.CashTransaction> transactions = new java.util.ArrayList<>();
+        ensureDataDirectory();
+        File f = new File(CASH_TRANSACTIONS_DB);
+        if (!f.exists()) return transactions;
+        try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                try {
+                    com.coffeeshop.model.CashTransaction tx = com.coffeeshop.model.CashTransaction.fromTextRecord(line);
+                    if (tx != null) transactions.add(tx);
+                } catch (Exception ignored) {}
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading cash transactions: " + e.getMessage());
+        }
+        return transactions;
+    }
+
+    public static java.util.List<com.coffeeshop.model.CashTransaction> loadCashTransactionsByCashier(String cashierId) {
+        return loadAllCashTransactions().stream()
+            .filter(tx -> tx.getCashierId().equals(cashierId))
+            .collect(Collectors.toList());
+    }
+
+    public static double getCashierTotal(String cashierId) {
+        return loadCashTransactionsByCashier(cashierId).stream()
+            .mapToDouble(com.coffeeshop.model.CashTransaction::getAmount)
+            .sum();
+    }
 }

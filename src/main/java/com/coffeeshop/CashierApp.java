@@ -137,7 +137,19 @@ public class CashierApp extends Application {
             }
         });
 
-        tabPane.getTabs().addAll(ordersTab, returnsTab, receiptHistoryTab, complaintsTab, reportsTab);
+        // Tab 6: Remittance Report
+        Tab remittanceTab = new Tab("   💰 Remittance   ");
+        remittanceTab.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #374151;");
+        remittanceTab.setContent(createRemittancePanel());
+        
+        // Refresh remittance when tab is selected
+        remittanceTab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            if (isSelected) {
+                remittanceTab.setContent(createRemittancePanel());
+            }
+        });
+
+        tabPane.getTabs().addAll(ordersTab, returnsTab, receiptHistoryTab, complaintsTab, reportsTab, remittanceTab);
         
         rootPane.setCenter(tabPane);
 
@@ -1215,6 +1227,20 @@ public class CashierApp extends Application {
         // Also mark completed in helper (keeps behavior consistent)
         TextDatabase.markOrderCompleted(po.getOrderId());
         orderQueue.remove(po);
+        
+        // Record cash transaction for remittance tracking
+        CashTransaction tx = new CashTransaction(
+            UUID.randomUUID().toString(),
+            currentCashierId,
+            java.time.LocalDateTime.now(),
+            CashTransaction.TYPE_SALE,
+            po.getTotalAmount(),
+            po.getOrderId(),
+            "Order completed for " + po.getCustomerName(),
+            null
+        );
+        TextDatabase.saveCashTransaction(tx);
+        
         // Keep customer name and order type mapping so completed orders still show correct customer
         // (do not remove from orderCustomerNames/orderTypes)
         showAlert("Completed", "Order marked as completed (picked up).", Alert.AlertType.INFORMATION);
@@ -3124,6 +3150,136 @@ public class CashierApp extends Application {
         receipt.append("═══════════════════════════════════════\n");
         
         System.out.println(receipt.toString());
+    }
+
+    private VBox createRemittancePanel() {
+        VBox panel = new VBox(15);
+        panel.setPadding(new Insets(25));
+        panel.setStyle("-fx-background-color: #f8f9fa;");
+
+        // Title
+        VBox titleBox = new VBox(5);
+        Label titleLabel = new Label("Remittance Report");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        titleLabel.setTextFill(Color.web("#1a1a1a"));
+        Label subtitleLabel = new Label("Detailed cash transaction history for " + currentCashierId);
+        subtitleLabel.setFont(Font.font("Segoe UI", 14));
+        subtitleLabel.setTextFill(Color.web("#6c757d"));
+        titleBox.getChildren().addAll(titleLabel, subtitleLabel);
+        panel.getChildren().add(titleBox);
+
+        // Summary cards
+        HBox summaryBox = new HBox(15);
+        summaryBox.setPrefHeight(120);
+
+        VBox totalSalesBox = createSummaryCard("💰 Total Sales", "₱0.00", "#28a745");
+        VBox totalRefundsBox = createSummaryCard("↩ Total Refunds", "₱0.00", "#dc3545");
+        VBox netBox = createSummaryCard("📊 Net Amount", "₱0.00", "#007bff");
+
+        summaryBox.getChildren().addAll(totalSalesBox, totalRefundsBox, netBox);
+        HBox.setHgrow(totalSalesBox, Priority.ALWAYS);
+        HBox.setHgrow(totalRefundsBox, Priority.ALWAYS);
+        HBox.setHgrow(netBox, Priority.ALWAYS);
+        panel.getChildren().add(summaryBox);
+
+        // Transactions table
+        TableView<CashTransaction> transactionTable = new TableView<>();
+        transactionTable.setPrefHeight(400);
+
+        TableColumn<CashTransaction, String> typeCol = new TableColumn<>("Type");
+        typeCol.setPrefWidth(100);
+        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+
+        TableColumn<CashTransaction, String> timeCol = new TableColumn<>("Time");
+        timeCol.setPrefWidth(150);
+        timeCol.setCellValueFactory(cellData -> {
+            CashTransaction tx = cellData.getValue();
+            String formatted = tx.getTransactionTime().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            return new javafx.beans.property.SimpleStringProperty(formatted);
+        });
+
+        TableColumn<CashTransaction, Double> amountCol = new TableColumn<>("Amount (₱)");
+        amountCol.setPrefWidth(120);
+        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
+        amountCol.setCellFactory(col -> new TableCell<CashTransaction, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%.2f", item));
+                    setStyle(item >= 0 ? "-fx-text-fill: #28a745;" : "-fx-text-fill: #dc3545;");
+                }
+            }
+        });
+
+        TableColumn<CashTransaction, String> referenceCol = new TableColumn<>("Reference");
+        referenceCol.setPrefWidth(120);
+        referenceCol.setCellValueFactory(new PropertyValueFactory<>("reference"));
+
+        TableColumn<CashTransaction, String> notesCol = new TableColumn<>("Notes");
+        notesCol.setPrefWidth(200);
+        notesCol.setCellValueFactory(new PropertyValueFactory<>("notes"));
+
+        transactionTable.getColumns().addAll(typeCol, timeCol, amountCol, referenceCol, notesCol);
+
+        // Load transactions for current cashier
+        java.util.List<CashTransaction> transactions = TextDatabase.loadCashTransactionsByCashier(currentCashierId);
+        ObservableList<CashTransaction> data = FXCollections.observableArrayList(transactions);
+        transactionTable.setItems(data);
+
+        // Calculate and update summary
+        double totalSales = transactions.stream()
+            .filter(tx -> CashTransaction.TYPE_SALE.equals(tx.getType()))
+            .mapToDouble(CashTransaction::getAmount)
+            .sum();
+        double totalRefunds = transactions.stream()
+            .filter(tx -> CashTransaction.TYPE_REFUND.equals(tx.getType()))
+            .mapToDouble(CashTransaction::getAmount)
+            .sum();
+        double net = totalSales + totalRefunds;
+
+        updateSummaryCard(totalSalesBox, String.format("₱%.2f", totalSales));
+        updateSummaryCard(totalRefundsBox, String.format("₱%.2f", totalRefunds));
+        updateSummaryCard(netBox, String.format("₱%.2f", net));
+
+        ScrollPane scrollPane = new ScrollPane(transactionTable);
+        scrollPane.setFitToWidth(true);
+        panel.getChildren().add(scrollPane);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+        return panel;
+    }
+
+    private VBox createSummaryCard(String label, String value, String color) {
+        VBox card = new VBox(10);
+        card.setPadding(new Insets(20));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 2);");
+        card.setAlignment(Pos.CENTER_LEFT);
+
+        Label labelLbl = new Label(label);
+        labelLbl.setFont(Font.font("Segoe UI", 14));
+        labelLbl.setTextFill(Color.web("#6c757d"));
+
+        Label valueLbl = new Label(value);
+        valueLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        valueLbl.setTextFill(Color.web(color));
+        valueLbl.setId("summaryValue"); // For easy updating
+
+        card.getChildren().addAll(labelLbl, valueLbl);
+        return card;
+    }
+
+    private void updateSummaryCard(VBox card, String newValue) {
+        for (javafx.scene.Node node : card.getChildren()) {
+            if (node instanceof Label) {
+                Label lbl = (Label) node;
+                if (lbl.getId() != null && lbl.getId().equals("summaryValue")) {
+                    lbl.setText(newValue);
+                }
+            }
+        }
     }
 
     // Helper enum and class for return dialog
