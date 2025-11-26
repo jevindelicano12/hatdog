@@ -3294,6 +3294,22 @@ public class CustomerApp extends Application {
         summaryTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         summaryTitle.setTextFill(Color.web("#1A1A1A"));
         
+        // Add Order ID display
+        HBox orderIdBox = new HBox();
+        orderIdBox.setAlignment(Pos.CENTER);
+        orderIdBox.setStyle("-fx-background-color: #f0f0f0; -fx-background-radius: 8; -fx-padding: 15;");
+        
+        Label orderIdLabel = new Label("Order #:");
+        orderIdLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        orderIdLabel.setTextFill(Color.web("#666666"));
+        
+        Label orderIdValue = new Label(currentOrder.getOrderId());
+        orderIdValue.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        orderIdValue.setTextFill(Color.web("#1A1A1A"));
+        orderIdValue.setStyle("-fx-padding: 0 10 0 10;");
+        
+        orderIdBox.getChildren().addAll(orderIdLabel, orderIdValue);
+        
         VBox itemsList = new VBox(10);
         
         // Group items by product + customizations
@@ -3364,7 +3380,7 @@ public class CustomerApp extends Application {
         
         totalRow.getChildren().addAll(totalLabel, totalSpacer, totalAmount);
         
-        summarySection.getChildren().addAll(summaryTitle, itemsList, separator, totalRow);
+        summarySection.getChildren().addAll(summaryTitle, orderIdBox, itemsList, separator, totalRow);
         return summarySection;
     }
     

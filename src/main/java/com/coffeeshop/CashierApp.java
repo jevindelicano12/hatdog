@@ -1497,22 +1497,263 @@ public class CashierApp extends Application {
         panel.setStyle("-fx-background-color: #F3F4F6;");
         
         // Header section
-        HBox headerBox = new HBox(15);
-        headerBox.setAlignment(Pos.CENTER_LEFT);
+        VBox headerBox = new VBox(10);
+        headerBox.setAlignment(Pos.TOP_LEFT);
         headerBox.setPadding(new Insets(0, 0, 10, 0));
         
-        Label title = new Label("Order Management");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        Label title = new Label("Order Lookup");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
         title.setTextFill(Color.web("#111827"));
         
-        Label subtitle = new Label("Track orders through each stage of preparation");
+        Label subtitle = new Label("Enter an order ID to retrieve and process");
         subtitle.setFont(Font.font("Segoe UI", 14));
         subtitle.setTextFill(Color.web("#6B7280"));
         
-        Region headerSpacer = new Region();
-        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        headerBox.getChildren().addAll(title, subtitle);
+        panel.getChildren().add(headerBox);
         
-        headerBox.getChildren().addAll(title, headerSpacer);
+        // Search section
+        VBox searchSection = new VBox(12);
+        searchSection.setPadding(new Insets(25));
+        searchSection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        searchSection.setPrefWidth(600);
+        
+        Label searchLabel = new Label("📋 Enter Order ID:");
+        searchLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        searchLabel.setTextFill(Color.web("#374151"));
+        
+        HBox searchBox = new HBox(10);
+        searchBox.setAlignment(Pos.CENTER_LEFT);
+        
+        TextField orderIdField = new TextField();
+        orderIdField.setPromptText("e.g., c25f5698");
+        orderIdField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-border-radius: 8; -fx-border-color: #E5E7EB;");
+        orderIdField.setPrefWidth(300);
+        
+        Button searchBtn = new Button("🔍 Search");
+        searchBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; -fx-cursor: hand;");
+        searchBtn.setPrefWidth(120);
+        
+        Label statusLabel = new Label("");
+        statusLabel.setFont(Font.font("Segoe UI", 12));
+        
+        searchBox.getChildren().addAll(orderIdField, searchBtn, statusLabel);
+        HBox.setHgrow(statusLabel, Priority.ALWAYS);
+        
+        searchSection.getChildren().addAll(searchLabel, searchBox);
+        panel.getChildren().add(searchSection);
+        
+        // Results panel
+        VBox resultsPanel = new VBox(15);
+        resultsPanel.setPadding(new Insets(25));
+        resultsPanel.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        resultsPanel.setPrefHeight(500);
+        resultsPanel.setMaxHeight(Double.MAX_VALUE);
+        
+        Label resultsTitle = new Label("📄 Order Details");
+        resultsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        resultsTitle.setTextFill(Color.web("#111827"));
+        
+        TextArea orderDetailsArea = new TextArea();
+        orderDetailsArea.setEditable(false);
+        orderDetailsArea.setWrapText(true);
+        orderDetailsArea.setFont(Font.font("Consolas", 13));
+        orderDetailsArea.setText("Enter an order ID and click Search to retrieve order details...");
+        orderDetailsArea.setPrefHeight(350);
+        orderDetailsArea.setMaxHeight(Double.MAX_VALUE);
+        orderDetailsArea.setStyle("-fx-control-inner-background: #F9FAFB; -fx-background-color: #F9FAFB; -fx-font-size: 12px; -fx-border-color: #E5E7EB; -fx-border-width: 1; -fx-border-radius: 8;");
+        VBox.setVgrow(orderDetailsArea, Priority.ALWAYS);
+        
+        // Action buttons (hidden until order found)
+        HBox actionButtonsBox = new HBox(10);
+        actionButtonsBox.setAlignment(Pos.CENTER_LEFT);
+        actionButtonsBox.setPadding(new Insets(15, 0, 0, 0));
+        actionButtonsBox.setStyle("-fx-border-color: #E5E7EB; -fx-border-width: 1 0 0 0;");
+        
+        Button payBtn = new Button("💳 Pay & Start Preparing");
+        payBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        payBtn.setPrefWidth(200);
+        payBtn.setVisible(false);
+        
+        Button completeBtn = new Button("✅ Complete & Pickup");
+        completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        completeBtn.setPrefWidth(200);
+        completeBtn.setVisible(false);
+        
+        Button cancelBtn = new Button("❌ Cancel Order");
+        cancelBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        cancelBtn.setPrefWidth(150);
+        cancelBtn.setVisible(false);
+        
+        actionButtonsBox.getChildren().addAll(payBtn, completeBtn, cancelBtn);
+        
+        resultsPanel.getChildren().addAll(resultsTitle, orderDetailsArea, actionButtonsBox);
+        panel.getChildren().add(resultsPanel);
+        VBox.setVgrow(resultsPanel, Priority.ALWAYS);
+        
+        // Search functionality
+        Runnable searchOrder = () -> {
+            String orderIdToFind = orderIdField.getText().trim();
+            if (orderIdToFind.isEmpty()) {
+                statusLabel.setText("❌ Enter an order ID");
+                statusLabel.setTextFill(Color.web("#EF4444"));
+                payBtn.setVisible(false);
+                completeBtn.setVisible(false);
+                cancelBtn.setVisible(false);
+                orderDetailsArea.setText("No order ID entered.");
+                return;
+            }
+            
+            // Search for order in pending orders
+            PendingOrder foundOrder = null;
+            for (PendingOrder po : orderQueue) {
+                if (po.getOrderId().equalsIgnoreCase(orderIdToFind)) {
+                    foundOrder = po;
+                    break;
+                }
+            }
+            
+            if (foundOrder == null) {
+                statusLabel.setText("❌ Order not found");
+                statusLabel.setTextFill(Color.web("#EF4444"));
+                payBtn.setVisible(false);
+                completeBtn.setVisible(false);
+                cancelBtn.setVisible(false);
+                orderDetailsArea.setText("No order found with ID: " + orderIdToFind);
+                return;
+            }
+            
+            // Order found - show details
+            statusLabel.setText("✅ Order found");
+            statusLabel.setTextFill(Color.web("#10B981"));
+            
+            String customerName = orderCustomerNames.getOrDefault(foundOrder.getOrderId(), "Unknown");
+            StringBuilder details = new StringBuilder();
+            details.append("ORDER DETAILS\n");
+            details.append("═══════════════════════════════════════\n");
+            details.append(String.format("Order #:    %s\n", foundOrder.getOrderId()));
+            details.append(String.format("Customer:   %s\n", customerName));
+            details.append(String.format("Time:       %s\n", 
+                foundOrder.getOrderTime().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))));
+            details.append(String.format("Status:     %s\n\n", mapStatusToLabel(foundOrder.getStatus())));
+            details.append("ITEMS\n");
+            details.append("═══════════════════════════════════════\n");
+
+            if (foundOrder.getItems().isEmpty()) {
+                details.append("No items.\n");
+            } else {
+                java.util.Map<String, Integer> qtyMap = new java.util.LinkedHashMap<>();
+                java.util.Map<String, Double> priceMap = new java.util.HashMap<>();
+                for (PendingOrder.OrderItemData item : foundOrder.getItems()) {
+                    String name = item.productName;
+                    qtyMap.put(name, qtyMap.getOrDefault(name, 0) + item.quantity);
+                    Product product = store.getProducts().stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
+                    priceMap.put(name, product != null ? product.getPrice() : item.price);
+                }
+
+                for (java.util.Map.Entry<String, Integer> e : qtyMap.entrySet()) {
+                    String name = e.getKey();
+                    int qty = e.getValue();
+                    double price = priceMap.getOrDefault(name, 0.0);
+                    double subtotal = price * qty;
+                    details.append(String.format("%-20s x%d    ₱%.2f\n", name, qty, subtotal));
+                }
+            }
+
+            details.append("═══════════════════════════════════════\n");
+            details.append(String.format("TOTAL:      ₱%.2f\n", foundOrder.getTotalAmount()));
+
+            orderDetailsArea.setText(details.toString());
+            
+            // Show appropriate action buttons based on order status
+            payBtn.setVisible(false);
+            completeBtn.setVisible(false);
+            cancelBtn.setVisible(true);
+            
+            if (PendingOrder.STATUS_PENDING.equals(foundOrder.getStatus())) {
+                payBtn.setVisible(true);
+            } else if (PendingOrder.STATUS_PAID.equals(foundOrder.getStatus())) {
+                payBtn.setText("👨‍🍳 Start Preparing");
+                payBtn.setVisible(true);
+            } else if (PendingOrder.STATUS_PREPARING.equals(foundOrder.getStatus())) {
+                completeBtn.setVisible(true);
+            } else if (PendingOrder.STATUS_COMPLETED.equals(foundOrder.getStatus())) {
+                payBtn.setVisible(false);
+                completeBtn.setVisible(false);
+                cancelBtn.setText("🔄 Reopen");
+            }
+        };
+        
+        searchBtn.setOnAction(e -> searchOrder.run());
+        orderIdField.setOnKeyPressed(e -> {
+            if (e.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                searchOrder.run();
+            }
+        });
+        
+        // Action button handlers
+        final PendingOrder[] selectedOrder = {null};
+        payBtn.setOnAction(e -> {
+            String orderIdToFind = orderIdField.getText().trim();
+            for (PendingOrder po : orderQueue) {
+                if (po.getOrderId().equalsIgnoreCase(orderIdToFind)) {
+                    selectedOrder[0] = po;
+                    if (PendingOrder.STATUS_PENDING.equals(po.getStatus())) {
+                        payAndStartPreparing(po);
+                    } else if (PendingOrder.STATUS_PAID.equals(po.getStatus())) {
+                        po.setStatus(PendingOrder.STATUS_PREPARING);
+                        TextDatabase.savePendingOrder(po);
+                        loadPendingOrdersFromFile();
+                        statusLabel.setText("✅ Order moved to Preparing");
+                    }
+                    searchOrder.run();
+                    break;
+                }
+            }
+        });
+        
+        completeBtn.setOnAction(e -> {
+            String orderIdToFind = orderIdField.getText().trim();
+            for (PendingOrder po : orderQueue) {
+                if (po.getOrderId().equalsIgnoreCase(orderIdToFind)) {
+                    completePickup(po);
+                    loadPendingOrdersFromFile();
+                    orderIdField.clear();
+                    statusLabel.setText("");
+                    orderDetailsArea.setText("Order completed! Enter another order ID to continue...");
+                    break;
+                }
+            }
+        });
+        
+        cancelBtn.setOnAction(e -> {
+            String orderIdToFind = orderIdField.getText().trim();
+            Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmDialog.setTitle("Cancel Order");
+            confirmDialog.setHeaderText("Are you sure?");
+            confirmDialog.setContentText("This will permanently delete the order: " + orderIdToFind);
+            
+            if (confirmDialog.showAndWait().orElse(Alert.ButtonType.CANCEL) == Alert.ButtonType.OK) {
+                TextDatabase.deletePendingOrder(orderIdToFind);
+                loadPendingOrdersFromFile();
+                orderIdField.clear();
+                statusLabel.setText("✅ Order cancelled");
+                orderDetailsArea.setText("Order deleted. Enter another order ID...");
+            }
+        });
+
+        // Wrap the panel in a ScrollPane
+        ScrollPane outerScroll = new ScrollPane(panel);
+        outerScroll.setFitToWidth(true);
+        outerScroll.setFitToHeight(false);
+        outerScroll.setPrefViewportHeight(800);
+        outerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        outerScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        outerScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        panel.setPrefHeight(1000);
+
+        return outerScroll;
+    }
         
         // Removed search box to simplify UI; order queue expanded instead
         
