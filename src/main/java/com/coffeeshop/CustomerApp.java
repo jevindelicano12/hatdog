@@ -1848,6 +1848,15 @@ public class CustomerApp extends Application {
                     item.setSizeCost(sizeCostArray[0]);
                 }
             }
+
+            // Also set a human-readable size name based on the selected surcharge
+            try {
+                double sc = item.getSizeCost();
+                if (sc == 0) item.setSize("Small");
+                else if (Math.abs(sc - 20.0) < 0.001) item.setSize("Medium");
+                else if (Math.abs(sc - 30.0) < 0.001) item.setSize("Large");
+                else item.setSize("Custom");
+            } catch (Exception ignored) {}
             
             // Extract selected add-ons and special requests from the customContent VBox
             java.util.List<String> selectedAddOnNames = new java.util.ArrayList<>();

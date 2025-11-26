@@ -1504,6 +1504,15 @@ public class AdminApp extends Application {
         nameField.setPromptText("Add-on name");
         TextField priceField = new TextField();
         priceField.setPromptText("Price (e.g., 1.00)");
+        // Restrict input to numeric values only (digits and optional decimal point)
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> priceFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$$")) {
+                return change;
+            }
+            return null;
+        };
+        priceField.setTextFormatter(new javafx.scene.control.TextFormatter<>(priceFilter));
         javafx.scene.control.ComboBox<String> categoryCombo = new javafx.scene.control.ComboBox<>();
         // Populate category choices from store so all categories are available
         try {
@@ -2967,6 +2976,15 @@ public class AdminApp extends Application {
         nameField.setPromptText("Product Name");
         TextField priceField = new TextField();
         priceField.setPromptText("5.00");
+        // Restrict input to numeric values only (digits and optional decimal point)
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> newPriceFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$$")) {
+                return change;
+            }
+            return null;
+        };
+        priceField.setTextFormatter(new javafx.scene.control.TextFormatter<>(newPriceFilter));
 
         grid.add(idLabel, 0, 0);
         grid.add(idValueLabel, 1, 0);
@@ -3095,6 +3113,13 @@ public class AdminApp extends Application {
                 quantityField.setPromptText("Qty");
                 quantityField.setPrefWidth(80);
                 quantityField.setDisable(true);
+                // Restrict to numeric input
+                java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> qtyFilter = change -> {
+                    String newText = change.getControlNewText();
+                    if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+                    return null;
+                };
+                quantityField.setTextFormatter(new javafx.scene.control.TextFormatter<>(qtyFilter));
 
                 checkBox.setOnAction(e -> {
                     if (checkBox.isSelected()) {
@@ -3301,6 +3326,15 @@ public class AdminApp extends Application {
         // Price (editable)
         TextField priceField = new TextField(String.valueOf(product.getPrice()));
         priceField.setPromptText("Enter price");
+        // Restrict input to numeric values only (digits and optional decimal point)
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> editPriceFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$$")) {
+                return change;
+            }
+            return null;
+        };
+        priceField.setTextFormatter(new javafx.scene.control.TextFormatter<>(editPriceFilter));
 
         // Stock (editable - for adding stock)
         grid.add(idLabel, 0, 0);
@@ -3425,6 +3459,13 @@ public class AdminApp extends Application {
                 quantityField.setPromptText("Qty (e.g. 100.0)");
                 quantityField.setPrefWidth(100);
                 quantityField.setDisable(true);
+                // Restrict to numeric input
+                java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> qtyFilter = change -> {
+                    String newText = change.getControlNewText();
+                    if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+                    return null;
+                };
+                quantityField.setTextFormatter(new javafx.scene.control.TextFormatter<>(qtyFilter));
 
                 if (existingRecipe.containsKey(ingredientName)) {
                     double q = existingRecipe.getOrDefault(ingredientName, 0.0);
@@ -3612,6 +3653,12 @@ public class AdminApp extends Application {
         dialog.setTitle("Refill Ingredient");
         dialog.setHeaderText("Refill: " + selected.getName());
         dialog.setContentText("Enter amount to add (" + selected.getUnit() + "):");
+        // Apply numeric filter to the editor
+        dialog.getEditor().setTextFormatter(new javafx.scene.control.TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+            return null;
+        }));
 
         dialog.showAndWait().ifPresent(amount -> {
             try {
@@ -3638,6 +3685,12 @@ public class AdminApp extends Application {
         dlg.setTitle("Deduct Quantity");
         dlg.setHeaderText("Deduct from: " + selected.getName());
         dlg.setContentText("Amount to deduct (" + selected.getUnit() + "):");
+        // Apply numeric filter to the editor
+        dlg.getEditor().setTextFormatter(new javafx.scene.control.TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+            return null;
+        }));
 
         dlg.showAndWait().ifPresent(s -> {
             try {
@@ -3721,6 +3774,13 @@ public class AdminApp extends Application {
         nameField.setPromptText("Ingredient Name");
         TextField quantityField = new TextField();
         quantityField.setPromptText("1000");
+        // Restrict to numeric input
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> invQtyFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+            return null;
+        };
+        quantityField.setTextFormatter(new javafx.scene.control.TextFormatter<>(invQtyFilter));
         TextField unitField = new TextField();
         unitField.setPromptText("ml/g/pcs");
 

@@ -39,6 +39,17 @@ public class PendingOrder {
         this.orderType = orderType;
     }
 
+    // Helper: escape commas so item-level splitting by comma is safe
+    private static String escapeField(String s) {
+        if (s == null) return "";
+        return s.replace(",", "&#44;");
+    }
+
+    private static String unescapeField(String s) {
+        if (s == null) return "";
+        return s.replace("&#44;", ",");
+    }
+
     public void addItem(String productName, double price, int quantity, String temperature, int sugarLevel) {
         OrderItemData item = new OrderItemData(productName, price, quantity, temperature, sugarLevel);
         items.add(item);
@@ -87,15 +98,15 @@ public class PendingOrder {
         sb.append("[");
         for (int i = 0; i < items.size(); i++) {
             OrderItemData item = items.get(i);
-            sb.append(item.productName).append("~");
+            sb.append(escapeField(item.productName)).append("~");
             sb.append(item.price).append("~");
             sb.append(item.quantity).append("~");
-            sb.append(item.temperature).append("~");
+            sb.append(escapeField(item.temperature)).append("~");
             sb.append(item.sugarLevel).append("~");
-            sb.append(item.addOns != null ? item.addOns : "").append("~");
+            sb.append(escapeField(item.addOns != null ? item.addOns : "")).append("~");
             sb.append(item.addOnsCost).append("~");
-            sb.append(item.specialRequest != null ? item.specialRequest : "").append("~");
-            sb.append(item.size != null ? item.size : "").append("~");
+            sb.append(escapeField(item.specialRequest != null ? item.specialRequest : "")).append("~");
+            sb.append(escapeField(item.size != null ? item.size : "")).append("~");
             sb.append(item.sizeCost);
             if (i < items.size() - 1) {
                 sb.append(",");
@@ -166,6 +177,13 @@ public class PendingOrder {
                                     size = itemParts[8];
                                     try { sizeCost = Double.parseDouble(itemParts[9]); } catch (Exception ex) {}
                                 }
+
+                                // Unescape any escaped commas/placeholders
+                                prod = unescapeField(prod);
+                                temp = unescapeField(temp);
+                                addOns = unescapeField(addOns);
+                                special = unescapeField(special);
+                                size = unescapeField(size);
 
                                 if (!addOns.isEmpty() || !special.isEmpty() || !size.isEmpty()) {
                                     order.addItem(prod, price, qty, temp, sugar, addOns, addOnsCost, special, size, sizeCost);
