@@ -67,8 +67,8 @@ public class CustomerApp extends Application {
     private java.util.Map<String, java.io.File> imageFileIndex = null;
     // Sidebar category container reference so it can be refreshed when categories change
     private VBox categoryContainerSidebar = null;
-    // Cashier ID - set via command line parameter or defaults to "Guest"
-    private String currentCashierId = "Guest";
+    // Cashier ID - set via command line parameter or defaults to empty string (kiosk mode, visible to all cashiers)
+    private String currentCashierId = "";
 
 
     @Override
