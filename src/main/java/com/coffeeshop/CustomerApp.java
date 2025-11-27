@@ -2098,13 +2098,21 @@ public class CustomerApp extends Application {
                 return;
             }
             
+            // Check if product is a pastry (no size options)
+            boolean isPastryProduct = false;
+            if (product.getCategory() != null) {
+                String cat = product.getCategory().toLowerCase();
+                isPastryProduct = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+            }
+            
             // Create order item with basic details
             OrderItem item = new OrderItem(product, quantity, "Hot", 0);
             
             // Extract selected size cost and name from the form's user data
+            // For pastries, size cost is always 0 (they don't have size options)
             Object userDataObj = customContent.getUserData();
             String selectedSize = "Regular"; // Default size
-            if (userDataObj instanceof Object[]) {
+            if (!isPastryProduct && userDataObj instanceof Object[]) {
                 Object[] sizeData = (Object[]) userDataObj;
                 // sizeData[0] = double[] for size cost, sizeData[1] = String[] for size name
                 if (sizeData.length > 0 && sizeData[0] instanceof double[]) {
@@ -2119,13 +2127,14 @@ public class CustomerApp extends Application {
                         selectedSize = sizeNameArray[0];
                     }
                 }
-            } else if (userDataObj instanceof double[]) {
+            } else if (!isPastryProduct && userDataObj instanceof double[]) {
                 // Fallback for old format (just cost array)
                 double[] sizeCostArray = (double[]) userDataObj;
                 if (sizeCostArray.length > 0) {
                     item.setSizeCost(sizeCostArray[0]);
                 }
             }
+            // For pastries, sizeCost stays at 0 (default)
 
             // Set the size name from the stored value
             item.setSize(selectedSize);
