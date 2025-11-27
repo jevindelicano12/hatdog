@@ -62,3 +62,11 @@ Cappuccino|60.0|Hot|Regular|0
 boydila|500.0|Hot|Regular|0
 boydila|500.0|Hot|Regular|0
 boydila|500.0|Hot|Regular|0
+boydila|500.0|Hot|Regular|0
+boydila|500.0|Hot|Regular|0
+Croissants|100.0|Hot|Regular|0
+Iced Frappe|4.5|Hot|Regular|0
+Croissants|100.0|Hot|Regular|0
+Croissants|100.0|Hot|Regular|0
+Mango|4.0|Hot|Regular|0
+Mango|4.0|Hot|Regular|0

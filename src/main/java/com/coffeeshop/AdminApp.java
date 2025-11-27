@@ -2621,11 +2621,241 @@ public class AdminApp extends Application {
 
         statsRow.getChildren().addAll(salesCard, pendingCard, completedCard);
 
-        panel.getChildren().addAll(header, statsRow);
+        // Stock Status Section
+        VBox stockSection = new VBox(15);
+        stockSection.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 2);");
+        stockSection.setPadding(new Insets(20));
+        
+        Label stockTitle = new Label("📦 Inventory Stock Status");
+        stockTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        stockTitle.setTextFill(Color.web("#111827"));
+        
+        // Create the stock status bar chart
+        CategoryAxis xAxis = new CategoryAxis();
+        NumberAxis yAxis = new NumberAxis();
+        xAxis.setLabel("Stock Status");
+        yAxis.setLabel("Number of Items");
+        
+        BarChart<String, Number> stockChart = new BarChart<>(xAxis, yAxis);
+        stockChart.setTitle("Inventory Stock Levels");
+        stockChart.setLegendVisible(false);
+        stockChart.setPrefHeight(300);
+        stockChart.setAnimated(true);
+        stockChart.setCategoryGap(40);
+        stockChart.setBarGap(5);
+        
+        // Calculate stock levels from inventory
+        int outOfStockCount = 0; // 0 stock
+        int criticalCount = 0;   // 1-5 stock (< 6)
+        int lowCount = 0;        // 6-15 stock (< 16)
+        int normalCount = 0;     // >= 16 stock
+        
+        for (InventoryItem item : store.getInventory().values()) {
+            double qty = item.getQuantity();
+            if (qty == 0) {
+                outOfStockCount++;
+            } else if (qty < 6) {
+                criticalCount++;
+            } else if (qty < 16) {
+                lowCount++;
+            } else {
+                normalCount++;
+            }
+        }
+        
+        XYChart.Series<String, Number> stockSeries = new XYChart.Series<>();
+        stockSeries.setName("Stock Status");
+        
+        XYChart.Data<String, Number> outOfStockData = new XYChart.Data<>("⚫ Out of Stock (0)", outOfStockCount);
+        XYChart.Data<String, Number> criticalData = new XYChart.Data<>("🔴 Critical (<6)", criticalCount);
+        XYChart.Data<String, Number> lowData = new XYChart.Data<>("🟡 Low (<16)", lowCount);
+        XYChart.Data<String, Number> normalData = new XYChart.Data<>("🟢 Normal (≥16)", normalCount);
+        
+        stockSeries.getData().addAll(outOfStockData, criticalData, lowData, normalData);
+        stockChart.getData().add(stockSeries);
+        
+        // Style the bars with colors after they're added to the scene
+        stockChart.setStyle("-fx-font-family: 'Segoe UI';");
+        
+        // Apply colors to bars
+        Platform.runLater(() -> {
+            // Out of Stock - Black
+            if (outOfStockData.getNode() != null) {
+                outOfStockData.getNode().setStyle("-fx-bar-fill: #1F2937;");
+            }
+            // Critical - Red
+            if (criticalData.getNode() != null) {
+                criticalData.getNode().setStyle("-fx-bar-fill: #EF4444;");
+            }
+            // Low - Yellow/Amber
+            if (lowData.getNode() != null) {
+                lowData.getNode().setStyle("-fx-bar-fill: #F59E0B;");
+            }
+            // Normal - Green
+            if (normalData.getNode() != null) {
+                normalData.getNode().setStyle("-fx-bar-fill: #10B981;");
+            }
+        });
+        
+        // Stock summary cards row
+        HBox stockSummaryRow = new HBox(15);
+        stockSummaryRow.setAlignment(Pos.CENTER);
+        
+        VBox outOfStockCard = createStockAlertCard("⚫", "OUT OF STOCK", String.valueOf(outOfStockCount), "#E5E7EB", "#1F2937");
+        VBox criticalCard = createStockAlertCard("🔴", "CRITICAL", String.valueOf(criticalCount), "#FEE2E2", "#EF4444");
+        VBox lowCard = createStockAlertCard("🟡", "LOW STOCK", String.valueOf(lowCount), "#FEF3C7", "#F59E0B");
+        VBox normalCard = createStockAlertCard("🟢", "NORMAL", String.valueOf(normalCount), "#D1FAE5", "#10B981");
+        
+        stockSummaryRow.getChildren().addAll(outOfStockCard, criticalCard, lowCard, normalCard);
+        
+        // Low stock items table (show items that need attention)
+        VBox lowStockList = new VBox(10);
+        lowStockList.setPadding(new Insets(15, 0, 0, 0));
+        
+        Label lowStockTitle = new Label("⚠️ Items Needing Attention");
+        lowStockTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        lowStockTitle.setTextFill(Color.web("#374151"));
+        
+        // Create TableView for stock alerts
+        TableView<StockAlertRow> alertTable = new TableView<>();
+        alertTable.setStyle("-fx-background-color: transparent; -fx-border-color: #E5E7EB; -fx-border-radius: 8;");
+        alertTable.setPrefHeight(200);
+        alertTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        
+        TableColumn<StockAlertRow, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setPrefWidth(120);
+        statusCol.setStyle("-fx-alignment: CENTER;");
+        
+        TableColumn<StockAlertRow, String> nameCol = new TableColumn<>("Item Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameCol.setPrefWidth(200);
+        
+        TableColumn<StockAlertRow, String> quantityCol = new TableColumn<>("Quantity");
+        quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
+        quantityCol.setPrefWidth(120);
+        quantityCol.setStyle("-fx-alignment: CENTER;");
+        
+        TableColumn<StockAlertRow, String> levelCol = new TableColumn<>("Level");
+        levelCol.setCellValueFactory(new PropertyValueFactory<>("level"));
+        levelCol.setPrefWidth(120);
+        levelCol.setStyle("-fx-alignment: CENTER;");
+        
+        alertTable.getColumns().addAll(statusCol, nameCol, quantityCol, levelCol);
+        
+        // Populate initial data
+        javafx.collections.ObservableList<StockAlertRow> alertData = javafx.collections.FXCollections.observableArrayList();
+        for (InventoryItem item : store.getInventory().values()) {
+            if (item.getQuantity() < 16) {
+                String status = item.getQuantity() == 0 ? "⚫" : (item.getQuantity() < 6 ? "🔴" : "🟡");
+                String levelText = item.getQuantity() == 0 ? "OUT OF STOCK" : (item.getQuantity() < 6 ? "CRITICAL" : "LOW");
+                String qtyStr = String.format("%.1f %s", item.getQuantity(), item.getUnit());
+                alertData.add(new StockAlertRow(status, item.getName(), qtyStr, levelText));
+            }
+        }
+        alertTable.setItems(alertData);
+        
+        // Placeholder when no items need attention
+        alertTable.setPlaceholder(new Label("✅ All inventory items are at normal stock levels!"));
+        
+        lowStockList.getChildren().addAll(lowStockTitle, alertTable);
+        
+        stockSection.getChildren().addAll(stockTitle, stockSummaryRow, stockChart, lowStockList);
+
+        panel.getChildren().addAll(header, statsRow, stockSection);
         // Initial data load
         updateDashboardData();
 
+        // Auto-refresh dashboard data and stock chart every 5 seconds
+        Timeline dashboardRefresher = new Timeline(new KeyFrame(Duration.seconds(5), ev -> {
+            // Update time display
+            timeLabel.setText(LocalDateTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")));
+            dateLabel.setText(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd")));
+            
+            // Recalculate stock levels
+            int newOutOfStock = 0;
+            int newCritical = 0;
+            int newLow = 0;
+            int newNormal = 0;
+            
+            for (InventoryItem item : store.getInventory().values()) {
+                double qty = item.getQuantity();
+                if (qty == 0) {
+                    newOutOfStock++;
+                } else if (qty < 6) {
+                    newCritical++;
+                } else if (qty < 16) {
+                    newLow++;
+                } else {
+                    newNormal++;
+                }
+            }
+            
+            // Update chart data
+            outOfStockData.setYValue(newOutOfStock);
+            criticalData.setYValue(newCritical);
+            lowData.setYValue(newLow);
+            normalData.setYValue(newNormal);
+            
+            // Update summary cards
+            updateStockAlertCardValue(outOfStockCard, String.valueOf(newOutOfStock));
+            updateStockAlertCardValue(criticalCard, String.valueOf(newCritical));
+            updateStockAlertCardValue(lowCard, String.valueOf(newLow));
+            updateStockAlertCardValue(normalCard, String.valueOf(newNormal));
+            
+            // Update alert table
+            alertData.clear();
+            for (InventoryItem item : store.getInventory().values()) {
+                if (item.getQuantity() < 16) {
+                    String status = item.getQuantity() == 0 ? "⚫" : (item.getQuantity() < 6 ? "🔴" : "🟡");
+                    String levelText = item.getQuantity() == 0 ? "OUT OF STOCK" : (item.getQuantity() < 6 ? "CRITICAL" : "LOW");
+                    String qtyStr = String.format("%.1f %s", item.getQuantity(), item.getUnit());
+                    alertData.add(new StockAlertRow(status, item.getName(), qtyStr, levelText));
+                }
+            }
+            
+            // Update dashboard stats
+            updateDashboardData();
+        }));
+        dashboardRefresher.setCycleCount(Timeline.INDEFINITE);
+        dashboardRefresher.play();
+
         return panel;
+    }
+    
+    private VBox createStockAlertCard(String icon, String label, String value, String bgColor, String textColor) {
+        VBox card = new VBox(5);
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(15, 25, 15, 25));
+        card.setStyle("-fx-background-color: " + bgColor + "; -fx-background-radius: 10;");
+        card.setMinWidth(120);
+        
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(24));
+        
+        Label valueLabel = new Label(value);
+        valueLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        valueLabel.setTextFill(Color.web(textColor));
+        
+        Label labelText = new Label(label);
+        labelText.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        labelText.setTextFill(Color.web(textColor));
+        
+        card.getChildren().addAll(iconLabel, valueLabel, labelText);
+        return card;
+    }
+    
+    private void updateStockAlertCardValue(VBox card, String newValue) {
+        for (Node node : card.getChildren()) {
+            if (node instanceof Label) {
+                Label lbl = (Label) node;
+                // The value label has bold font and larger size
+                if (lbl.getFont().getSize() >= 28) {
+                    lbl.setText(newValue);
+                    break;
+                }
+            }
+        }
     }
     
     private VBox createModernStatCard(String icon, String label, Label valueLabel, String accentColor) {
@@ -4318,7 +4548,7 @@ public class AdminApp extends Application {
         TextField nameField = new TextField(product.getName());
         nameField.setPromptText("Enter product name");
 
-        // Price (editable)
+        // Price (editable) - only show for Pastries, hide for Coffee/Tea (they use size pricing)
         TextField priceField = new TextField(String.valueOf(product.getPrice()));
         priceField.setPromptText("Enter price");
         // Restrict input to numeric values only (digits and optional decimal point)
@@ -4331,13 +4561,21 @@ public class AdminApp extends Application {
         };
         priceField.setTextFormatter(new javafx.scene.control.TextFormatter<>(editPriceFilter));
 
+        // Check if product is Pastry (show price field) or Coffee/Tea (hide price field - use size pricing)
+        String productCategory = product.getCategory();
+        boolean isPastry = productCategory != null && productCategory.toLowerCase().contains("pastr");
+        
         // Stock (editable - for adding stock)
         grid.add(idLabel, 0, 0);
         grid.add(idValueLabel, 1, 0);
         grid.add(nameLabel, 0, 1);
         grid.add(nameField, 1, 1);
-        grid.add(new Label("Price:"), 0, 2);
-        grid.add(priceField, 1, 2);
+        
+        // Only add price field for Pastries
+        if (isPastry) {
+            grid.add(new Label("Price:"), 0, 2);
+            grid.add(priceField, 1, 2);
+        }
         
         // Description field
         Label descEditLabel = new Label("Description:");
@@ -4349,7 +4587,8 @@ public class AdminApp extends Application {
         grid.add(descEditLabel, 0, 3);
         grid.add(descriptionEditField, 1, 3);
 
-        // Available sizes rows for editing this product (each row: checkbox + surcharge field)
+        // Available sizes rows for editing this product (each row: checkbox + price field)
+        // For Coffee/Tea: sizes show actual price; For Pastries: sizes are hidden (single price)
         Label sizesAvailEditLabel = new Label("Available Sizes:");
         sizesAvailEditLabel.setStyle("-fx-font-weight: bold;");
         CheckBox smallEdit = new CheckBox("Small");
@@ -4381,15 +4620,21 @@ public class AdminApp extends Application {
         largePriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(editPriceFilter2));
 
         VBox sizesBoxEdit = new VBox(8);
-        HBox rowSmallEdit = new HBox(12, smallEdit, new Label("Surcharge:"), smallPriceEdit);
-        HBox rowMediumEdit = new HBox(12, mediumEdit, new Label("Surcharge:"), mediumPriceEdit);
-        HBox rowLargeEdit = new HBox(12, largeEdit, new Label("Surcharge:"), largePriceEdit);
+        // For Coffee/Tea show "Price:", for Pastries show "Surcharge:"
+        String sizePriceLabel = isPastry ? "Surcharge:" : "Price:";
+        HBox rowSmallEdit = new HBox(12, smallEdit, new Label(sizePriceLabel), smallPriceEdit);
+        HBox rowMediumEdit = new HBox(12, mediumEdit, new Label(sizePriceLabel), mediumPriceEdit);
+        HBox rowLargeEdit = new HBox(12, largeEdit, new Label(sizePriceLabel), largePriceEdit);
         rowSmallEdit.setAlignment(Pos.CENTER_LEFT);
         rowMediumEdit.setAlignment(Pos.CENTER_LEFT);
         rowLargeEdit.setAlignment(Pos.CENTER_LEFT);
         sizesBoxEdit.getChildren().addAll(rowSmallEdit, rowMediumEdit, rowLargeEdit);
-        grid.add(sizesAvailEditLabel, 0, 4);
-        grid.add(sizesBoxEdit, 1, 4);
+        
+        // Only show sizes section for non-Pastry products (Coffee/Tea)
+        if (!isPastry) {
+            grid.add(sizesAvailEditLabel, 0, 4);
+            grid.add(sizesBoxEdit, 1, 4);
+        }
 
         // Milk Options Section for Edit
         Label milkOptionsEditLabel = new Label("🥛 Milk Options:");
@@ -4506,164 +4751,269 @@ public class AdminApp extends Application {
 
         grid.add(imageSection, 0, 5, 2, 1);
 
-        // Ingredients editor: allow admin to edit which ingredients and quantities are associated with the product
-        // NOTE: quantities entered here are the amount deducted from inventory when a single product is sold (use inventory unit)
-        Label ingredientLabel = new Label("🧪 Edit Ingredients (amount to deduct per product in inventory unit):");
-        ingredientLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
-        grid.add(ingredientLabel, 0, 6, 2, 1);
-
-        // Build ingredient editor limited by product category
-        VBox ingredientSection = new VBox(10);
-        ingredientSection.setPadding(new Insets(10));
-        ingredientSection.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: #fafafa;");
-        // Ensure the ingredient section is tall enough to show multiple items
-        ingredientSection.setPrefHeight(320);
-
+        // Ingredients editor: use a button to open a popup dialog instead of inline container
         java.util.Map<String, Double> selectedIngredients = new java.util.HashMap<>();
         java.util.Map<String, Double> existingRecipe = new java.util.HashMap<>();
         try { if (product.getRecipe() != null) existingRecipe.putAll(product.getRecipe()); } catch (Exception ignored) {}
+        selectedIngredients.putAll(existingRecipe);
 
-        // Choice row + scrollable ingredient list so admins can select or add ingredients easily
-        HBox addChoiceRow = new HBox(8);
-        addChoiceRow.setAlignment(Pos.CENTER_LEFT);
-        ComboBox<String> ingredientChoiceBox = new ComboBox<>();
-        ingredientChoiceBox.setPromptText("Select ingredient");
-        ingredientChoiceBox.setPrefWidth(360);
-        Button addChoiceBtn = new Button("Add");
-        addChoiceBtn.setStyle("-fx-background-color: #1976D2; -fx-text-fill: white;");
-        addChoiceRow.getChildren().addAll(ingredientChoiceBox, addChoiceBtn);
-
-        VBox ingredientList = new VBox(8);
-        ingredientList.setFillWidth(true);
-        VBox.setVgrow(ingredientList, Priority.ALWAYS);
-        ScrollPane ingredientScroll = new ScrollPane(ingredientList);
-        ingredientScroll.setFitToWidth(true);
-        ingredientScroll.setPrefHeight(260);
-
-        final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
-        // fallback defaults when inventory empty
-        if (baseIngredients.isEmpty()) {
-            baseIngredients.addAll(java.util.Arrays.asList(
-                "Coffee Beans", "Milk", "Water", "Matcha Powder", "Chocolate Syrup",
-                "Vanilla Syrup", "Caramel Syrup", "Ice", "Mango Puree", "Strawberry Puree",
-                "Tea Leaves", "Flour", "Butter", "Sugar", "Egg"
-            ));
-        }
-        // ensure existing recipe ingredients are present
-        try { for (String k : existingRecipe.keySet()) if (k != null && !k.trim().isEmpty() && !baseIngredients.contains(k)) baseIngredients.add(k); } catch (Exception ignored) {}
-
-        Runnable rebuildEdit = () -> {
-            ingredientList.getChildren().clear();
-            selectedIngredients.clear();
-            java.util.List<String> choices = filterIngredientsByCategory(baseIngredients, product.getCategory());
-            if (choices == null) choices = new java.util.ArrayList<>(baseIngredients);
-            // populate combo box choices
-            ingredientChoiceBox.getItems().setAll(choices);
-            if (!ingredientChoiceBox.getItems().isEmpty() && ingredientChoiceBox.getValue() == null) ingredientChoiceBox.setValue(ingredientChoiceBox.getItems().get(0));
-
-            if (choices.isEmpty()) {
-                Label hint = new Label("No inventory items available.");
-                hint.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
-                ingredientList.getChildren().add(hint);
-            }
-
-            for (String ingredientName : choices) {
-                HBox ingredientRow = new HBox(10);
-                ingredientRow.setAlignment(Pos.CENTER_LEFT);
-
-                CheckBox checkBox = new CheckBox(ingredientName);
-                checkBox.setStyle("-fx-font-size: 11;");
-
-                TextField quantityField = new TextField();
-                com.coffeeshop.model.InventoryItem invItem = null;
-                try { invItem = store.getInventoryItem(ingredientName); } catch (Exception ignored) {}
-                String unitHint = invItem == null ? "" : (invItem.getUnit() == null ? "" : " " + invItem.getUnit());
-                quantityField.setPromptText("Qty (e.g. 100.0" + unitHint + ")");
-                quantityField.setPrefWidth(100);
-                quantityField.setDisable(true);
-                // Restrict to numeric input
-                java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> qtyFilter = change -> {
-                    String newText = change.getControlNewText();
-                    if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
-                    return null;
-                };
-                quantityField.setTextFormatter(new javafx.scene.control.TextFormatter<>(qtyFilter));
-
-                if (existingRecipe.containsKey(ingredientName)) {
-                    double q = existingRecipe.getOrDefault(ingredientName, 0.0);
-                    checkBox.setSelected(true);
-                    quantityField.setText(String.valueOf(q));
-                    quantityField.setDisable(false);
-                    selectedIngredients.put(ingredientName, q);
-                }
-
-                checkBox.setOnAction(e -> {
-                    if (checkBox.isSelected()) {
-                        quantityField.setDisable(false);
-                        try { double v = Double.parseDouble(quantityField.getText().isEmpty() ? "0" : quantityField.getText()); selectedIngredients.put(ingredientName, v); } catch (NumberFormatException ex) { selectedIngredients.put(ingredientName, 0.0); }
-                    } else {
-                        quantityField.setDisable(true);
-                        selectedIngredients.remove(ingredientName);
-                    }
-                });
-
-                quantityField.setOnKeyReleased(e -> {
-                    try {
-                        if (!quantityField.getText().isEmpty() && !quantityField.isDisable()) {
-                            double qty = Double.parseDouble(quantityField.getText());
-                            selectedIngredients.put(ingredientName, qty);
-                        }
-                    } catch (NumberFormatException ignored) {}
-                });
-
-                ingredientRow.getChildren().addAll(checkBox, quantityField);
-                ingredientList.getChildren().add(ingredientRow);
+        // Create a label to show current ingredient count
+        Label ingredientCountLabel = new Label();
+        Runnable updateIngredientCount = () -> {
+            int count = selectedIngredients.size();
+            if (count == 0) {
+                ingredientCountLabel.setText("No ingredients assigned");
+                ingredientCountLabel.setStyle("-fx-text-fill: #999; -fx-font-style: italic;");
+            } else {
+                ingredientCountLabel.setText(count + " ingredient" + (count > 1 ? "s" : "") + " assigned");
+                ingredientCountLabel.setStyle("-fx-text-fill: #2E7D32; -fx-font-weight: bold;");
             }
         };
+        updateIngredientCount.run();
 
-        // register an inventory listener so ingredient choices update if inventory changes while dialog is open
-        final Runnable invListenerEdit = () -> javafx.application.Platform.runLater(rebuildEdit);
-        try { store.addInventoryChangeListener(invListenerEdit); } catch (Exception ignored) {}
-        // initial build
-        rebuildEdit.run();
-
-        ingredientList.setMaxWidth(Double.MAX_VALUE);
-
-        // add-button behavior: select existing or prepend a new ingredient row
-        addChoiceBtn.setOnAction(evt -> {
-            String choice = ingredientChoiceBox.getValue();
-            if (choice == null || choice.trim().isEmpty()) return;
-            for (javafx.scene.Node node : ingredientList.getChildren()) {
-                if (!(node instanceof HBox)) continue;
-                HBox row = (HBox) node;
-                if (row.getChildren().isEmpty()) continue;
-                javafx.scene.Node n0 = row.getChildren().get(0);
-                javafx.scene.Node n1 = row.getChildren().get(1);
-                if (n0 instanceof CheckBox && ((CheckBox)n0).getText().equals(choice) && n1 instanceof TextField) {
-                    CheckBox cb = (CheckBox) n0; TextField tf = (TextField) n1;
-                    cb.setSelected(true); tf.setDisable(false); if (tf.getText().isEmpty()) tf.setText("1.0");
-                    try { selectedIngredients.put(choice, Double.parseDouble(tf.getText())); } catch (Exception ignored) {}
-                    return;
-                }
+        Button editIngredientsBtn = new Button("🧪 Edit Ingredients");
+        editIngredientsBtn.setStyle("-fx-background-color: #FF9800; -fx-text-fill: white; -fx-padding: 10 20; -fx-font-weight: bold; -fx-font-size: 13;");
+        editIngredientsBtn.setOnAction(evt -> {
+            // Open ingredient editor dialog
+            Dialog<java.util.Map<String, Double>> ingredientDialog = new Dialog<>();
+            ingredientDialog.setTitle("Edit Ingredients");
+            ingredientDialog.setHeaderText("Select ingredients for: " + product.getName() + "\n(Amount to deduct per product in inventory unit)");
+            ingredientDialog.initOwner(dialog.getDialogPane().getScene().getWindow());
+            
+            ButtonType saveBtn = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+            ingredientDialog.getDialogPane().getButtonTypes().addAll(saveBtn, ButtonType.CANCEL);
+            
+            VBox content = new VBox(12);
+            content.setPadding(new Insets(15));
+            content.setPrefWidth(500);
+            content.setPrefHeight(400);
+            
+            // Get available ingredients
+            final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
+            if (baseIngredients.isEmpty()) {
+                baseIngredients.addAll(java.util.Arrays.asList(
+                    "Coffee Beans", "Milk", "Water", "Matcha Powder", "Chocolate Syrup",
+                    "Vanilla Syrup", "Caramel Syrup", "Ice", "Mango Puree", "Strawberry Puree",
+                    "Tea Leaves", "Flour", "Butter", "Sugar", "Egg"
+                ));
             }
-            // not found -> add new row
-            HBox ingredientRow = new HBox(10);
-            ingredientRow.setAlignment(Pos.CENTER_LEFT);
-            CheckBox checkBox = new CheckBox(choice); checkBox.setStyle("-fx-font-size: 11;"); checkBox.setSelected(true);
-            TextField quantityField = new TextField("1.0");
-            com.coffeeshop.model.InventoryItem ii = null; try { ii = store.getInventoryItem(choice); } catch (Exception ignored) {}
-            String unitHint2 = ii == null ? "" : (ii.getUnit() == null ? "" : " " + ii.getUnit());
-            quantityField.setPromptText("Qty (e.g. 100.0" + unitHint2 + ")");
-            quantityField.setPrefWidth(100); quantityField.setDisable(false);
-            checkBox.setOnAction(e2 -> { if (!checkBox.isSelected()) { quantityField.setDisable(true); selectedIngredients.remove(choice); } else { quantityField.setDisable(false); try { selectedIngredients.put(choice, Double.parseDouble(quantityField.getText())); } catch (Exception ignored) {} } });
-            quantityField.setOnKeyReleased(e2 -> { try { if (!quantityField.getText().isEmpty()) selectedIngredients.put(choice, Double.parseDouble(quantityField.getText())); } catch (Exception ignored) {} });
-            ingredientRow.getChildren().addAll(checkBox, quantityField);
-            ingredientList.getChildren().add(0, ingredientRow);
-            selectedIngredients.put(choice, 1.0);
+            for (String k : selectedIngredients.keySet()) {
+                if (k != null && !k.trim().isEmpty() && !baseIngredients.contains(k)) baseIngredients.add(k);
+            }
+            
+            java.util.List<String> filteredIngredients = filterIngredientsByCategory(baseIngredients, product.getCategory());
+            if (filteredIngredients == null) filteredIngredients = new java.util.ArrayList<>(baseIngredients);
+            
+            // Temporary map for this dialog
+            java.util.Map<String, Double> tempSelection = new java.util.HashMap<>(selectedIngredients);
+            
+            // Build a map of ingredient info for display (name -> unit, stock)
+            java.util.Map<String, String> ingredientUnits = new java.util.HashMap<>();
+            java.util.Map<String, Double> ingredientStocks = new java.util.HashMap<>();
+            for (String ingName : filteredIngredients) {
+                com.coffeeshop.model.InventoryItem invItem = null;
+                try { invItem = store.getInventoryItem(ingName); } catch (Exception ignored) {}
+                String unit = (invItem != null && invItem.getUnit() != null) ? invItem.getUnit() : "";
+                double stock = (invItem != null) ? invItem.getQuantity() : 0.0;
+                ingredientUnits.put(ingName, unit);
+                ingredientStocks.put(ingName, stock);
+            }
+            
+            // Add ingredient row
+            HBox addRow = new HBox(10);
+            addRow.setAlignment(Pos.CENTER_LEFT);
+            ComboBox<String> ingredientCombo = new ComboBox<>();
+            // Show name + unit + stock in dropdown
+            for (String ingName : filteredIngredients) {
+                String unit = ingredientUnits.getOrDefault(ingName, "");
+                double stock = ingredientStocks.getOrDefault(ingName, 0.0);
+                String displayText = ingName + " [" + stock + " " + unit + " available]";
+                ingredientCombo.getItems().add(displayText);
+            }
+            ingredientCombo.setPromptText("Select ingredient to add");
+            ingredientCombo.setPrefWidth(350);
+            
+            // Unit label that updates when selection changes
+            Label unitLabel = new Label("");
+            unitLabel.setStyle("-fx-text-fill: #666; -fx-font-style: italic;");
+            unitLabel.setPrefWidth(60);
+            
+            ingredientCombo.setOnAction(e -> {
+                String sel = ingredientCombo.getValue();
+                if (sel != null && sel.contains(" [")) {
+                    String ingName = sel.substring(0, sel.indexOf(" ["));
+                    String unit = ingredientUnits.getOrDefault(ingName, "");
+                    unitLabel.setText(unit);
+                }
+            });
+            
+            TextField addQtyField = new TextField("1.0");
+            addQtyField.setPrefWidth(70);
+            addQtyField.setPromptText("Qty");
+            Button addBtn = new Button("+ Add");
+            addBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+            addRow.getChildren().addAll(ingredientCombo, addQtyField, unitLabel, addBtn);
+            
+            // Selected ingredients display using FlowPane (tag-style chips)
+            Label selectedLabel = new Label("Selected Ingredients:");
+            selectedLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13;");
+            
+            FlowPane chipsPane = new FlowPane(8, 8);
+            chipsPane.setPadding(new Insets(10));
+            chipsPane.setStyle("-fx-background-color: #f5f5f5; -fx-border-color: #ddd; -fx-border-radius: 5; -fx-background-radius: 5;");
+            chipsPane.setPrefWrapLength(460);
+            chipsPane.setMinHeight(200);
+            
+            Runnable rebuildChips = () -> {
+                chipsPane.getChildren().clear();
+                if (tempSelection.isEmpty()) {
+                    Label emptyLabel = new Label("No ingredients selected. Use the dropdown above to add.");
+                    emptyLabel.setStyle("-fx-text-fill: #888; -fx-font-style: italic;");
+                    chipsPane.getChildren().add(emptyLabel);
+                } else {
+                    for (java.util.Map.Entry<String, Double> entry : tempSelection.entrySet()) {
+                        HBox chip = new HBox(6);
+                        chip.setAlignment(Pos.CENTER_LEFT);
+                        chip.setPadding(new Insets(6, 10, 6, 10));
+                        chip.setStyle("-fx-background-color: #E3F2FD; -fx-background-radius: 15; -fx-border-color: #1976D2; -fx-border-radius: 15;");
+                        
+                        Label nameLabel2 = new Label(entry.getKey());
+                        nameLabel2.setStyle("-fx-font-weight: bold; -fx-text-fill: #1565C0;");
+                        
+                        TextField qtyEdit = new TextField(String.valueOf(entry.getValue()));
+                        qtyEdit.setPrefWidth(60);
+                        qtyEdit.setStyle("-fx-background-color: white; -fx-border-color: #90CAF9; -fx-border-radius: 3;");
+                        qtyEdit.setOnKeyReleased(e -> {
+                            try {
+                                double val = Double.parseDouble(qtyEdit.getText());
+                                tempSelection.put(entry.getKey(), val);
+                            } catch (Exception ignored) {}
+                        });
+                        
+                        Button removeBtn = new Button("✕");
+                        removeBtn.setStyle("-fx-background-color: #EF5350; -fx-text-fill: white; -fx-font-size: 10; -fx-padding: 2 6; -fx-background-radius: 10;");
+                        final String ingredientName = entry.getKey();
+                        final Runnable[] rebuildRef = new Runnable[1];
+                        removeBtn.setOnAction(e -> {
+                            tempSelection.remove(ingredientName);
+                            if (rebuildRef[0] != null) rebuildRef[0].run();
+                        });
+                        
+                        chip.getChildren().addAll(nameLabel2, qtyEdit, removeBtn);
+                        chipsPane.getChildren().add(chip);
+                        
+                        // Store reference for remove button
+                        removeBtn.setUserData(rebuildRef);
+                    }
+                    // Update all remove button references
+                    for (javafx.scene.Node node : chipsPane.getChildren()) {
+                        if (node instanceof HBox) {
+                            HBox chip = (HBox) node;
+                            for (javafx.scene.Node child : chip.getChildren()) {
+                                if (child instanceof Button) {
+                                    Object data = child.getUserData();
+                                    if (data instanceof Runnable[]) {
+                                        ((Runnable[]) data)[0] = () -> {
+                                            chipsPane.getChildren().clear();
+                                            if (tempSelection.isEmpty()) {
+                                                Label emptyLabel2 = new Label("No ingredients selected. Use the dropdown above to add.");
+                                                emptyLabel2.setStyle("-fx-text-fill: #888; -fx-font-style: italic;");
+                                                chipsPane.getChildren().add(emptyLabel2);
+                                            } else {
+                                                // Rebuild will happen via the outer rebuildChips
+                                            }
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            // Use a wrapper to allow recursive reference
+            final Runnable[] rebuildChipsRef = {null};
+            rebuildChipsRef[0] = () -> {
+                chipsPane.getChildren().clear();
+                if (tempSelection.isEmpty()) {
+                    Label emptyLabel = new Label("No ingredients selected. Use the dropdown above to add.");
+                    emptyLabel.setStyle("-fx-text-fill: #888; -fx-font-style: italic;");
+                    chipsPane.getChildren().add(emptyLabel);
+                } else {
+                    for (java.util.Map.Entry<String, Double> entry : tempSelection.entrySet()) {
+                        HBox chip = new HBox(6);
+                        chip.setAlignment(Pos.CENTER_LEFT);
+                        chip.setPadding(new Insets(6, 10, 6, 10));
+                        chip.setStyle("-fx-background-color: #E3F2FD; -fx-background-radius: 15; -fx-border-color: #1976D2; -fx-border-radius: 15;");
+                        
+                        Label nameLabel2 = new Label(entry.getKey());
+                        nameLabel2.setStyle("-fx-font-weight: bold; -fx-text-fill: #1565C0;");
+                        
+                        TextField qtyEdit = new TextField(String.valueOf(entry.getValue()));
+                        qtyEdit.setPrefWidth(60);
+                        qtyEdit.setStyle("-fx-background-color: white; -fx-border-color: #90CAF9; -fx-border-radius: 3;");
+                        qtyEdit.setOnKeyReleased(e -> {
+                            try {
+                                double val = Double.parseDouble(qtyEdit.getText());
+                                tempSelection.put(entry.getKey(), val);
+                            } catch (Exception ignored) {}
+                        });
+                        
+                        // Add unit label
+                        String chipUnit = ingredientUnits.getOrDefault(entry.getKey(), "");
+                        Label chipUnitLabel = new Label(chipUnit);
+                        chipUnitLabel.setStyle("-fx-text-fill: #666; -fx-font-size: 11;");
+                        
+                        Button removeBtn = new Button("✕");
+                        removeBtn.setStyle("-fx-background-color: #EF5350; -fx-text-fill: white; -fx-font-size: 10; -fx-padding: 2 6; -fx-background-radius: 10;");
+                        final String ingredientName = entry.getKey();
+                        removeBtn.setOnAction(e -> {
+                            tempSelection.remove(ingredientName);
+                            rebuildChipsRef[0].run();
+                        });
+                        
+                        chip.getChildren().addAll(nameLabel2, qtyEdit, chipUnitLabel, removeBtn);
+                        chipsPane.getChildren().add(chip);
+                    }
+                }
+            };
+            rebuildChipsRef[0].run();
+            
+            addBtn.setOnAction(e -> {
+                String selectedDisplay = ingredientCombo.getValue();
+                if (selectedDisplay == null || selectedDisplay.trim().isEmpty()) return;
+                // Extract actual ingredient name from display text "Name [stock unit available]"
+                String selectedIngr = selectedDisplay.contains(" [") ? selectedDisplay.substring(0, selectedDisplay.indexOf(" [")) : selectedDisplay;
+                try {
+                    double qty = Double.parseDouble(addQtyField.getText().isEmpty() ? "1.0" : addQtyField.getText());
+                    tempSelection.put(selectedIngr, qty);
+                    rebuildChipsRef[0].run();
+                    addQtyField.setText("1.0");
+                } catch (Exception ignored) {}
+            });
+            
+            content.getChildren().addAll(addRow, selectedLabel, chipsPane);
+            ingredientDialog.getDialogPane().setContent(content);
+            
+            ingredientDialog.setResultConverter(btn -> {
+                if (btn == saveBtn) {
+                    return tempSelection;
+                }
+                return null;
+            });
+            
+            java.util.Optional<java.util.Map<String, Double>> result = ingredientDialog.showAndWait();
+            result.ifPresent(newIngredients -> {
+                selectedIngredients.clear();
+                selectedIngredients.putAll(newIngredients);
+                updateIngredientCount.run();
+            });
         });
 
-        ingredientSection.getChildren().addAll(addChoiceRow, ingredientScroll);
-        grid.add(ingredientSection, 0, 8, 2, 1);
+        HBox ingredientRow = new HBox(15);
+        ingredientRow.setAlignment(Pos.CENTER_LEFT);
+        ingredientRow.getChildren().addAll(editIngredientsBtn, ingredientCountLabel);
+        grid.add(ingredientRow, 0, 6, 2, 1);
 
         // Wrap edit grid in a ScrollPane so action buttons stay visible on small screens
         ScrollPane editScroll = new ScrollPane(grid);
@@ -4780,7 +5130,6 @@ public class AdminApp extends Application {
         });
 
         java.util.Optional<Product> dlgRes = dialog.showAndWait();
-        try { store.removeInventoryChangeListener(invListenerEdit); } catch (Exception ignored) {}
         dlgRes.ifPresent(updatedProduct -> {
             if (updatedProduct != null) {
                 showAlert("Success", "Product updated successfully!", Alert.AlertType.INFORMATION);
@@ -5356,6 +5705,25 @@ public class AdminApp extends Application {
         public double getQuantity() { return quantity; }
         public String getUnit() { return unit; }
         public void setQuantity(double q) { this.quantity = q; }
+    }
+
+    public static class StockAlertRow {
+        private String status;
+        private String name;
+        private String quantity;
+        private String level;
+
+        public StockAlertRow(String status, String name, String quantity, String level) {
+            this.status = status;
+            this.name = name;
+            this.quantity = quantity;
+            this.level = level;
+        }
+
+        public String getStatus() { return status; }
+        public String getName() { return name; }
+        public String getQuantity() { return quantity; }
+        public String getLevel() { return level; }
     }
 
     public static void main(String[] args) {

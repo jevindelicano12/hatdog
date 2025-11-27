@@ -64,6 +64,8 @@ public class CustomerApp extends Application {
     // Persistent container to avoid swapping entire Scene (prevents window flicker/minimize)
     private StackPane persistentRoot;
     private Scene persistentScene;
+    // Flag to block async scene changes while receipt screen is showing
+    private volatile boolean showingReceiptScreen = false;
     // Simple in-memory cache for product images to avoid repeated disk I/O and decoding
     private java.util.Map<String, javafx.scene.image.Image> imageCache = new java.util.HashMap<>();
     // Simple index for quick lookup of image files by product id (built once)
@@ -194,6 +196,11 @@ public class CustomerApp extends Application {
             System.out.println("[DEBUG] setScenePreserveWindowSize - swapping root: wasMax=" + wasMax + ", w=" + prevW + ", h=" + prevH);
 
             javafx.application.Platform.runLater(() -> {
+                // Block if receipt screen is showing - don't let async calls overwrite it
+                if (showingReceiptScreen) {
+                    System.out.println("[DEBUG] setScenePreserveWindowSize - BLOCKED, receipt screen is showing");
+                    return;
+                }
                 persistentRoot.getChildren().setAll(newRoot);
                 try {
                     persistentScene.getStylesheets().clear();
@@ -225,6 +232,8 @@ public class CustomerApp extends Application {
         System.out.println("[DEBUG] setScenePreserveWindowSize - fallback setScene: wasMax=" + wasMax + ", w=" + prevW + ", h=" + prevH);
         primaryStage.setScene(scene);
         javafx.application.Platform.runLater(() -> {
+            // Block if receipt screen is showing
+            if (showingReceiptScreen) return;
             try {
                 if (keepMaximized || wasMax) primaryStage.setMaximized(true);
                 else if (prevW > 0 && prevH > 0) { primaryStage.setWidth(prevW); primaryStage.setHeight(prevH); }
@@ -352,6 +361,10 @@ public class CustomerApp extends Application {
     }
 
     private void showWelcomeScreen() {
+        // Reset all customization state when returning to welcome screen
+        currentCustomizationProduct = null;
+        customizingOrderItem = null;
+        
         // Check if maintenance mode is enabled
         if (TextDatabase.isMaintenanceMode()) {
             showMaintenanceScreen();
@@ -1040,15 +1053,12 @@ public class CustomerApp extends Application {
         categoryContainerSidebar = new VBox(2);
         categoryContainerSidebar.setPadding(new Insets(0));
         
-        // Use canonical category list (in desired order)
-        java.util.List<String> defaultCats = java.util.Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
-        // Ensure defaults exist in store
-        for (String c : defaultCats) { try { if (!store.getCategories().contains(c)) store.addCategory(c); } catch (Exception ignored) {} }
+        // Get all categories from the store (dynamically managed via Admin)
         java.util.List<String> categories = new java.util.ArrayList<>();
         categories.add("All");
-        categories.addAll(defaultCats);
+        categories.addAll(store.getCategories());
         
-        // Icon mapping for categories
+        // Icon mapping for known categories (new categories get default icon)
         java.util.Map<String, String> categoryIcons = new java.util.HashMap<>();
         categoryIcons.put("All", "⭐");
         categoryIcons.put("Coffee", "☕");
@@ -1056,6 +1066,12 @@ public class CustomerApp extends Application {
         categoryIcons.put("Frappe", "🧊");
         categoryIcons.put("Fruit Tea", "🍓");
         categoryIcons.put("Pastries", "🍰");
+        categoryIcons.put("Tea", "🍵");
+        categoryIcons.put("Drinks", "🥤");
+        categoryIcons.put("Snacks", "🍪");
+        categoryIcons.put("Desserts", "🍨");
+        categoryIcons.put("Breakfast", "🥐");
+        categoryIcons.put("Sandwiches", "🥪");
         
         for (String category : categories) {
             String icon = categoryIcons.getOrDefault(category, "📦"); // Default icon if not in map
@@ -1105,12 +1121,12 @@ public class CustomerApp extends Application {
             if (categoryContainerSidebar == null) return; // nothing to refresh yet
             categoryContainerSidebar.getChildren().clear();
 
-            java.util.List<String> defaultCats = java.util.Arrays.asList("Coffee", "Milk Tea", "Frappe", "Fruit Tea", "Pastries");
-            for (String c : defaultCats) { try { if (!store.getCategories().contains(c)) store.addCategory(c); } catch (Exception ignored) {} }
+            // Get all categories from the store (dynamically managed via Admin)
             java.util.List<String> categories = new java.util.ArrayList<>();
             categories.add("All");
-            categories.addAll(defaultCats);
+            categories.addAll(store.getCategories());
 
+            // Icon mapping for known categories (new categories get default icon)
             java.util.Map<String, String> categoryIcons = new java.util.HashMap<>();
             categoryIcons.put("All", "⭐");
             categoryIcons.put("Coffee", "☕");
@@ -1118,6 +1134,12 @@ public class CustomerApp extends Application {
             categoryIcons.put("Frappe", "🧊");
             categoryIcons.put("Fruit Tea", "🍓");
             categoryIcons.put("Pastries", "🍰");
+            categoryIcons.put("Tea", "🍵");
+            categoryIcons.put("Drinks", "🥤");
+            categoryIcons.put("Snacks", "🍪");
+            categoryIcons.put("Desserts", "🍨");
+            categoryIcons.put("Breakfast", "🥐");
+            categoryIcons.put("Sandwiches", "🥪");
 
             for (String category : categories) {
                 String icon = categoryIcons.getOrDefault(category, "📦");
@@ -1499,7 +1521,22 @@ public class CustomerApp extends Application {
         
         String descText = product.getDescription();
         if (descText == null || descText.trim().isEmpty()) {
-            descText = "Customize your drink exactly how you like it.";
+            // Category-appropriate fallback description
+            String category = product.getCategory();
+            if (category != null) {
+                String catLower = category.toLowerCase();
+                if (catLower.contains("pastr") || catLower.contains("bakery") || catLower.contains("snack")) {
+                    descText = "Customize your order exactly how you like it.";
+                } else if (catLower.contains("coffee")) {
+                    descText = "Customize your coffee exactly how you like it.";
+                } else if (catLower.contains("tea")) {
+                    descText = "Customize your drink exactly how you like it.";
+                } else {
+                    descText = "Customize your order exactly how you like it.";
+                }
+            } else {
+                descText = "Customize your order exactly how you like it.";
+            }
         }
         Label productDesc = new Label(descText);
         productDesc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
@@ -1515,8 +1552,8 @@ public class CustomerApp extends Application {
         Button closeBtn = new Button("✕");
         closeBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
         closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand; -fx-padding: 0;");
-        closeBtn.setOnMouseEntered(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-cursor: hand;"));
-        closeBtn.setOnMouseExited(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand;"));
+        closeBtn.setOnMouseEntered(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-cursor: hand; -fx-padding: 0;"));
+        closeBtn.setOnMouseExited(e -> closeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #999999; -fx-cursor: hand; -fx-padding: 0;"));
         closeBtn.setOnAction(e -> {
             this.currentCustomizationProduct = null;
             showMenuScreen();
@@ -1528,7 +1565,7 @@ public class CustomerApp extends Application {
         Label totalPrice = new Label("₱0.00"); // Starts at 0, updates when size selected
         
         // Quantity state - declared early so form can access it
-        final int[] qty = {0};
+        final int[] qty = {1};
         
         // Recompute callback - will be set after form is created
         final Runnable[] recomputeTotalRef = new Runnable[1];
@@ -1558,7 +1595,7 @@ public class CustomerApp extends Application {
         qtyMinus.setOnMouseEntered(e -> qtyMinus.setStyle("-fx-background-color: #EEEEEE; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
         qtyMinus.setOnMouseExited(e -> qtyMinus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
         
-        Label qtyVal = new Label("0");
+        Label qtyVal = new Label("1");
         qtyVal.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
         qtyVal.setTextFill(Color.web("#1A1A1A"));
         qtyVal.setPrefWidth(30);
@@ -1572,7 +1609,7 @@ public class CustomerApp extends Application {
         
         // qty array was declared earlier - update handlers to also recompute total
         qtyMinus.setOnAction(e -> { 
-            if (qty[0] >= 1) { 
+            if (qty[0] > 1) { 
                 qty[0]--; 
                 qtyVal.setText(String.valueOf(qty[0])); 
                 if (recomputeTotalRef[0] != null) recomputeTotalRef[0].run();
@@ -1645,12 +1682,12 @@ public class CustomerApp extends Application {
         
         // Keep state for milk/add-on recompute (declared here so all sections can see it)
         final double[] selectedMilkCost = {0.0};
-        // Read size surcharges from product (fallbacks if not set)
+        // Read size surcharges from product (no hardcoded fallbacks - use 0 if not set)
         Map<String, Double> _sizes = null;
         try { _sizes = product.getSizeSurcharges(); } catch (Exception ignored) { _sizes = new HashMap<>(); }
         final double smallS = _sizes.getOrDefault("Small", 0.0);
-        final double mediumS = _sizes.getOrDefault("Medium", 20.0);
-        final double largeS = _sizes.getOrDefault("Large", 30.0);
+        final double mediumS = _sizes.getOrDefault("Medium", 0.0);
+        final double largeS = _sizes.getOrDefault("Large", 0.0);
         // Determine which sizes are available for this product
         boolean hasSmall = true, hasMedium = true, hasLarge = true;
         try { hasSmall = product.isHasSmall(); } catch (Exception ignored) {}
@@ -1680,9 +1717,17 @@ public class CustomerApp extends Application {
         final HBox[] addOnsGridRef = new HBox[1];
         
         // Create recompute function that updates total based on qty, size, milk, and add-ons
+        final boolean isPastryFinal = isPastry;
         Runnable recomputeTotal = () -> {
             try {
-                double unitPrice = product.getPrice() + selectedSizeCost[0] + selectedMilkCost[0];
+                double unitPrice;
+                if (isPastryFinal) {
+                    // Pastries: use base price only (no sizes)
+                    unitPrice = product.getPrice();
+                } else {
+                    // Beverages: size price IS the actual price, not a surcharge
+                    unitPrice = selectedSizeCost[0] + selectedMilkCost[0];
+                }
                 // Add selected add-ons if grid exists
                 if (addOnsGridRef[0] != null) {
                     for (javafx.scene.Node n : addOnsGridRef[0].getChildren()) {
@@ -1722,6 +1767,9 @@ public class CustomerApp extends Application {
             sizeDefault.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 10));
             sizeDefault.setTextFill(Color.web("#888888"));
             
+            // Track size name along with cost
+            final String[] selectedSizeName = { hasSmall ? "Small" : (hasMedium ? "Medium" : "Large") };
+            
             final Button[] smallBtnRef = new Button[1];
             final Button[] mediumBtnRef = new Button[1];
             final Button[] largeBtnRef = new Button[1];
@@ -1735,6 +1783,7 @@ public class CustomerApp extends Application {
                 smallBtn.setStyle(Math.abs(selectedSizeCost[0] - smallS) < 0.001 ? getPillSelectedStyle() : getPillDefaultStyle());
                 smallBtn.setOnAction(e -> {
                     selectedSizeCost[0] = smallS;
+                    selectedSizeName[0] = "Small";
                     if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillSelectedStyle());
                     if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillDefaultStyle());
                     if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillDefaultStyle());
@@ -1758,6 +1807,7 @@ public class CustomerApp extends Application {
                 mediumBtn.setStyle(Math.abs(selectedSizeCost[0] - mediumS) < 0.001 ? getPillSelectedStyle() : getPillDefaultStyle());
                 mediumBtn.setOnAction(e -> {
                     selectedSizeCost[0] = mediumS;
+                    selectedSizeName[0] = "Medium";
                     if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillDefaultStyle());
                     if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillSelectedStyle());
                     if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillDefaultStyle());
@@ -1781,6 +1831,7 @@ public class CustomerApp extends Application {
                 largeBtn.setStyle(Math.abs(selectedSizeCost[0] - largeS) < 0.001 ? getPillSelectedStyle() : getPillDefaultStyle());
                 largeBtn.setOnAction(e -> {
                     selectedSizeCost[0] = largeS;
+                    selectedSizeName[0] = "Large";
                     if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillDefaultStyle());
                     if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillDefaultStyle());
                     if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillSelectedStyle());
@@ -1798,8 +1849,8 @@ public class CustomerApp extends Application {
             sizeSection.getChildren().addAll(sizeTitle, sizeDefault, sizeButtons);
             form.getChildren().add(sizeSection);
             
-            // Store the selected size cost in the form's user data for later retrieval
-            form.setUserData(selectedSizeCost);
+            // Store the selected size cost and name in the form's user data for later retrieval
+            form.setUserData(new Object[]{selectedSizeCost, selectedSizeName});
         }
         
         // MILK OPTIONS SECTION (uses product settings from admin panel)
@@ -1960,6 +2011,11 @@ public class CustomerApp extends Application {
         specialRequestsSection.getChildren().addAll(requestsTitle, quickButtons, requestTextArea);
         form.getChildren().add(specialRequestsSection);
         
+        // Compute initial total price based on default selections (size, milk, add-ons, quantity)
+        if (recomputeRef[0] != null) {
+            recomputeRef[0].run();
+        }
+        
         return form;
     }
     
@@ -2018,23 +2074,34 @@ public class CustomerApp extends Application {
             // Create order item with basic details
             OrderItem item = new OrderItem(product, quantity, "Hot", 0);
             
-            // Extract selected size cost from the form's user data
+            // Extract selected size cost and name from the form's user data
             Object userDataObj = customContent.getUserData();
-            if (userDataObj instanceof double[]) {
+            String selectedSize = "Regular"; // Default size
+            if (userDataObj instanceof Object[]) {
+                Object[] sizeData = (Object[]) userDataObj;
+                // sizeData[0] = double[] for size cost, sizeData[1] = String[] for size name
+                if (sizeData.length > 0 && sizeData[0] instanceof double[]) {
+                    double[] sizeCostArray = (double[]) sizeData[0];
+                    if (sizeCostArray.length > 0) {
+                        item.setSizeCost(sizeCostArray[0]);
+                    }
+                }
+                if (sizeData.length > 1 && sizeData[1] instanceof String[]) {
+                    String[] sizeNameArray = (String[]) sizeData[1];
+                    if (sizeNameArray.length > 0 && sizeNameArray[0] != null) {
+                        selectedSize = sizeNameArray[0];
+                    }
+                }
+            } else if (userDataObj instanceof double[]) {
+                // Fallback for old format (just cost array)
                 double[] sizeCostArray = (double[]) userDataObj;
                 if (sizeCostArray.length > 0) {
                     item.setSizeCost(sizeCostArray[0]);
                 }
             }
 
-            // Also set a human-readable size name based on the selected surcharge
-            try {
-                double sc = item.getSizeCost();
-                if (sc == 0) item.setSize("Small");
-                else if (Math.abs(sc - 20.0) < 0.001) item.setSize("Medium");
-                else if (Math.abs(sc - 30.0) < 0.001) item.setSize("Large");
-                else item.setSize("Custom");
-            } catch (Exception ignored) {}
+            // Set the size name from the stored value
+            item.setSize(selectedSize);
             
             // Extract selected add-ons and special requests from the customContent VBox
             java.util.List<String> selectedAddOnNames = new java.util.ArrayList<>();
@@ -2448,13 +2515,12 @@ public class CustomerApp extends Application {
                     addOnsSection.getChildren().addAll(addOnsTitle, addOnsGrid);
                 }
 
-        // Cup size selection: Small (base), Medium (+₱5), Large (+₱10) - displayed as clickable pills
-        // Cup size selection (drinks): use product-configured surcharges, displayed as clickable pills
+        // Cup size selection (drinks): use product-configured prices, displayed as clickable pills
         Map<String, Double> _sz = null;
         try { _sz = product.getSizeSurcharges(); } catch (Exception ignored) { _sz = new HashMap<>(); }
         final double sSmall = _sz.getOrDefault("Small", 0.0);
-        final double sMedium = _sz.getOrDefault("Medium", 5.0);
-        final double sLarge = _sz.getOrDefault("Large", 10.0);
+        final double sMedium = _sz.getOrDefault("Medium", 0.0);
+        final double sLarge = _sz.getOrDefault("Large", 0.0);
 
         boolean hasSmall2 = true, hasMedium2 = true, hasLarge2 = true;
         try { hasSmall2 = product.isHasSmall(); } catch (Exception ignored) {}
@@ -2550,7 +2616,7 @@ public class CustomerApp extends Application {
         minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
-        Label qtyValueLabel = new Label("0");
+        Label qtyValueLabel = new Label("1");
         qtyValueLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
         qtyValueLabel.setTextFill(Color.web("#1A1A1A"));
         qtyValueLabel.setPrefWidth(36);
@@ -2567,9 +2633,9 @@ public class CustomerApp extends Application {
         plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
-        final int[] quantity = {0};
+        final int[] quantity = {1};
         minusBtn.setOnAction(e -> {
-            if (quantity[0] >= 1) {
+            if (quantity[0] > 1) {
                 quantity[0]--;
                 qtyValueLabel.setText(String.valueOf(quantity[0]));
             }
@@ -3604,11 +3670,18 @@ public class CustomerApp extends Application {
                 System.err.println("Error saving pending order: " + ex.getMessage());
             }
 
-            // Show receipt-style confirmation screen
-            showOrderReceiptScreen(currentOrder.getOrderId(), paymentMethod, currentOrder.getTotalAmount());
+            // Capture order info before resetting state
+            final String completedOrderId = currentOrder.getOrderId();
+            final double completedTotal = currentOrder.getTotalAmount();
+            final String completedPaymentMethod = paymentMethod;
             
-            // Reset for new order
+            // Reset all state for new order FIRST
+            currentCustomizationProduct = null;
+            customizingOrderItem = null;
             currentOrder = new Order(TextDatabase.getNextOrderNumber());
+            
+            // Show receipt-style confirmation screen AFTER state is reset
+            showOrderReceiptScreen(completedOrderId, completedPaymentMethod, completedTotal);
             
         } catch (IllegalStateException e) {
             // Handle inventory issues specifically
@@ -3707,7 +3780,7 @@ public class CustomerApp extends Application {
         instructions.setWrapText(true);
         
         // Auto-redirect countdown
-        Label countdown = new Label("Returning to menu in 5 seconds...");
+        Label countdown = new Label("Returning to menu in 30 seconds...");
         countdown.setFont(Font.font("Segoe UI", 12));
         countdown.setTextFill(Color.web("#AAAAAA"));
         
@@ -3722,25 +3795,40 @@ public class CustomerApp extends Application {
         receiptCard.getChildren().addAll(iconCircle, thankYou, orderPlaced, receiptDetails, instructions, countdown, doneBtn);
         root.getChildren().add(receiptCard);
         
-        Scene scene = new Scene(root, 1600, 900);
-        setScenePreserveWindowSize(scene);
+        // Block any pending async scene changes from overwriting the receipt screen
+        showingReceiptScreen = true;
         
-        // Auto-return to welcome screen after 5 seconds
-        final int[] secondsLeft = {5};
+        // Set scene directly to ensure it displays immediately (not async)
+        if (persistentRoot != null) {
+            persistentRoot.getChildren().setAll(root);
+        } else {
+            Scene scene = new Scene(root, 1600, 900);
+            primaryStage.setScene(scene);
+        }
+        if (!primaryStage.isShowing()) primaryStage.show();
+        
+        // Force layout update to ensure scene is visible
+        root.applyCss();
+        root.layout();
+        
+        // Auto-return to welcome screen after 30 seconds
+        final int[] secondsLeft = {30};
         Timeline autoReturn = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
             secondsLeft[0]--;
             if (secondsLeft[0] > 0) {
                 countdown.setText("Returning to menu in " + secondsLeft[0] + " seconds...");
             } else {
+                showingReceiptScreen = false;
                 showWelcomeScreen();
             }
         }));
-        autoReturn.setCycleCount(5);
+        autoReturn.setCycleCount(30);
         autoReturn.play();
         
         // Done button returns immediately
         doneBtn.setOnAction(e -> {
             autoReturn.stop();
+            showingReceiptScreen = false;
             showWelcomeScreen();
         });
     }

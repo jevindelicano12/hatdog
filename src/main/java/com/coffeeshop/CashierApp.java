@@ -1621,35 +1621,42 @@ public class CashierApp extends Application {
     // ==================== ORDER QUEUE PANEL ====================
     
     private javafx.scene.control.ScrollPane createOrderQueuePanel() {
-        VBox panel = new VBox(20);
-        panel.setPadding(new Insets(30));
-        panel.getStyleClass().add("panel-card");
-        panel.setStyle("-fx-background-color: #F3F4F6;");
+        // Main container - 2-column layout
+        HBox mainContainer = new HBox(20);
+        mainContainer.setPadding(new Insets(20));
+        mainContainer.setStyle("-fx-background-color: #F3F4F6;");
+        mainContainer.setFillHeight(true);
+        
+        // ==================== LEFT COLUMN: Order Lookup ====================
+        VBox leftColumn = new VBox(15);
+        leftColumn.setPadding(new Insets(0));
+        leftColumn.setStyle("-fx-background-color: transparent;");
+        leftColumn.setMinWidth(450);
+        leftColumn.setPrefWidth(500);
+        HBox.setHgrow(leftColumn, Priority.ALWAYS);
         
         // Header section
-        VBox headerBox = new VBox(10);
+        VBox headerBox = new VBox(5);
         headerBox.setAlignment(Pos.TOP_LEFT);
-        headerBox.setPadding(new Insets(0, 0, 10, 0));
         
-        Label title = new Label("Order Lookup");
-        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        Label title = new Label("🔍 Order Lookup");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         title.setTextFill(Color.web("#111827"));
         
         Label subtitle = new Label("Enter an order ID to retrieve and process");
-        subtitle.setFont(Font.font("Segoe UI", 14));
+        subtitle.setFont(Font.font("Segoe UI", 13));
         subtitle.setTextFill(Color.web("#6B7280"));
         
         headerBox.getChildren().addAll(title, subtitle);
-        panel.getChildren().add(headerBox);
+        leftColumn.getChildren().add(headerBox);
         
         // Search section
-        VBox searchSection = new VBox(12);
-        searchSection.setPadding(new Insets(25));
+        VBox searchSection = new VBox(10);
+        searchSection.setPadding(new Insets(20));
         searchSection.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        searchSection.setPrefWidth(600);
         
         Label searchLabel = new Label("🔍 Enter Order ID:");
-        searchLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        searchLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         searchLabel.setTextFill(Color.web("#374151"));
         
         HBox searchBox = new HBox(10);
@@ -1657,69 +1664,130 @@ public class CashierApp extends Application {
         
         TextField orderIdField = new TextField();
         orderIdField.setPromptText("e.g., c25f5698");
-        orderIdField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-border-radius: 8; -fx-border-color: #E5E7EB;");
-        orderIdField.setPrefWidth(300);
+        orderIdField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-border-radius: 8; -fx-border-color: #E5E7EB;");
+        orderIdField.setPrefWidth(200);
+        HBox.setHgrow(orderIdField, Priority.ALWAYS);
         
-        Button searchBtn = new Button("\ud83d\udd0d Search");
-        searchBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; -fx-cursor: hand;");
-        searchBtn.setPrefWidth(120);
+        Button searchBtn = new Button("🔍 Search");
+        searchBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         
         Label statusLabel = new Label("");
         statusLabel.setFont(Font.font("Segoe UI", 12));
         
-        searchBox.getChildren().addAll(orderIdField, searchBtn, statusLabel);
-        HBox.setHgrow(statusLabel, Priority.ALWAYS);
-        
-        searchSection.getChildren().addAll(searchLabel, searchBox);
-        panel.getChildren().add(searchSection);
+        searchBox.getChildren().addAll(orderIdField, searchBtn);
+        searchSection.getChildren().addAll(searchLabel, searchBox, statusLabel);
+        leftColumn.getChildren().add(searchSection);
         
         // Results panel
-        VBox resultsPanel = new VBox(15);
-        resultsPanel.setPadding(new Insets(25));
+        VBox resultsPanel = new VBox(12);
+        resultsPanel.setPadding(new Insets(20));
         resultsPanel.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
-        resultsPanel.setPrefHeight(500);
-        resultsPanel.setMaxHeight(Double.MAX_VALUE);
+        VBox.setVgrow(resultsPanel, Priority.ALWAYS);
         
         Label resultsTitle = new Label("📋 Order Details");
-        resultsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        resultsTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
         resultsTitle.setTextFill(Color.web("#111827"));
         
         TextArea orderDetailsArea = new TextArea();
         orderDetailsArea.setEditable(false);
         orderDetailsArea.setWrapText(true);
-        orderDetailsArea.setFont(Font.font("Consolas", 13));
+        orderDetailsArea.setFont(Font.font("Consolas", 12));
         orderDetailsArea.setText("Enter an order ID and click Search to retrieve order details...");
-        orderDetailsArea.setPrefHeight(350);
-        orderDetailsArea.setMaxHeight(Double.MAX_VALUE);
+        orderDetailsArea.setPrefHeight(250);
         orderDetailsArea.setStyle("-fx-control-inner-background: #F9FAFB; -fx-background-color: #F9FAFB; -fx-font-size: 12px; -fx-border-color: #E5E7EB; -fx-border-width: 1; -fx-border-radius: 8;");
         VBox.setVgrow(orderDetailsArea, Priority.ALWAYS);
         
         // Action buttons (hidden until order found)
-        HBox actionButtonsBox = new HBox(10);
+        HBox actionButtonsBox = new HBox(8);
         actionButtonsBox.setAlignment(Pos.CENTER_LEFT);
-        actionButtonsBox.setPadding(new Insets(15, 0, 0, 0));
-        actionButtonsBox.setStyle("-fx-border-color: #E5E7EB; -fx-border-width: 1 0 0 0;");
+        actionButtonsBox.setPadding(new Insets(10, 0, 0, 0));
         
-        Button payBtn = new Button("💳 Pay & Start Preparing");
-        payBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
-        payBtn.setPrefWidth(200);
+        Button payBtn = new Button("💳 Pay & Prepare");
+        payBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 15; -fx-background-radius: 8; -fx-cursor: hand;");
+        payBtn.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(payBtn, Priority.ALWAYS);
         payBtn.setVisible(false);
         
-        Button completeBtn = new Button("✓ Complete & Pickup");
-        completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
-        completeBtn.setPrefWidth(200);
+        Button completeBtn = new Button("✓ Ready");
+        completeBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 15; -fx-background-radius: 8; -fx-cursor: hand;");
+        completeBtn.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(completeBtn, Priority.ALWAYS);
         completeBtn.setVisible(false);
         
-        Button cancelBtn = new Button("✗ Cancel Order");
-        cancelBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
-        cancelBtn.setPrefWidth(150);
+        Button cancelBtn = new Button("✗ Cancel");
+        cancelBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 8 15; -fx-background-radius: 8; -fx-cursor: hand;");
+        cancelBtn.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(cancelBtn, Priority.ALWAYS);
         cancelBtn.setVisible(false);
         
         actionButtonsBox.getChildren().addAll(payBtn, completeBtn, cancelBtn);
         
         resultsPanel.getChildren().addAll(resultsTitle, orderDetailsArea, actionButtonsBox);
-        panel.getChildren().add(resultsPanel);
-        VBox.setVgrow(resultsPanel, Priority.ALWAYS);
+        leftColumn.getChildren().add(resultsPanel);
+        
+        // ==================== RIGHT COLUMN: Order Status ====================
+        VBox rightColumn = new VBox(10);
+        rightColumn.setPadding(new Insets(0));
+        rightColumn.setStyle("-fx-background-color: transparent;");
+        rightColumn.setMinWidth(320);
+        rightColumn.setPrefWidth(380);
+        rightColumn.setMaxWidth(420);
+        
+        // Right column header
+        HBox rightHeader = new HBox(10);
+        rightHeader.setAlignment(Pos.CENTER_LEFT);
+        
+        Label rightTitle = new Label("📺 Live Order Status");
+        rightTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+        rightTitle.setTextFill(Color.web("#111827"));
+        
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        
+        Button refreshBtn = new Button("🔄");
+        refreshBtn.setStyle("-fx-background-color: #6366F1; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 6 12; -fx-background-radius: 8; -fx-cursor: hand;");
+        
+        rightHeader.getChildren().addAll(rightTitle, headerSpacer, refreshBtn);
+        rightColumn.getChildren().add(rightHeader);
+        
+        // Two status columns stacked vertically (2 rows) with equal height
+        VBox statusColumnsContainer = new VBox(10);
+        statusColumnsContainer.setFillWidth(true);
+        VBox.setVgrow(statusColumnsContainer, Priority.ALWAYS);
+        
+        // Refresh callback that rebuilds the status columns (use array to allow self-reference)
+        final Runnable[] refreshStatusColumnsRef = new Runnable[1];
+        refreshStatusColumnsRef[0] = () -> {
+            loadPendingOrdersFromFile();
+            statusColumnsContainer.getChildren().clear();
+            VBox newPreparingCol = createCompactStatusColumn("⏳ PREPARING", "#F59E0B", preparingList, false, refreshStatusColumnsRef[0]);
+            VBox newReadyCol = createCompactStatusColumn("✅ READY", "#10B981", completedList, true, refreshStatusColumnsRef[0]);
+            newPreparingCol.setMinHeight(200);
+            newPreparingCol.setPrefHeight(250);
+            newReadyCol.setMinHeight(200);
+            newReadyCol.setPrefHeight(250);
+            VBox.setVgrow(newPreparingCol, Priority.ALWAYS);
+            VBox.setVgrow(newReadyCol, Priority.ALWAYS);
+            statusColumnsContainer.getChildren().addAll(newPreparingCol, newReadyCol);
+        };
+        
+        // Preparing column (top row) - takes half the available height
+        VBox preparingColumn = createCompactStatusColumn("⏳ PREPARING", "#F59E0B", preparingList, false, refreshStatusColumnsRef[0]);
+        preparingColumn.setMinHeight(200);
+        preparingColumn.setPrefHeight(250);
+        VBox.setVgrow(preparingColumn, Priority.ALWAYS);
+        
+        // Ready column (bottom row) - takes half the available height
+        VBox readyColumn = createCompactStatusColumn("✅ READY", "#10B981", completedList, true, refreshStatusColumnsRef[0]);
+        readyColumn.setMinHeight(200);
+        readyColumn.setPrefHeight(250);
+        VBox.setVgrow(readyColumn, Priority.ALWAYS);
+        
+        statusColumnsContainer.getChildren().addAll(preparingColumn, readyColumn);
+        rightColumn.getChildren().add(statusColumnsContainer);
+        
+        // Add both columns to main container
+        mainContainer.getChildren().addAll(leftColumn, rightColumn);
         
         // Search functionality
         Runnable searchOrder = () -> {
@@ -1811,23 +1879,22 @@ public class CashierApp extends Application {
             orderDetailsArea.setText(details.toString());
             
             // Show appropriate action buttons based on order status
+            // Only PENDING (unpaid) orders can have action buttons
             payBtn.setVisible(false);
             completeBtn.setVisible(false);
-            cancelBtn.setVisible(true);
+            cancelBtn.setVisible(false);
             
             if (PendingOrder.STATUS_PENDING.equals(foundOrder.getStatus())) {
                 payBtn.setVisible(true);
-            } else if (PendingOrder.STATUS_PAID.equals(foundOrder.getStatus())) {
-                payBtn.setText("\ud83c\udf74 Start Preparing");
-                payBtn.setVisible(true);
-            } else if (PendingOrder.STATUS_PREPARING.equals(foundOrder.getStatus())) {
-                completeBtn.setVisible(true);
-            } else if (PendingOrder.STATUS_COMPLETED.equals(foundOrder.getStatus())) {
-                payBtn.setVisible(false);
-                completeBtn.setVisible(false);
-                cancelBtn.setText("🔄 Reopen");
+                payBtn.setText("💳 Pay & Prepare");
+                cancelBtn.setVisible(true);  // Can only cancel if not yet paid
             }
+            // After payment (PAID, PREPARING, COMPLETED) - no action buttons shown
+            // Use the Live Order Status panel on the right to manage order flow
         };
+        
+        // Refresh button - rebuilds status columns
+        refreshBtn.setOnAction(e -> refreshStatusColumnsRef[0].run());
         
         searchBtn.setOnAction(e -> searchOrder.run());
         orderIdField.setOnKeyPressed(e -> {
@@ -1851,6 +1918,8 @@ public class CashierApp extends Application {
                         loadPendingOrdersFromFile();
                         statusLabel.setText("✓ Order moved to Preparing");
                     }
+                    // Refresh status columns
+                    refreshBtn.fire();
                     searchOrder.run();
                     break;
                 }
@@ -1866,6 +1935,8 @@ public class CashierApp extends Application {
                     orderIdField.clear();
                     statusLabel.setText("");
                     orderDetailsArea.setText("Order completed! Enter another order ID to continue...");
+                    // Refresh status columns
+                    refreshBtn.fire();
                     break;
                 }
             }
@@ -1884,20 +1955,184 @@ public class CashierApp extends Application {
                 orderIdField.clear();
                 statusLabel.setText("✓ Order cancelled");
                 orderDetailsArea.setText("Order deleted. Enter another order ID...");
+                // Refresh status columns
+                refreshBtn.fire();
             }
         });
 
         // Wrap the panel in a ScrollPane
-        ScrollPane outerScroll = new ScrollPane(panel);
+        ScrollPane outerScroll = new ScrollPane(mainContainer);
         outerScroll.setFitToWidth(true);
-        outerScroll.setFitToHeight(false);
-        outerScroll.setPrefViewportHeight(800);
+        outerScroll.setFitToHeight(true);
         outerScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         outerScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         outerScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        panel.setPrefHeight(1000);
 
         return outerScroll;
+    }
+    
+    /**
+     * Creates a compact status column for the Order Queue panel
+     */
+    private VBox createCompactStatusColumn(String title, String accentColor,
+                                           ObservableList<PendingOrder> orders, boolean isReady,
+                                           Runnable onRefresh) {
+        VBox column = new VBox(0);
+        column.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);");
+        column.setMinWidth(220);
+        column.setAlignment(Pos.TOP_CENTER);
+        
+        // Column header
+        VBox headerBox = new VBox(5);
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(15, 15, 12, 15));
+        headerBox.setStyle("-fx-background-color: " + accentColor + "; -fx-background-radius: 12 12 0 0;");
+        
+        Label headerLabel = new Label(title);
+        headerLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        headerLabel.setTextFill(Color.WHITE);
+        
+        Label countBadge = new Label(orders.size() + " order" + (orders.size() != 1 ? "s" : ""));
+        countBadge.setFont(Font.font("Segoe UI", 11));
+        countBadge.setTextFill(Color.WHITE);
+        countBadge.setOpacity(0.9);
+        
+        headerBox.getChildren().addAll(headerLabel, countBadge);
+        
+        // Order list
+        VBox ordersList = new VBox(8);
+        ordersList.setAlignment(Pos.TOP_CENTER);
+        ordersList.setPadding(new Insets(12));
+        
+        if (orders.isEmpty()) {
+            VBox emptyState = new VBox(8);
+            emptyState.setAlignment(Pos.CENTER);
+            emptyState.setPadding(new Insets(25, 10, 25, 10));
+            
+            Label emptyIcon = new Label(isReady ? "📭" : "☕");
+            emptyIcon.setFont(Font.font(32));
+            
+            Label emptyLabel = new Label(isReady ? "No orders ready" : "No orders preparing");
+            emptyLabel.setFont(Font.font("Segoe UI", 12));
+            emptyLabel.setTextFill(Color.web("#9CA3AF"));
+            
+            emptyState.getChildren().addAll(emptyIcon, emptyLabel);
+            ordersList.getChildren().add(emptyState);
+        } else {
+            for (PendingOrder order : orders) {
+                HBox orderCard = createCompactOrderCard(order, accentColor, isReady, onRefresh);
+                ordersList.getChildren().add(orderCard);
+            }
+        }
+        
+        ScrollPane scrollPane = new ScrollPane(ordersList);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setMinHeight(200);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        
+        column.getChildren().addAll(headerBox, scrollPane);
+        
+        return column;
+    }
+    
+    /**
+     * Creates a compact order card for the status columns
+     */
+    private HBox createCompactOrderCard(PendingOrder order, String accentColor, boolean isReady, Runnable onRefresh) {
+        HBox card = new HBox(10);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(10, 12, 10, 12));
+        card.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        card.setCursor(javafx.scene.Cursor.HAND);
+        
+        String bgColor = isReady ? "#ECFDF5" : "#FEF3C7";
+        String hoverBgColor = isReady ? "#D1FAE5" : "#FDE68A";
+        String borderColor = accentColor;
+        
+        String baseStyle = "-fx-background-color: " + bgColor + "; " +
+                     "-fx-background-radius: 8; " +
+                     "-fx-border-color: " + borderColor + "; " +
+                     "-fx-border-width: 0 0 0 4; " +
+                     "-fx-border-radius: 8;";
+        
+        String hoverStyle = "-fx-background-color: " + hoverBgColor + "; " +
+                     "-fx-background-radius: 8; " +
+                     "-fx-border-color: " + borderColor + "; " +
+                     "-fx-border-width: 0 0 0 4; " +
+                     "-fx-border-radius: 8;";
+        
+        card.setStyle(baseStyle);
+        
+        // Hover effects for the entire card
+        card.setOnMouseEntered(e -> card.setStyle(hoverStyle));
+        card.setOnMouseExited(e -> card.setStyle(baseStyle));
+        
+        // Order info
+        VBox orderInfo = new VBox(2);
+        orderInfo.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(orderInfo, Priority.ALWAYS);
+        
+        Label numberLabel = new Label("#" + order.getOrderId().substring(0, Math.min(8, order.getOrderId().length())));
+        numberLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        numberLabel.setTextFill(Color.web("#111827"));
+        
+        String customerName = orderCustomerNames.getOrDefault(order.getOrderId(), order.getCustomerName());
+        if (customerName == null || customerName.isEmpty()) {
+            customerName = "Guest";
+        }
+        
+        Label nameLabel = new Label(customerName);
+        nameLabel.setFont(Font.font("Segoe UI", 11));
+        nameLabel.setTextFill(Color.web("#6B7280"));
+        
+        orderInfo.getChildren().addAll(numberLabel, nameLabel);
+        card.getChildren().add(orderInfo);
+        
+        // Action button for ready orders
+        if (isReady) {
+            Button pickedUpBtn = new Button("✓");
+            pickedUpBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 12px; -fx-padding: 5 10; -fx-background-radius: 6; -fx-cursor: hand;");
+            pickedUpBtn.setOnAction(e -> {
+                e.consume();
+                completedList.remove(order);
+                orderQueue.remove(order);
+                TextDatabase.deletePendingOrder(order.getOrderId());
+                if (onRefresh != null) onRefresh.run();
+            });
+            card.getChildren().add(pickedUpBtn);
+            
+            // Make entire card clickable - same action as button
+            card.setOnMouseClicked(e -> {
+                completedList.remove(order);
+                orderQueue.remove(order);
+                TextDatabase.deletePendingOrder(order.getOrderId());
+                if (onRefresh != null) onRefresh.run();
+            });
+        } else {
+            // Mark Ready button for preparing orders
+            Button readyBtn = new Button("✓ Ready");
+            readyBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11px; -fx-padding: 5 8; -fx-background-radius: 6; -fx-cursor: hand;");
+            readyBtn.setOnAction(e -> {
+                e.consume();
+                order.setStatus(PendingOrder.STATUS_COMPLETED);
+                TextDatabase.savePendingOrder(order);
+                if (onRefresh != null) onRefresh.run();
+            });
+            card.getChildren().add(readyBtn);
+            
+            // Make entire card clickable - same action as button (move to Ready)
+            card.setOnMouseClicked(e -> {
+                order.setStatus(PendingOrder.STATUS_COMPLETED);
+                TextDatabase.savePendingOrder(order);
+                if (onRefresh != null) onRefresh.run();
+            });
+        }
+        
+        return card;
     }
     
     // ==================== RETURNS PANEL ====================
@@ -3293,9 +3528,10 @@ public class CashierApp extends Application {
         card.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(card, Priority.ALWAYS);
         
-        // Card styling - clean, modern look with better colors
-        String bgColor = isReady ? "#065F46" : "#78350F";  // Darker green/amber backgrounds
+        // Card styling - clean, modern look with light backgrounds that match the accent
+        String bgColor = isReady ? "#ECFDF5" : "#FFFBEB";  // Light green / Light amber
         String borderColor = isReady ? "#10B981" : "#F59E0B";
+        String textColor = isReady ? "#065F46" : "#78350F";  // Dark green / Dark amber text
         
         card.setStyle("-fx-background-color: " + bgColor + "; " +
                      "-fx-background-radius: 12; " +
@@ -3310,7 +3546,7 @@ public class CashierApp extends Application {
         
         Label numberLabel = new Label("#" + order.getOrderId());
         numberLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
-        numberLabel.setTextFill(Color.WHITE);
+        numberLabel.setTextFill(Color.web(textColor));
         
         // Customer name
         String customerName = orderCustomerNames.getOrDefault(order.getOrderId(), order.getCustomerName());
@@ -3320,7 +3556,7 @@ public class CashierApp extends Application {
         
         Label nameLabel = new Label(customerName);
         nameLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
-        nameLabel.setTextFill(Color.web("#aaaaaa"));
+        nameLabel.setTextFill(Color.web("#6B7280"));
         
         orderInfo.getChildren().addAll(numberLabel, nameLabel);
         card.getChildren().add(orderInfo);
@@ -3390,7 +3626,7 @@ public class CashierApp extends Application {
             // For preparing orders, show time indicator
             Label timeLabel = new Label("⏳ In Progress...");
             timeLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 12));
-            timeLabel.setTextFill(Color.web("#FBBF24"));
+            timeLabel.setTextFill(Color.web("#B45309"));  // Dark amber to match light amber background
             card.getChildren().add(timeLabel);
         }
         

@@ -651,12 +651,12 @@ public class TextDatabase {
     private static final String ORDER_COUNTER_FILE = DATA_DIR + "/order_counter.txt";
     
     /**
-     * Generates the next sequential order number (like a kiosk: 001, 002, etc.)
-     * Resets daily at midnight.
+     * Generates the next sequential order number (1000-9999).
+     * Resets to 1000 daily at midnight or when reaching 9999.
      */
     public static synchronized String getNextOrderNumber() {
         ensureDataDirectory();
-        int counter = 1;
+        int counter = 1000; // Start at 1000
         String today = java.time.LocalDate.now().toString(); // e.g., "2025-11-27"
         
         File file = new File(ORDER_COUNTER_FILE);
@@ -668,9 +668,15 @@ public class TextDatabase {
                 if (dateLine != null && counterLine != null) {
                     if (dateLine.equals(today)) {
                         // Same day, increment counter
-                        counter = Integer.parseInt(counterLine) + 1;
+                        int nextCounter = Integer.parseInt(counterLine) + 1;
+                        // Reset to 1000 if below 1000 (migration from old format) or exceeds 9999
+                        if (nextCounter < 1000 || nextCounter > 9999) {
+                            counter = 1000;
+                        } else {
+                            counter = nextCounter;
+                        }
                     }
-                    // If different day, counter resets to 1
+                    // If different day, counter resets to 1000 (default value)
                 }
             } catch (Exception e) {
                 System.err.println("Error reading order counter: " + e.getMessage());
@@ -687,8 +693,8 @@ public class TextDatabase {
             System.err.println("Error saving order counter: " + e.getMessage());
         }
         
-        // Return formatted number: 001, 002, ..., 999
-        return String.format("%03d", counter);
+        // Return 4-digit number: 1000, 1001, ..., 9999
+        return String.valueOf(counter);
     }
     
     /**
