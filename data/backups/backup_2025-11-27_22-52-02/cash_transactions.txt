@@ -1,3 +1,0 @@
-75dde51c-171b-4984-8b07-3bd076effb54|JERWIN|2025-11-27 20:31:48|SALE|530.0|062|Order completed for dasdasd|
-348c7c27-535a-4162-8149-62e105b7544a|JERWIN|2025-11-27 20:47:37|SALE|530.0|064|Order completed for Glennyboi|
-63682192-73ff-4b90-a583-2da3af28f3a1|JERWIN|2025-11-27 21:32:33|SALE|530.0|1001|Order completed for Glenn|
