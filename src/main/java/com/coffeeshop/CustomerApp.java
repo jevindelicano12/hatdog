@@ -1719,20 +1719,23 @@ public class CustomerApp extends Application {
         try { hasLarge = product.isHasLarge(); } catch (Exception ignored) {}
 
         // Pick a sensible default selected size (first available: Small -> Medium -> Large) or use initialSize if provided
+        // For pastries, size cost is always 0 (they don't have size options)
         double defaultSize = 0.0;
-        if (initialSize != null) {
-            defaultSize = initialSize;
-            // ensure initial size exists in available sizes; otherwise fallback
-            boolean matching = false;
-            try { if (hasSmall && Math.abs(initialSize - smallS) < 0.001) matching = true; } catch (Exception ignored) {}
-            try { if (hasMedium && Math.abs(initialSize - mediumS) < 0.001) matching = true; } catch (Exception ignored) {}
-            try { if (hasLarge && Math.abs(initialSize - largeS) < 0.001) matching = true; } catch (Exception ignored) {}
-            if (!matching) initialSize = null; // ignore if not matching
-        }
-        if (initialSize == null) {
-            if (hasSmall) defaultSize = smallS;
-            else if (hasMedium) defaultSize = mediumS;
-            else if (hasLarge) defaultSize = largeS;
+        if (!isPastry) {
+            if (initialSize != null) {
+                defaultSize = initialSize;
+                // ensure initial size exists in available sizes; otherwise fallback
+                boolean matching = false;
+                try { if (hasSmall && Math.abs(initialSize - smallS) < 0.001) matching = true; } catch (Exception ignored) {}
+                try { if (hasMedium && Math.abs(initialSize - mediumS) < 0.001) matching = true; } catch (Exception ignored) {}
+                try { if (hasLarge && Math.abs(initialSize - largeS) < 0.001) matching = true; } catch (Exception ignored) {}
+                if (!matching) initialSize = null; // ignore if not matching
+            }
+            if (initialSize == null) {
+                if (hasSmall) defaultSize = smallS;
+                else if (hasMedium) defaultSize = mediumS;
+                else if (hasLarge) defaultSize = largeS;
+            }
         }
         final double[] selectedSizeCost = { defaultSize }; // declared at method level so ADD-ONS section can access it
         final Runnable[] recomputeRef = new Runnable[1];
