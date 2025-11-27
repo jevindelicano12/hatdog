@@ -1421,7 +1421,31 @@ public class CustomerApp extends Application {
         bottomRow.setAlignment(Pos.CENTER_LEFT);
         bottomRow.setPadding(new Insets(2, 0, 0, 0));
         
-        Label priceLabel = new Label("₱" + String.format("%.1f", product.getPrice()));
+        // For beverages, show starting price from size; for pastries, show base price
+        boolean isPastryProduct = false;
+        if (product.getCategory() != null) {
+            String cat = product.getCategory().toLowerCase();
+            isPastryProduct = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+        }
+        
+        double displayPrice;
+        if (isPastryProduct) {
+            displayPrice = product.getPrice();
+        } else {
+            // For beverages, get the smallest available size price
+            Map<String, Double> sizes = product.getSizeSurcharges();
+            if (product.isHasSmall()) {
+                displayPrice = sizes.getOrDefault("Small", 0.0);
+            } else if (product.isHasMedium()) {
+                displayPrice = sizes.getOrDefault("Medium", 0.0);
+            } else if (product.isHasLarge()) {
+                displayPrice = sizes.getOrDefault("Large", 0.0);
+            } else {
+                displayPrice = sizes.getOrDefault("Small", 0.0);
+            }
+        }
+        
+        Label priceLabel = new Label("₱" + String.format("%.1f", displayPrice));
         priceLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
         priceLabel.setTextFill(Color.web("#666666"));
         
@@ -2318,10 +2342,12 @@ public class CustomerApp extends Application {
         // Temperature selection (only for Coffee category, excluding Espresso)
         boolean isEspresso = product.getName() != null && product.getName().equalsIgnoreCase("Espresso");
         // Treat pastry/bakery/snack categories as non-drink products where no drink customizations apply
-        boolean isPastry = false;
+        final boolean isPastry;
         if (product.getCategory() != null) {
             String c = product.getCategory().toLowerCase();
             isPastry = c.contains("pastr") || c.contains("bakery") || c.contains("snack") || c.contains("pastry");
+        } else {
+            isPastry = false;
         }
         final ToggleGroup tempGroup = (product.getCategory() != null && product.getCategory().equalsIgnoreCase("Coffee") && !isEspresso) ? new ToggleGroup() : null;
         final VBox tempSection = (tempGroup != null) ? new VBox(8) : null;
@@ -2550,7 +2576,9 @@ public class CustomerApp extends Application {
             sizeButtons.setAlignment(Pos.CENTER_LEFT);
 
             if (hasSmall2) {
-                Button sizeSmallPill = new Button(String.format("Small (₱%.2f)", product.getPrice()));
+                // For beverages, size price IS the full price; for pastries, add to base price
+                double smallPrice = isPastry ? product.getPrice() + sSmall : sSmall;
+                Button sizeSmallPill = new Button(String.format("Small (₱%.2f)", smallPrice));
                 sizeSmallPillRef[0] = sizeSmallPill;
                 sizeSmallPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
                 sizeSmallPill.setPadding(new Insets(8, 16, 8, 16));
@@ -2560,12 +2588,15 @@ public class CustomerApp extends Application {
                     if (sizeSmallPillRef[0] != null) sizeSmallPillRef[0].setStyle(getPillSelectedStyle());
                     if (sizeMediumPillRef[0] != null) sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
                     if (sizeLargePillRef[0] != null) sizeLargePillRef[0].setStyle(getPillDefaultStyle());
+                    recomputeRef[0].run();
                 });
                 sizeButtons.getChildren().add(sizeSmallPill);
             }
 
             if (hasMedium2) {
-                Button sizeMediumPill = new Button(String.format("Medium (₱%.2f)", product.getPrice() + sMedium));
+                // For beverages, size price IS the full price; for pastries, add to base price
+                double mediumPrice = isPastry ? product.getPrice() + sMedium : sMedium;
+                Button sizeMediumPill = new Button(String.format("Medium (₱%.2f)", mediumPrice));
                 sizeMediumPillRef[0] = sizeMediumPill;
                 sizeMediumPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
                 sizeMediumPill.setPadding(new Insets(8, 16, 8, 16));
@@ -2575,12 +2606,15 @@ public class CustomerApp extends Application {
                     if (sizeSmallPillRef[0] != null) sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
                     if (sizeMediumPillRef[0] != null) sizeMediumPillRef[0].setStyle(getPillSelectedStyle());
                     if (sizeLargePillRef[0] != null) sizeLargePillRef[0].setStyle(getPillDefaultStyle());
+                    recomputeRef[0].run();
                 });
                 sizeButtons.getChildren().add(sizeMediumPill);
             }
 
             if (hasLarge2) {
-                Button sizeLargePill = new Button(String.format("Large (₱%.2f)", product.getPrice() + sLarge));
+                // For beverages, size price IS the full price; for pastries, add to base price
+                double largePrice = isPastry ? product.getPrice() + sLarge : sLarge;
+                Button sizeLargePill = new Button(String.format("Large (₱%.2f)", largePrice));
                 sizeLargePillRef[0] = sizeLargePill;
                 sizeLargePill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
                 sizeLargePill.setPadding(new Insets(8, 16, 8, 16));
@@ -2590,6 +2624,7 @@ public class CustomerApp extends Application {
                     if (sizeSmallPillRef[0] != null) sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
                     if (sizeMediumPillRef[0] != null) sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
                     if (sizeLargePillRef[0] != null) sizeLargePillRef[0].setStyle(getPillSelectedStyle());
+                    recomputeRef[0].run();
                 });
                 sizeButtons.getChildren().add(sizeLargePill);
             }
@@ -2674,12 +2709,13 @@ public class CustomerApp extends Application {
             if (jelliesCheck != null && jelliesCheck.isSelected()) addOnsCost += 10.00 * jelliesQty[0];
             if (poppingCheck != null && poppingCheck.isSelected()) addOnsCost += 12.00 * poppingQty[0];
 
-            // Include cup size delta (from selectedSizeCost array)
+            // For beverages (products with sizes), the size value IS the price, not a surcharge
+            // For pastries, use the product's base price
             double sizeDelta = selectedSizeCost[0];
+            double base = isPastry ? product.getPrice() : 0.0; // Beverages: size IS the price, Pastries: use base price
             addOnsCost += sizeDelta;
 
             double suggestions = suggestionsExtra.get();
-            double base = product.getPrice();
             double subtotal = (base + addOnsCost) * quantity[0] + suggestions;
             javafx.application.Platform.runLater(() -> liveTotal.setText(String.format("₱%.2f", subtotal)));
         };
@@ -3264,7 +3300,14 @@ public class CustomerApp extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        double unitPrice = item.getProduct().getPrice() + item.getAddOnsCost();
+        // For beverages, sizeCost IS the price; for pastries, add base price
+        boolean isPastryItem = false;
+        if (item.getProduct().getCategory() != null) {
+            String cat = item.getProduct().getCategory().toLowerCase();
+            isPastryItem = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+        }
+        double basePrice = isPastryItem ? item.getProduct().getPrice() : 0.0;
+        double unitPrice = basePrice + item.getSizeCost() + item.getAddOnsCost();
         double subtotal = unitPrice * totalQty;
         Label priceLabel = new Label("₱" + String.format("%.2f", subtotal));
         priceLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 18));
@@ -3584,7 +3627,14 @@ public class CustomerApp extends Application {
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
             
-            double unitPrice = sample.getProduct().getPrice() + sample.getAddOnsCost();
+            // For beverages, sizeCost IS the price; for pastries, add base price
+            boolean isPastrySample = false;
+            if (sample.getProduct().getCategory() != null) {
+                String cat = sample.getProduct().getCategory().toLowerCase();
+                isPastrySample = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+            }
+            double basePrice = isPastrySample ? sample.getProduct().getPrice() : 0.0;
+            double unitPrice = basePrice + sample.getSizeCost() + sample.getAddOnsCost();
             double subtotal = unitPrice * totalQty;
             Label priceLabel = new Label("₱" + String.format("%.2f", subtotal));
             priceLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
@@ -3660,10 +3710,18 @@ public class CustomerApp extends Application {
                 // Build PendingOrder from currentOrder - customer name is "Guest" until cashier sets it
                 PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In", currentCashierId);
                 for (OrderItem oi : currentOrder.getItems()) {
-                    double price = oi.getProduct().getPrice() + oi.getAddOnsCost();
+                    // For beverages, sizeCost IS the price (base=0); for pastries, base price is product.getPrice()
+                    // Store base price separately - sizeCost and addOnsCost are stored in their own fields
+                    boolean isPastryPending = false;
+                    if (oi.getProduct().getCategory() != null) {
+                        String cat = oi.getProduct().getCategory().toLowerCase();
+                        isPastryPending = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+                    }
+                    double basePrice = isPastryPending ? oi.getProduct().getPrice() : 0.0;
                     String size = oi.getSize();
                     double sizeCost = oi.getSizeCost();
-                    p.addItem(oi.getProduct().getName(), price, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel(), oi.getAddOns(), oi.getAddOnsCost(), oi.getSpecialRequest(), size, sizeCost);
+                    // Pass basePrice as price - sizeCost and addOnsCost are added separately by CashierApp
+                    p.addItem(oi.getProduct().getName(), basePrice, oi.getQuantity(), oi.getTemperature(), oi.getSugarLevel(), oi.getAddOns(), oi.getAddOnsCost(), oi.getSpecialRequest(), size, sizeCost);
                 }
                 TextDatabase.savePendingOrder(p);
             } catch (Exception ex) {
@@ -3811,8 +3869,8 @@ public class CustomerApp extends Application {
         root.applyCss();
         root.layout();
         
-        // Auto-return to welcome screen after 30 seconds
-        final int[] secondsLeft = {30};
+        // Auto-return to welcome screen after 7 seconds
+        final int[] secondsLeft = {7};
         Timeline autoReturn = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
             secondsLeft[0]--;
             if (secondsLeft[0] > 0) {
@@ -3822,7 +3880,7 @@ public class CustomerApp extends Application {
                 showWelcomeScreen();
             }
         }));
-        autoReturn.setCycleCount(30);
+        autoReturn.setCycleCount(7);
         autoReturn.play();
         
         // Done button returns immediately

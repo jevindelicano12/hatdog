@@ -2724,7 +2724,7 @@ public class AdminApp extends Application {
         
         TableColumn<StockAlertRow, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        statusCol.setPrefWidth(120);
+        statusCol.setPrefWidth(80);
         statusCol.setStyle("-fx-alignment: CENTER;");
         
         TableColumn<StockAlertRow, String> nameCol = new TableColumn<>("Item Name");
@@ -2740,6 +2740,29 @@ public class AdminApp extends Application {
         levelCol.setCellValueFactory(new PropertyValueFactory<>("level"));
         levelCol.setPrefWidth(120);
         levelCol.setStyle("-fx-alignment: CENTER;");
+        
+        // Color code the Level column based on status
+        levelCol.setCellFactory(column -> new TableCell<StockAlertRow, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("-fx-alignment: CENTER;");
+                } else {
+                    setText(item);
+                    if (item.equals("OUT OF STOCK")) {
+                        setStyle("-fx-alignment: CENTER; -fx-background-color: #1F2937; -fx-text-fill: white; -fx-font-weight: bold;");
+                    } else if (item.equals("CRITICAL")) {
+                        setStyle("-fx-alignment: CENTER; -fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-weight: bold;");
+                    } else if (item.equals("LOW")) {
+                        setStyle("-fx-alignment: CENTER; -fx-background-color: #F59E0B; -fx-text-fill: white; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-alignment: CENTER;");
+                    }
+                }
+            }
+        });
         
         alertTable.getColumns().addAll(statusCol, nameCol, quantityCol, levelCol);
         

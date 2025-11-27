@@ -96,7 +96,15 @@ public class OrderItem {
     }
 
     public double getSubtotal() {
-        return (product.getPrice() + sizeCost + addOnsCost) * quantity;
+        // For beverages, sizeCost IS the full price (not a surcharge)
+        // For pastries, product.getPrice() is the base and sizeCost is additional
+        boolean isPastry = false;
+        if (product.getCategory() != null) {
+            String cat = product.getCategory().toLowerCase();
+            isPastry = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+        }
+        double basePrice = isPastry ? product.getPrice() : 0.0;
+        return (basePrice + sizeCost + addOnsCost) * quantity;
     }
 
     @Override

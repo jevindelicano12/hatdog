@@ -1852,29 +1852,55 @@ public class CashierApp extends Application {
             details.append("ITEMS\n");
             details.append("\n");
 
+            double subtotalAmount = 0.0;
             if (foundOrder.getItems().isEmpty()) {
                 details.append("No items.\n");
             } else {
-                java.util.Map<String, Integer> qtyMap = new java.util.LinkedHashMap<>();
-                java.util.Map<String, Double> priceMap = new java.util.HashMap<>();
                 for (PendingOrder.OrderItemData item : foundOrder.getItems()) {
-                    String name = item.productName;
-                    qtyMap.put(name, qtyMap.getOrDefault(name, 0) + item.quantity);
-                    Product product = store.getProducts().stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
-                    priceMap.put(name, product != null ? product.getPrice() : item.price);
-                }
-
-                for (java.util.Map.Entry<String, Integer> e : qtyMap.entrySet()) {
-                    String name = e.getKey();
-                    int qty = e.getValue();
-                    double price = priceMap.getOrDefault(name, 0.0);
-                    double subtotal = price * qty;
-                    details.append(String.format("%-20s x%d    ₱%.2f\n", name, qty, subtotal));
+                    // Calculate item total (base price + size + addons) * quantity
+                    double itemTotal = (item.price + item.sizeCost + item.addOnsCost) * item.quantity;
+                    subtotalAmount += itemTotal;
+                    
+                    details.append(String.format("%-20s    ₱%.2f\n", item.productName, itemTotal));
+                    
+                    // Show Size if present
+                    if (item.size != null && !item.size.isEmpty()) {
+                        details.append(String.format("  Size: %s (+₱%.2f)\n", item.size, item.sizeCost));
+                    }
+                    
+                    // Show Temperature if present
+                    if (item.temperature != null && !item.temperature.isEmpty()) {
+                        details.append(String.format("  Temperature: %s\n", item.temperature));
+                    }
+                    
+                    // Show Add-ons if present
+                    if (item.addOns != null && !item.addOns.isEmpty()) {
+                        details.append(String.format("  Add-ons: %s (+₱%.2f)\n", item.addOns, item.addOnsCost));
+                    }
+                    
+                    // Show Special Request / Remarks if present
+                    if (item.specialRequest != null && !item.specialRequest.isEmpty()) {
+                        details.append(String.format("  Remarks: %s\n", item.specialRequest));
+                    }
+                    
+                    // Show quantity if more than 1
+                    if (item.quantity > 1) {
+                        details.append(String.format("  Qty: x%d\n", item.quantity));
+                    }
+                    
+                    details.append("\n");
                 }
             }
 
-            details.append("\n");
-            details.append(String.format("TOTAL:      ₱%.2f\n", foundOrder.getTotalAmount()));
+            // Use po.getTotalAmount() as the final VAT-inclusive total (consistent with payment dialog)
+            // Calculate VAT breakdown from the stored total
+            double totalWithVat = foundOrder.getTotalAmount();
+            double subtotalBeforeVat = totalWithVat / 1.12;
+            double vatAmount = totalWithVat - subtotalBeforeVat;
+            
+            details.append(String.format("Subtotal:   ₱%.2f\n", subtotalBeforeVat));
+            details.append(String.format("VAT (12%%):  ₱%.2f\n", vatAmount));
+            details.append(String.format("TOTAL:      ₱%.2f\n", totalWithVat));
 
             orderDetailsArea.setText(details.toString());
             
@@ -2402,8 +2428,9 @@ public class CashierApp extends Application {
         printBtn.setOnAction(e -> {
             Receipt selected = receiptHistoryTable.getSelectionModel().getSelectedItem();
             if (selected != null) {
-                showAlert("Print", "Receipt #" + selected.getReceiptId() + " sent to printer.", 
-                         Alert.AlertType.INFORMATION);
+                showPrintReceiptDialog(selected);
+            } else {
+                showAlert("No Selection", "Please select a receipt to print.", Alert.AlertType.WARNING);
             }
         });
         
@@ -2532,6 +2559,121 @@ public class CashierApp extends Application {
         details.append("═══════════════════════════════════════\n");
         
         receiptDetailArea.setText(details.toString());
+    }
+
+    /**
+     * Shows a print preview dialog with the full receipt content.
+     */
+    private void showPrintReceiptDialog(Receipt receipt) {
+        Dialog<Void> printDialog = new Dialog<>();
+        printDialog.setTitle("Print Receipt Preview");
+        printDialog.setHeaderText(null);
+        printDialog.initModality(Modality.APPLICATION_MODAL);
+        
+        // Main container
+        VBox mainBox = new VBox(20);
+        mainBox.setPadding(new Insets(30));
+        mainBox.setStyle("-fx-background-color: white;");
+        mainBox.setAlignment(Pos.TOP_CENTER);
+        
+        // Header
+        Label headerLabel = new Label("🖨️ Print Receipt Preview");
+        headerLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        headerLabel.setTextFill(Color.web("#1F2937"));
+        
+        Label receiptIdLabel = new Label("Receipt #" + receipt.getReceiptId());
+        receiptIdLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        receiptIdLabel.setTextFill(Color.web("#6366F1"));
+        
+        // Receipt content area with styled border to look like paper
+        VBox receiptPaper = new VBox(0);
+        receiptPaper.setStyle("-fx-background-color: #FFFEF7; -fx-border-color: #E5E7EB; -fx-border-width: 1; -fx-border-radius: 4; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 2, 2);");
+        receiptPaper.setPadding(new Insets(20));
+        receiptPaper.setMaxWidth(450);
+        
+        // Build receipt content
+        StringBuilder receiptContent = new StringBuilder();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        
+        receiptContent.append("═══════════════════════════════════════\n");
+        receiptContent.append("          BREWISE COFFEE SHOP\n");
+        receiptContent.append("═══════════════════════════════════════\n\n");
+        receiptContent.append(String.format("Receipt #:  %s\n", receipt.getReceiptId()));
+        receiptContent.append(String.format("Order #:    %s\n", receipt.getOrderId()));
+        receiptContent.append(String.format("Customer:   %s\n", receipt.getUserName() != null ? receipt.getUserName() : "Walk-in"));
+        receiptContent.append(String.format("Cashier:    %s\n", receipt.getCashierId() != null ? receipt.getCashierId() : "-"));
+        receiptContent.append(String.format("Date:       %s\n", receipt.getReceiptTime().format(formatter)));
+        receiptContent.append("\n───────────────────────────────────────\n");
+        receiptContent.append("ITEMS:\n");
+        receiptContent.append("───────────────────────────────────────\n");
+        
+        // Try to get stored receipt content, otherwise show basic info
+        String storedContent = receipt.getReceiptContent();
+        if (storedContent != null && !storedContent.isEmpty()) {
+            // Extract items section from stored content if available
+            int itemsStart = storedContent.indexOf("ITEMS:");
+            int itemsEnd = storedContent.indexOf("Subtotal:");
+            if (itemsStart >= 0 && itemsEnd >= 0 && itemsEnd > itemsStart) {
+                String itemsSection = storedContent.substring(itemsStart + 6, itemsEnd).trim();
+                receiptContent.append(itemsSection).append("\n");
+            } else {
+                receiptContent.append("  (Item details not available)\n");
+            }
+        } else {
+            receiptContent.append("  (Item details not available)\n");
+        }
+        
+        receiptContent.append("\n───────────────────────────────────────\n");
+        double totalAmt = receipt.getTotalAmount();
+        double subtotalAmt = totalAmt / 1.12;
+        double vatAmt = totalAmt - subtotalAmt;
+        receiptContent.append(String.format("Subtotal:      ₱%.2f\n", subtotalAmt));
+        receiptContent.append(String.format("VAT (12%%):     ₱%.2f\n", vatAmt));
+        receiptContent.append(String.format("TOTAL:         ₱%.2f\n", totalAmt));
+        receiptContent.append("───────────────────────────────────────\n");
+        receiptContent.append(String.format("Cash Paid:     ₱%.2f\n", receipt.getCashPaid()));
+        receiptContent.append(String.format("Change:        ₱%.2f\n", receipt.getChange()));
+        receiptContent.append("\n═══════════════════════════════════════\n");
+        receiptContent.append("       Thank you for your order!\n");
+        receiptContent.append("          Please come again!\n");
+        receiptContent.append("═══════════════════════════════════════\n");
+        
+        TextArea receiptArea = new TextArea(receiptContent.toString());
+        receiptArea.setEditable(false);
+        receiptArea.setWrapText(true);
+        receiptArea.setFont(Font.font("Consolas", 12));
+        receiptArea.setPrefWidth(420);
+        receiptArea.setPrefHeight(450);
+        receiptArea.setStyle("-fx-control-inner-background: #FFFEF7; -fx-border-width: 0; -fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+        
+        receiptPaper.getChildren().add(receiptArea);
+        
+        // Buttons
+        HBox buttonBox = new HBox(15);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(10, 0, 0, 0));
+        
+        Button confirmPrintBtn = new Button("🖨️ Confirm Print");
+        confirmPrintBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30; -fx-background-radius: 8; -fx-cursor: hand;");
+        confirmPrintBtn.setOnAction(ev -> {
+            showAlert("Print Success", "Receipt #" + receipt.getReceiptId() + " has been sent to the printer.", Alert.AlertType.INFORMATION);
+            printDialog.close();
+        });
+        
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle("-fx-background-color: #6B7280; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30; -fx-background-radius: 8; -fx-cursor: hand;");
+        cancelBtn.setOnAction(ev -> printDialog.close());
+        
+        buttonBox.getChildren().addAll(confirmPrintBtn, cancelBtn);
+        
+        mainBox.getChildren().addAll(headerLabel, receiptIdLabel, receiptPaper, buttonBox);
+        
+        printDialog.getDialogPane().setContent(mainBox);
+        printDialog.getDialogPane().setStyle("-fx-background-color: #F3F4F6;");
+        printDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        printDialog.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
+        
+        printDialog.showAndWait();
     }
 
     private void showReturnExchangeDialog(Receipt receipt) {

@@ -67,3 +67,8 @@ bdeddf21|asdasda|2025-11-27 00:40:37|Cappuccino|Regular|Hot
 1014|Glennyboiis|2025-11-27 21:38:52|Croissants|Regular|Hot
 1021|KUPALOGSGSGS|2025-11-27 21:45:22|Iced Frappe|Regular|Hot
 1022|Daigo|2025-11-27 21:46:02|Croissants|Regular|Hot
+1024|Glennyboi|2025-11-27 21:49:20|Croissants|Regular|Hot
+1026|Guest|2025-11-27 21:52:22|Mango|Regular|Hot
+1027|Guest|2025-11-27 21:55:24|Mango|Regular|Hot
+1038|JEROME|2025-11-27 22:31:27|Cappuccino|Regular|Hot
+1041|Guest|2025-11-27 22:49:49|Cappuccino|Regular|Hot
