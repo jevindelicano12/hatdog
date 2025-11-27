@@ -2316,18 +2316,19 @@ public class CashierApp extends Application {
         TextField searchField = new TextField();
         searchField.setPromptText("🔍 Search Order ID / Customer...");
         searchField.setPrefWidth(400);
-        searchField.setStyle("-fx-background-color: #343a40; -fx-text-fill: white; -fx-prompt-text-fill: #6c757d; -fx-background-radius: 8; -fx-padding: 12 15; -fx-font-size: 14px; -fx-border-color: transparent;");
+        searchField.setStyle("-fx-background-color: white; -fx-text-fill: #1a1a1a; -fx-prompt-text-fill: #6c757d; -fx-background-radius: 8; -fx-padding: 12 15; -fx-font-size: 14px; -fx-border-color: #1a1a1a; -fx-border-width: 1; -fx-border-radius: 8;");
         HBox.setHgrow(searchField, Priority.ALWAYS);
         
-        Button searchBtn = new Button("\ud83d\udd0d Search");
-        searchBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6c757d; -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-size: 14px;");
-        searchBtn.setOnAction(e -> searchReceipts(searchField.getText()));
+        // Auto-search as user types
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            searchReceipts(newVal);
+        });
         
         Button refreshBtn = new Button("🔄 Refresh");
         refreshBtn.setStyle("-fx-background-color: #0ba360; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 10 20; -fx-cursor: hand; -fx-font-weight: 600; -fx-font-size: 14px;");
         refreshBtn.setOnAction(e -> loadReceiptHistory());
         
-        searchBox.getChildren().addAll(searchField, searchBtn, refreshBtn);
+        searchBox.getChildren().addAll(searchField, refreshBtn);
         
         // Split pane for table and details
         SplitPane splitPane = new SplitPane();
@@ -3154,6 +3155,22 @@ public class CashierApp extends Application {
         Spinner<Integer> quantitySpinner = new Spinner<>(1, 100, 1);
         quantitySpinner.setEditable(true);
         
+        // Size selection (for beverages)
+        Label sizeLabel = new Label("Size:");
+        sizeLabel.setFont(Font.font("Segoe UI", 12));
+        ComboBox<String> sizeCombo = new ComboBox<>();
+        sizeCombo.setStyle("-fx-font-size: 11;");
+        sizeCombo.getItems().addAll("Small", "Medium", "Large");
+        sizeCombo.setValue("Medium");
+        
+        // Temperature selection (for beverages)
+        Label tempLabel = new Label("Temperature:");
+        tempLabel.setFont(Font.font("Segoe UI", 12));
+        ComboBox<String> tempCombo = new ComboBox<>();
+        tempCombo.setStyle("-fx-font-size: 11;");
+        tempCombo.getItems().addAll("Hot", "Iced");
+        tempCombo.setValue("Hot");
+        
         Label addOnsLabel = new Label("Add-ons:");
         addOnsLabel.setFont(Font.font("Segoe UI", 12));
         ComboBox<String> addOnsCombo = new ComboBox<>();
@@ -3168,12 +3185,63 @@ public class CashierApp extends Application {
         remarksField.setPromptText("Special requests or notes...");
         remarksField.setPrefWidth(300);
         
+        // Price display label
+        Label priceDisplayLabel = new Label("Price: ₱0.00");
+        priceDisplayLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
+        priceDisplayLabel.setTextFill(Color.web("#4CAF50"));
+        
         itemDetailsGrid.add(quantityLabel, 0, 0);
         itemDetailsGrid.add(quantitySpinner, 1, 0);
-        itemDetailsGrid.add(addOnsLabel, 0, 1);
-        itemDetailsGrid.add(addOnsCombo, 1, 1);
-        itemDetailsGrid.add(remarksLabel, 0, 2);
-        itemDetailsGrid.add(remarksField, 1, 2);
+        itemDetailsGrid.add(sizeLabel, 0, 1);
+        itemDetailsGrid.add(sizeCombo, 1, 1);
+        itemDetailsGrid.add(tempLabel, 0, 2);
+        itemDetailsGrid.add(tempCombo, 1, 2);
+        itemDetailsGrid.add(addOnsLabel, 0, 3);
+        itemDetailsGrid.add(addOnsCombo, 1, 3);
+        itemDetailsGrid.add(remarksLabel, 0, 4);
+        itemDetailsGrid.add(remarksField, 1, 4);
+        itemDetailsGrid.add(priceDisplayLabel, 0, 5, 2, 1);
+        
+        // Update price display when selection changes
+        Runnable updatePriceDisplay = () -> {
+            Product selected = productsTable.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                priceDisplayLabel.setText("Price: ₱0.00");
+                return;
+            }
+            
+            String selectedSize = sizeCombo.getValue();
+            double sizePrice = 0.0;
+            
+            // Check if product is a beverage (has size surcharges)
+            Map<String, Double> sizeSurcharges = selected.getSizeSurcharges();
+            boolean isBeverage = sizeSurcharges != null && !sizeSurcharges.isEmpty();
+            
+            if (isBeverage && sizeSurcharges.containsKey(selectedSize)) {
+                sizePrice = sizeSurcharges.get(selectedSize);
+            } else {
+                sizePrice = selected.getPrice();
+            }
+            
+            // Add add-ons cost
+            double addOnsCost = 0;
+            String addOnSelection = addOnsCombo.getValue();
+            if (!addOnSelection.equals("None")) {
+                String[] parts = addOnSelection.split(" \\(₱");
+                try {
+                    addOnsCost = Double.parseDouble(parts[1].replace(")", ""));
+                } catch (Exception ex) { addOnsCost = 0; }
+            }
+            
+            int qty = quantitySpinner.getValue();
+            double totalPrice = (sizePrice + addOnsCost) * qty;
+            priceDisplayLabel.setText(String.format("Price: ₱%.2f", totalPrice));
+        };
+        
+        productsTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updatePriceDisplay.run());
+        sizeCombo.setOnAction(e -> updatePriceDisplay.run());
+        addOnsCombo.setOnAction(e -> updatePriceDisplay.run());
+        quantitySpinner.valueProperty().addListener((obs, oldVal, newVal) -> updatePriceDisplay.run());
         
         // Buttons
         HBox buttonBox = new HBox(10);
@@ -3207,15 +3275,30 @@ public class CashierApp extends Application {
             }
             
             String remarks = remarksField.getText().trim();
+            String selectedSize = sizeCombo.getValue();
+            String selectedTemp = tempCombo.getValue();
             
-            // Create OrderItem for exchange
-            com.coffeeshop.model.OrderItem exchangeItem = new com.coffeeshop.model.OrderItem(selected, qty, "Hot", 50);
+            // Calculate size cost based on product type
+            double sizeCost = 0.0;
+            Map<String, Double> sizeSurcharges = selected.getSizeSurcharges();
+            boolean isBeverage = sizeSurcharges != null && !sizeSurcharges.isEmpty();
+            
+            if (isBeverage && sizeSurcharges.containsKey(selectedSize)) {
+                // For beverages, sizeCost IS the price
+                sizeCost = sizeSurcharges.get(selectedSize);
+            } else {
+                // For pastries/non-beverages, use product base price as sizeCost (no separate size pricing)
+                sizeCost = selected.getPrice();
+            }
+            
+            // Create OrderItem for exchange with proper values
+            com.coffeeshop.model.OrderItem exchangeItem = new com.coffeeshop.model.OrderItem(selected, qty, selectedTemp, 50);
+            exchangeItem.setSize(selectedSize);
+            exchangeItem.setSizeCost(sizeCost);
             exchangeItem.setAddOns(addOnsDisplay);
             exchangeItem.setAddOnsCost(addOnsCost);
             
-            // Store remarks in a way we can access later (we'll add a field to OrderItem if needed)
-            // For now, we can encode it with the product name or store it separately
-            // Let's add it to add-ons display for now
+            // Store remarks in add-ons display
             String finalAddOns = addOnsDisplay + (remarks.isEmpty() ? "" : " | Remarks: " + remarks);
             exchangeItem.setAddOns(finalAddOns);
             

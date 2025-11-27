@@ -2985,6 +2985,29 @@ public class CustomerApp extends Application {
             if (added >= 3) break;
             if (p.getName().equals(currentProduct.getName())) continue;
 
+            // Determine if this suggestion product is a pastry/bakery or a beverage
+            boolean isSuggestionPastry = false;
+            try {
+                String cat = p.getCategory().toLowerCase();
+                isSuggestionPastry = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
+            } catch (Exception ignored) {}
+
+            // Calculate the display price - for pastries use base price, for beverages use smallest size price
+            final double displayPrice;
+            if (isSuggestionPastry) {
+                displayPrice = p.getPrice();
+            } else {
+                // Beverage - get the default (smallest) size price
+                Map<String, Double> sizes = null;
+                try { sizes = p.getSizeSurcharges(); } catch (Exception ignored) {}
+                if (sizes != null && !sizes.isEmpty()) {
+                    // Get the smallest size price (first entry or minimum)
+                    displayPrice = sizes.values().stream().min(Double::compare).orElse(0.0);
+                } else {
+                    displayPrice = p.getPrice(); // fallback
+                }
+            }
+
             HBox cardRow = new HBox(12);
             cardRow.setPadding(new Insets(10));
             cardRow.setAlignment(Pos.CENTER_LEFT);
@@ -3029,7 +3052,7 @@ public class CustomerApp extends Application {
             name.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
             name.setTextFill(Color.web("#1A1A1A"));
 
-            Label unitPrice = new Label(String.format("₱%.2f", p.getPrice()));
+            Label unitPrice = new Label(String.format("₱%.2f", displayPrice));
             unitPrice.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
             unitPrice.setTextFill(Color.web("#757575"));
 
@@ -3070,7 +3093,7 @@ public class CustomerApp extends Application {
             qtyLabel.setAlignment(Pos.CENTER);
             
             // Total price label (qty * unit price) - declare early so handlers can reference it
-            Label totalPriceLabel = new Label(String.format("₱%.2f", p.getPrice() * qty[0]));
+            Label totalPriceLabel = new Label(String.format("₱%.2f", displayPrice * qty[0]));
             totalPriceLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
             totalPriceLabel.setTextFill(Color.web("#1A1A1A"));
 
@@ -3079,26 +3102,26 @@ public class CustomerApp extends Application {
                     qty[0]--;
                     qtyLabel.setText(String.valueOf(qty[0]));
                     if (addChk.isSelected()) {
-                        double delta = -p.getPrice();
+                        double delta = -displayPrice;
                         suggestionsExtra.set(suggestionsExtra.get() + delta);
                     }
-                    totalPriceLabel.setText(String.format("₱%.2f", p.getPrice() * qty[0]));
+                    totalPriceLabel.setText(String.format("₱%.2f", displayPrice * qty[0]));
                 }
             });
             plus.setOnAction(ev -> {
                 qty[0]++;
                 qtyLabel.setText(String.valueOf(qty[0]));
                 if (addChk.isSelected()) {
-                    double delta = p.getPrice();
+                    double delta = displayPrice;
                     suggestionsExtra.set(suggestionsExtra.get() + delta);
                 }
-                totalPriceLabel.setText(String.format("₱%.2f", p.getPrice() * qty[0]));
+                totalPriceLabel.setText(String.format("₱%.2f", displayPrice * qty[0]));
             });
 
             qtyBox.getChildren().addAll(minus, qtyLabel, plus);
             // When checkbox toggles, update suggestionsExtra and selectedSuggestions
             addChk.selectedProperty().addListener((obs, oldV, newV) -> {
-                double delta = newV ? p.getPrice() * qty[0] : -p.getPrice() * qty[0];
+                double delta = newV ? displayPrice * qty[0] : -displayPrice * qty[0];
                 suggestionsExtra.set(suggestionsExtra.get() + delta);
                 if (newV) {
                     if (!selectedSuggestions.contains(p)) selectedSuggestions.add(p);

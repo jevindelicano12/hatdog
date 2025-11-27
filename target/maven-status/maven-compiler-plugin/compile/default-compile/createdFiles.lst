@@ -1,4 +1,5 @@
 com\coffeeshop\CashierApp$1.class
+com\coffeeshop\AdminApp$StockAlertRow.class
 com\coffeeshop\model\ReturnTransaction.class
 com\coffeeshop\model\Complaint.class
 com\coffeeshop\AdminApp$1.class
@@ -29,6 +30,7 @@ com\coffeeshop\util\Logger.class
 com\coffeeshop\CashierApp.class
 com\coffeeshop\util\AlertUtils.class
 com\coffeeshop\service\PersistenceManager$2.class
+com\coffeeshop\AdminApp$11.class
 com\coffeeshop\AdminApp$6.class
 com\coffeeshop\CustomerApp$2.class
 module-info.class
