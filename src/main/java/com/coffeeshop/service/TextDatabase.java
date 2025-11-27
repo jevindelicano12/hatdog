@@ -13,19 +13,65 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class TextDatabase {
-    private static final String DATA_DIR = "data";
-    private static final String ITEMS_DB = DATA_DIR + "/items_database.txt";
-    private static final String ORDERS_DB = DATA_DIR + "/orders_database.txt";
-    private static final String RECEIPTS_DB = DATA_DIR + "/receipts_database.txt";
-    private static final String PENDING_ORDERS_DB = DATA_DIR + "/pending_orders.txt";
-    private static final String RETURNS_DB = DATA_DIR + "/returns_database.txt";
-    private static final String COMPLAINTS_DB = DATA_DIR + "/complaints_database.txt";
+    // Use stable user-level directory to persist data reliably (same as PersistenceManager)
+    private static final String BASE_DIR = System.getProperty("user.home") + File.separator + ".coffeeshop";
+    private static final String DATA_DIR = BASE_DIR + File.separator + "data";
+    private static final String ITEMS_DB = DATA_DIR + File.separator + "items_database.txt";
+    private static final String ORDERS_DB = DATA_DIR + File.separator + "orders_database.txt";
+    private static final String RECEIPTS_DB = DATA_DIR + File.separator + "receipts_database.txt";
+    private static final String PENDING_ORDERS_DB = DATA_DIR + File.separator + "pending_orders.txt";
+    private static final String RETURNS_DB = DATA_DIR + File.separator + "returns_database.txt";
+    private static final String COMPLAINTS_DB = DATA_DIR + File.separator + "complaints_database.txt";
 
-    // Ensure data directory exists
+    // Ensure data directory exists and migrate legacy data
     public static void ensureDataDirectory() {
+        File base = new File(BASE_DIR);
         File dir = new File(DATA_DIR);
-        if (!dir.exists()) {
-            dir.mkdirs();
+        if (!base.exists()) base.mkdirs();
+        if (!dir.exists()) dir.mkdirs();
+        
+        // Migrate legacy project-local data folder if it exists
+        migrateLegacyData();
+    }
+    
+    // Migrate data from legacy project-local data/ folder to stable user home location
+    private static void migrateLegacyData() {
+        try {
+            File legacy = new File("data");
+            if (legacy.exists() && legacy.isDirectory()) {
+                File[] files = legacy.listFiles();
+                if (files == null) return;
+                
+                for (File f : files) {
+                    if (f == null || !f.isFile()) continue;
+                    // Only migrate .txt files that TextDatabase manages
+                    String name = f.getName();
+                    if (!name.endsWith(".txt")) continue;
+                    
+                    File dest = new File(DATA_DIR, name);
+                    // If destination doesn't exist OR source is newer, copy/merge
+                    if (!dest.exists()) {
+                        // Copy file
+                        try (InputStream in = new FileInputStream(f);
+                             OutputStream out = new FileOutputStream(dest)) {
+                            byte[] buf = new byte[8192];
+                            int r;
+                            while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
+                        }
+                    } else if (f.lastModified() > dest.lastModified()) {
+                        // Source is newer - append new content (for database files)
+                        // For simplicity, just use the newer file
+                        try (InputStream in = new FileInputStream(f);
+                             OutputStream out = new FileOutputStream(dest)) {
+                            byte[] buf = new byte[8192];
+                            int r;
+                            while ((r = in.read(buf)) != -1) out.write(buf, 0, r);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Migration is best-effort
         }
     }
 

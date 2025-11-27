@@ -89,4 +89,3 @@ bdeddf21|asdasda|2025-11-27 00:40:37|Cappuccino|Regular|Hot
 1008|Juan|2025-11-28 01:50:29|Croissants|Regular|Hot
 1012|daigo|2025-11-28 03:35:43|Cappuccino|Regular|Hot
 1024|JHAMESSS|2025-11-28 05:54:02|Espresso|Regular|Hot
-1026|DAIGODS|2025-11-28 05:56:30|Cappuccino|Regular|Hot
