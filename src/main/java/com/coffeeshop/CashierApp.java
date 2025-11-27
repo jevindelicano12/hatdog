@@ -879,6 +879,19 @@ public class CashierApp extends Application {
         // Save order items to order/item DBs
         saveOrderToDatabase(order, customerName);
 
+        // Record cash transaction for remittance tracking (at payment time, not pickup)
+        CashTransaction tx = new CashTransaction(
+            UUID.randomUUID().toString(),
+            currentCashierId,
+            java.time.LocalDateTime.now(),
+            CashTransaction.TYPE_SALE,
+            order.getTotalAmount(),
+            po.getOrderId(),
+            "Payment received from " + customerName,
+            null
+        );
+        TextDatabase.saveCashTransaction(tx);
+
         // Update pending order status to PAID and persist
         po.setStatus(PendingOrder.STATUS_PAID);
         TextDatabase.savePendingOrder(po);
@@ -1600,18 +1613,8 @@ public class CashierApp extends Application {
         TextDatabase.markOrderCompleted(po.getOrderId());
         orderQueue.remove(po);
         
-        // Record cash transaction for remittance tracking
-        CashTransaction tx = new CashTransaction(
-            UUID.randomUUID().toString(),
-            currentCashierId,
-            java.time.LocalDateTime.now(),
-            CashTransaction.TYPE_SALE,
-            po.getTotalAmount(),
-            po.getOrderId(),
-            "Order completed for " + po.getCustomerName(),
-            null
-        );
-        TextDatabase.saveCashTransaction(tx);
+        // Cash transaction is already recorded at payment time (in payAndQueue)
+        // No need to record again at pickup - just mark as completed
         
         // Keep customer name and order type mapping so completed orders still show correct customer
         // (do not remove from orderCustomerNames/orderTypes)
@@ -3011,7 +3014,8 @@ public class CashierApp extends Application {
         cancelBtn.setOnAction(e -> dialogStage.close());
         
         Button processBtn = new Button("Process Return/Exchange");
-        processBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30; -fx-cursor: hand;");
+        processBtn.setStyle("-fx-background-color: #CCCCCC; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30;");
+        processBtn.setDisable(true); // Initially disabled until valid selection is made
         processBtn.setOnAction(e -> {
             // Handle optional complaint submission (only if no existing complaint)
             if (fileComplaintCheckRef.isSelected() && !hasExistingComplaint) {
@@ -3080,6 +3084,24 @@ public class CashierApp extends Application {
                 refundLabel.setText("Net Refund:");
             } else {
                 refundLabel.setText("Additional Payment:");
+            }
+            
+            // Enable/disable process button based on valid selection
+            boolean hasAnyAction = returnControls.stream()
+                .anyMatch(rc -> rc.getAction() != ReturnAction.KEEP);
+            boolean hasExchangeAction = returnControls.stream()
+                .anyMatch(rc -> rc.getAction() == ReturnAction.EXCHANGE);
+            
+            // Button is enabled if:
+            // 1. At least one item is marked for REFUND or EXCHANGE, AND
+            // 2. If any item is marked for EXCHANGE, exchange items must be selected
+            boolean isValid = hasAnyAction && (!hasExchangeAction || !exchangeItems.isEmpty());
+            
+            processBtn.setDisable(!isValid);
+            if (isValid) {
+                processBtn.setStyle("-fx-background-color: #ff9800; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30; -fx-cursor: hand;");
+            } else {
+                processBtn.setStyle("-fx-background-color: #CCCCCC; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 12 30;");
             }
         };
         
@@ -3395,6 +3417,15 @@ public class CashierApp extends Application {
             return;
         }
         
+        // Check if any items are marked for EXCHANGE - if so, exchange items must be selected
+        boolean hasExchangeAction = returnControls.stream()
+            .anyMatch(rc -> rc.getAction() == ReturnAction.EXCHANGE);
+        
+        if (hasExchangeAction && exchangeItems.isEmpty()) {
+            showAlert("Exchange Items Required", "You have selected items for exchange but haven't chosen any replacement items.\n\nPlease click 'Add Exchange Item' to select the items you want to exchange for.", Alert.AlertType.WARNING);
+            return;
+        }
+        
         // Calculate if customer needs to pay additional amount
         double returnCredit = itemsToReturn.stream()
             .mapToDouble(rc -> rc.getItemData().getSubtotal())
@@ -3466,6 +3497,40 @@ public class CashierApp extends Application {
 
         // Save return transaction
         TextDatabase.saveReturnTransaction(returnTx);
+
+        // Record cash transaction(s) for remittance tracking
+        // 1. If there's a refund (return credit > exchange total), record a REFUND transaction
+        // 2. If there's additional payment (exchange total > return credit), record a SALE transaction
+        double netAmount = returnCredit - exchangeTotal; // positive = refund to customer, negative = customer pays
+        
+        if (netAmount > 0) {
+            // Customer gets money back - record as REFUND (negative amount in remittance)
+            CashTransaction refundTx = new CashTransaction(
+                UUID.randomUUID().toString(),
+                currentCashierId != null ? currentCashierId : "CASHIER",
+                java.time.LocalDateTime.now(),
+                CashTransaction.TYPE_REFUND,
+                -netAmount, // Negative because it's money going out
+                returnId,
+                "Refund for return - Original receipt: " + originalReceipt.getReceiptId(),
+                null
+            );
+            TextDatabase.saveCashTransaction(refundTx);
+        } else if (netAmount < 0) {
+            // Customer pays additional - record as SALE (positive amount in remittance)
+            CashTransaction saleTx = new CashTransaction(
+                UUID.randomUUID().toString(),
+                currentCashierId != null ? currentCashierId : "CASHIER",
+                java.time.LocalDateTime.now(),
+                CashTransaction.TYPE_SALE,
+                Math.abs(netAmount), // Positive because it's money coming in
+                returnId,
+                "Additional payment for exchange - Original receipt: " + originalReceipt.getReceiptId(),
+                null
+            );
+            TextDatabase.saveCashTransaction(saleTx);
+        }
+        // If netAmount == 0, it's an even exchange with no cash movement
 
         // Generate return receipt
         generateReturnReceipt(returnTx, originalReceipt);

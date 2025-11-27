@@ -19,8 +19,8 @@ public class OrderItem {
         this.addOns = "";
         this.addOnsCost = 0.0;
         this.specialRequest = "";
-        this.size = "Large"; // Default size
-        this.sizeCost = 30.0; // Default to Large cost
+        this.size = "Regular"; // Default size
+        this.sizeCost = 0.0; // Default to 0 - will be set properly by handleAddToCart
     }
 
     public Product getProduct() {

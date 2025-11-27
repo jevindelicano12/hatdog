@@ -1927,11 +1927,31 @@ public class AdminApp extends Application {
         ComboBox<String> cashierFilter = new ComboBox<>();
         cashierFilter.getItems().add("All Cashiers");
         
-        // Load all cashiers
+        // Load all cashiers from accounts AND from actual transaction history
+        // This ensures we show all cashiers who have transactions, even if deleted from accounts
+        java.util.Set<String> cashierNames = new java.util.TreeSet<>();
+        
+        // Add cashiers from accounts
         java.util.List<CashierAccount> accounts = com.coffeeshop.service.PersistenceManager.loadAccounts();
         for (CashierAccount acc : accounts) {
-            cashierFilter.getItems().add(acc.getUsername());
+            if (acc.getUsername() != null && !acc.getUsername().trim().isEmpty()) {
+                cashierNames.add(acc.getUsername());
+            }
         }
+        
+        // Add cashiers from actual transactions (in case some are not in accounts anymore)
+        java.util.List<CashTransaction> allTx = TextDatabase.loadAllCashTransactions();
+        for (CashTransaction tx : allTx) {
+            if (tx.getCashierId() != null && !tx.getCashierId().trim().isEmpty()) {
+                cashierNames.add(tx.getCashierId());
+            }
+        }
+        
+        // Add all unique cashier names to the filter dropdown
+        for (String name : cashierNames) {
+            cashierFilter.getItems().add(name);
+        }
+        
         cashierFilter.setValue("All Cashiers");
         cashierFilter.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
         

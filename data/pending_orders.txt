@@ -7,3 +7,4 @@
 1032|Guest|2025-11-27 22:00:55|60.0|PENDING|Dine In||[Cappuccino~60.0~1~Hot~0~~0.0~~Small~0.0]
 1034|Guest|2025-11-27 22:03:07|60.0|PENDING|Dine In||[Cappuccino~60.0~1~Hot~0~~0.0~~Small~0.0]
 1036|Guest|2025-11-27 22:04:45|60.0|PENDING|Dine In||[Cappuccino~60.0~1~Hot~0~~0.0~~Small~0.0]
+EX-000|S|2025-11-28 00:01:13|4.5|PREPARING|Exchange|cashier2|[Iced Frappe~4.5~1~Hot~0~~0.0~~~0.0]

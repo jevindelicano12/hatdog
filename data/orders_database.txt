@@ -75,3 +75,7 @@ bdeddf21|asdasda|2025-11-27 00:40:37|Cappuccino|Regular|Hot
 1043|fffff|2025-11-27 22:53:07|Cappuccino|Regular|Hot
 1044|yoyoyo|2025-11-27 22:54:34|Cappuccino|Regular|Hot
 1045|FFFF|2025-11-27 22:58:17|Cappuccino|Regular|Hot
+1056|JERWIN REMIT|2025-11-27 23:48:42|Cappuccino|Regular|Hot
+1057|CASHIER2|2025-11-27 23:49:02|Mango|Regular|Hot
+1059|S|2025-11-27 23:55:51|Croissants|Regular|Hot
+1058|Guest|2025-11-27 23:56:31|Croissants|Regular|Hot

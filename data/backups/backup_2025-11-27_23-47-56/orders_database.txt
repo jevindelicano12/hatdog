@@ -70,3 +70,8 @@ bdeddf21|asdasda|2025-11-27 00:40:37|Cappuccino|Regular|Hot
 1024|Glennyboi|2025-11-27 21:49:20|Croissants|Regular|Hot
 1026|Guest|2025-11-27 21:52:22|Mango|Regular|Hot
 1027|Guest|2025-11-27 21:55:24|Mango|Regular|Hot
+1038|JEROME|2025-11-27 22:31:27|Cappuccino|Regular|Hot
+1041|Guest|2025-11-27 22:49:49|Cappuccino|Regular|Hot
+1043|fffff|2025-11-27 22:53:07|Cappuccino|Regular|Hot
+1044|yoyoyo|2025-11-27 22:54:34|Cappuccino|Regular|Hot
+1045|FFFF|2025-11-27 22:58:17|Cappuccino|Regular|Hot
