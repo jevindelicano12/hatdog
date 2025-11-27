@@ -9,6 +9,11 @@ public class Product {
     private double price;
     private Map<String, Double> recipe; // ingredient name -> quantity needed per serving
     private String category;
+    private Map<String, Double> sizeSurcharges; // e.g. Small->0.0, Medium->20.0, Large->30.0
+    private boolean hasSizes = true;
+    private boolean hasSmall = true;
+    private boolean hasMedium = true;
+    private boolean hasLarge = true;
 
     public Product(String id, String name, double price) {
         this.id = id;
@@ -16,6 +21,11 @@ public class Product {
         this.price = price;
         this.recipe = new HashMap<>();
         this.category = "Uncategorized";
+        this.sizeSurcharges = new HashMap<>();
+        // sensible defaults
+        this.sizeSurcharges.put("Small", 0.0);
+        this.sizeSurcharges.put("Medium", 20.0);
+        this.sizeSurcharges.put("Large", 30.0);
     }
 
     public Product(String id, String name, double price, Map<String, Double> recipe) {
@@ -32,6 +42,10 @@ public class Product {
         this.price = price;
         this.recipe = recipe != null ? recipe : new HashMap<>();
         this.category = category != null ? category : "Uncategorized";
+        this.sizeSurcharges = new HashMap<>();
+        this.sizeSurcharges.put("Small", 0.0);
+        this.sizeSurcharges.put("Medium", 20.0);
+        this.sizeSurcharges.put("Large", 30.0);
     }
 
     // Getters and setters
@@ -73,6 +87,52 @@ public class Product {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public Map<String, Double> getSizeSurcharges() {
+        if (this.sizeSurcharges == null) {
+            this.sizeSurcharges = new HashMap<>();
+            this.sizeSurcharges.put("Small", 0.0);
+            this.sizeSurcharges.put("Medium", 20.0);
+            this.sizeSurcharges.put("Large", 30.0);
+        }
+        return sizeSurcharges;
+    }
+
+    public boolean isHasSizes() {
+        return hasSizes;
+    }
+
+    public void setHasSizes(boolean hasSizes) {
+        this.hasSizes = hasSizes;
+    }
+
+    public boolean isHasSmall() {
+        return hasSmall;
+    }
+
+    public void setHasSmall(boolean hasSmall) {
+        this.hasSmall = hasSmall;
+    }
+
+    public boolean isHasMedium() {
+        return hasMedium;
+    }
+
+    public void setHasMedium(boolean hasMedium) {
+        this.hasMedium = hasMedium;
+    }
+
+    public boolean isHasLarge() {
+        return hasLarge;
+    }
+
+    public void setHasLarge(boolean hasLarge) {
+        this.hasLarge = hasLarge;
+    }
+
+    public void setSizeSurcharges(Map<String, Double> sizeSurcharges) {
+        this.sizeSurcharges = sizeSurcharges != null ? sizeSurcharges : new HashMap<>();
     }
 
     public void addIngredient(String ingredientName, double quantity) {

@@ -1,0 +1,43 @@
+[
+  {
+    "id": "R001",
+    "text": "Less Ice",
+    "active": true,
+    "category": "All",
+    "applicableProductIds": [
+      "P020"
+    ]
+  },
+  {
+    "id": "R002",
+    "text": "No Ice",
+    "active": true,
+    "category": "All",
+    "applicableProductIds": []
+  },
+  {
+    "id": "R003",
+    "text": "Less Sweet",
+    "active": false,
+    "category": "All",
+    "applicableProductIds": [
+      "P019"
+    ]
+  },
+  {
+    "id": "R004",
+    "text": "No Sugar",
+    "active": true,
+    "category": "All",
+    "applicableProductIds": [
+      "P020"
+    ]
+  },
+  {
+    "id": "R006",
+    "text": "No Whip",
+    "active": true,
+    "category": "All",
+    "applicableProductIds": []
+  }
+]

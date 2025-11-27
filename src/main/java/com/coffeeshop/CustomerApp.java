@@ -1,6 +1,8 @@
 package com.coffeeshop;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 
 import com.coffeeshop.model.Order;
 import com.coffeeshop.model.OrderItem;
@@ -45,6 +47,7 @@ public class CustomerApp extends Application {
     private Store store;
     // Track currently open customization product so it can be refreshed when admin updates special requests
     private Product currentCustomizationProduct = null;
+    private Double customizationDefaultSize = null; // stores selected default size on card clicks
     private Order currentOrder;
     private OrderItem customizingOrderItem = null; // Track item being customized from cart
     private Stage primaryStage;
@@ -97,6 +100,13 @@ public class CustomerApp extends Application {
                         try { imageCache.clear(); } catch (Exception ignored) {}
                         imageFileIndex = null; // force rebuild of index on next image load
                         refreshProductGrid();
+                        // If customization dialog is open for a product, refresh it using the latest Product instance
+                        if (currentCustomizationProduct != null) {
+                            try {
+                                Product updated = Store.getInstance().getProductById(currentCustomizationProduct.getId());
+                                if (updated != null) showCustomizationPage(updated);
+                            } catch (Exception ignored) {}
+                        }
                     } catch (Exception ignored) {}
                 });
             });
@@ -105,8 +115,10 @@ public class CustomerApp extends Application {
                 javafx.application.Platform.runLater(() -> {
                     try {
                         if (currentCustomizationProduct != null) {
-                            // reopen the customization modal for the same product to refresh quick-buttons
-                            showCustomizationPage(currentCustomizationProduct);
+                            try {
+                                Product updated = Store.getInstance().getProductById(currentCustomizationProduct.getId());
+                                if (updated != null) showCustomizationPage(updated);
+                            } catch (Exception ignored) {}
                         }
                     } catch (Exception ignored) {}
                 });
@@ -116,7 +128,10 @@ public class CustomerApp extends Application {
                 javafx.application.Platform.runLater(() -> {
                     try {
                         if (currentCustomizationProduct != null) {
-                            showCustomizationPage(currentCustomizationProduct);
+                            try {
+                                Product updated = Store.getInstance().getProductById(currentCustomizationProduct.getId());
+                                if (updated != null) showCustomizationPage(updated);
+                            } catch (Exception ignored) {}
                         }
                     } catch (Exception ignored) {}
                 });
@@ -1323,7 +1338,7 @@ public class CustomerApp extends Application {
         nameLabel.setTextFill(Color.web("#1A1A1A"));
         nameLabel.setWrapText(false);
         nameLabel.setMaxWidth(Double.MAX_VALUE);
-
+        
         // Bottom row: price on left, button on right
         HBox bottomRow = new HBox(8);
         bottomRow.setAlignment(Pos.CENTER_LEFT);
@@ -1452,7 +1467,9 @@ public class CustomerApp extends Application {
         
         // Content: Size, Milk Options, Add-ons in a grid
         Label totalPrice = new Label("₱" + String.format("%.2f", product.getPrice())); // Default Small size
-        VBox customContent = createCompactCustomizationForm(product, totalPrice);
+        VBox customContent = createCompactCustomizationForm(product, totalPrice, customizationDefaultSize);
+        // Clear default after it has been used to avoid leaking selection to other products
+        customizationDefaultSize = null;
         
         // Bottom section: Quantity, Total, Add to Order button
         Separator sep = new Separator();
@@ -1537,7 +1554,7 @@ public class CustomerApp extends Application {
     }
     
     // Create compact customization form with size, milk, and add-ons
-    private VBox createCompactCustomizationForm(Product product, Label totalPrice) {
+    private VBox createCompactCustomizationForm(Product product, Label totalPrice, Double initialSize) {
         VBox form = new VBox(20);
         form.setAlignment(Pos.TOP_LEFT);
         
@@ -1552,11 +1569,40 @@ public class CustomerApp extends Application {
         
         // Keep state for milk/add-on recompute (declared here so all sections can see it)
         final double[] selectedMilkCost = {0.0};
-        final double[] selectedSizeCost = {0}; // Default to Small - declared at method level so ADD-ONS section can access it
+        // Read size surcharges from product (fallbacks if not set)
+        Map<String, Double> _sizes = null;
+        try { _sizes = product.getSizeSurcharges(); } catch (Exception ignored) { _sizes = new HashMap<>(); }
+        final double smallS = _sizes.getOrDefault("Small", 0.0);
+        final double mediumS = _sizes.getOrDefault("Medium", 20.0);
+        final double largeS = _sizes.getOrDefault("Large", 30.0);
+        // Determine which sizes are available for this product
+        boolean hasSmall = true, hasMedium = true, hasLarge = true;
+        try { hasSmall = product.isHasSmall(); } catch (Exception ignored) {}
+        try { hasMedium = product.isHasMedium(); } catch (Exception ignored) {}
+        try { hasLarge = product.isHasLarge(); } catch (Exception ignored) {}
+
+        // Pick a sensible default selected size (first available: Small -> Medium -> Large) or use initialSize if provided
+        double defaultSize = 0.0;
+        if (initialSize != null) {
+            defaultSize = initialSize;
+            // ensure initial size exists in available sizes; otherwise fallback
+            boolean matching = false;
+            try { if (hasSmall && Math.abs(initialSize - smallS) < 0.001) matching = true; } catch (Exception ignored) {}
+            try { if (hasMedium && Math.abs(initialSize - mediumS) < 0.001) matching = true; } catch (Exception ignored) {}
+            try { if (hasLarge && Math.abs(initialSize - largeS) < 0.001) matching = true; } catch (Exception ignored) {}
+            if (!matching) initialSize = null; // ignore if not matching
+        }
+        if (initialSize == null) {
+            if (hasSmall) defaultSize = smallS;
+            else if (hasMedium) defaultSize = mediumS;
+            else if (hasLarge) defaultSize = largeS;
+        }
+        final double[] selectedSizeCost = { defaultSize }; // declared at method level so ADD-ONS section can access it
         final Runnable[] recomputeRef = new Runnable[1];
 
-        // SIZE SECTION - converted to clickable pills
-        if (!isPastry) {
+        // SIZE SECTION - converted to clickable pills (only show if at least one size is available)
+        boolean hasAnySizes = hasSmall || hasMedium || hasLarge;
+        if (!isPastry && hasAnySizes) {
             VBox sizeSection = new VBox(12);
             Label sizeTitle = new Label("SELECT SIZE");
             sizeTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
@@ -1573,68 +1619,76 @@ public class CustomerApp extends Application {
             final Button[] smallBtnRef = new Button[1];
             final Button[] mediumBtnRef = new Button[1];
             final Button[] largeBtnRef = new Button[1];
-            
-            Button smallBtn = new Button("Small (₱0)");
-            smallBtnRef[0] = smallBtn;
-            smallBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            smallBtn.setPadding(new Insets(8, 16, 8, 16));
-            smallBtn.setStyle(getPillDefaultStyle());
-            smallBtn.setOnAction(e -> {
-                selectedSizeCost[0] = 0;
-                smallBtnRef[0].setStyle(getPillSelectedStyle());
-                mediumBtnRef[0].setStyle(getPillDefaultStyle());
-                largeBtnRef[0].setStyle(getPillDefaultStyle());
-                updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
-            });
-            smallBtn.setOnMouseEntered(e -> {
-                if (selectedSizeCost[0] != 0) smallBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
-            });
-            smallBtn.setOnMouseExited(e -> {
-                if (selectedSizeCost[0] != 0) smallBtn.setStyle(getPillDefaultStyle());
-                else smallBtn.setStyle(getPillSelectedStyle());
-            });
-            
-            Button mediumBtn = new Button("Medium (₱20)");
-            mediumBtnRef[0] = mediumBtn;
-            mediumBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            mediumBtn.setPadding(new Insets(8, 16, 8, 16));
-            mediumBtn.setStyle(getPillDefaultStyle());
-            mediumBtn.setOnAction(e -> {
-                selectedSizeCost[0] = 20;
-                smallBtnRef[0].setStyle(getPillDefaultStyle());
-                mediumBtnRef[0].setStyle(getPillSelectedStyle());
-                largeBtnRef[0].setStyle(getPillDefaultStyle());
-                updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
-            });
-            mediumBtn.setOnMouseEntered(e -> {
-                if (selectedSizeCost[0] != 20) mediumBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
-            });
-            mediumBtn.setOnMouseExited(e -> {
-                if (selectedSizeCost[0] != 20) mediumBtn.setStyle(getPillDefaultStyle());
-                else mediumBtn.setStyle(getPillSelectedStyle());
-            });
-            
-            Button largeBtn = new Button("Large (₱30)");
-            largeBtnRef[0] = largeBtn;
-            largeBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            largeBtn.setPadding(new Insets(8, 16, 8, 16));
-            largeBtn.setStyle(getPillDefaultStyle());
-            largeBtn.setOnAction(e -> {
-                selectedSizeCost[0] = 30;
-                smallBtnRef[0].setStyle(getPillDefaultStyle());
-                mediumBtnRef[0].setStyle(getPillDefaultStyle());
-                largeBtnRef[0].setStyle(getPillSelectedStyle());
-                updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
-            });
-            largeBtn.setOnMouseEntered(e -> {
-                if (selectedSizeCost[0] != 30) largeBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
-            });
-            largeBtn.setOnMouseExited(e -> {
-                if (selectedSizeCost[0] != 30) largeBtn.setStyle(getPillDefaultStyle());
-                else largeBtn.setStyle(getPillSelectedStyle());
-            });
-            
-            sizeButtons.getChildren().addAll(smallBtn, mediumBtn, largeBtn);
+
+            // Create buttons only for sizes that are available
+            if (hasSmall) {
+                Button smallBtn = new Button(String.format("Small (₱%.2f)", smallS));
+                smallBtnRef[0] = smallBtn;
+                smallBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                smallBtn.setPadding(new Insets(8, 16, 8, 16));
+                smallBtn.setStyle(Math.abs(selectedSizeCost[0] - smallS) < 0.001 ? getPillSelectedStyle() : getPillDefaultStyle());
+                smallBtn.setOnAction(e -> {
+                    selectedSizeCost[0] = smallS;
+                    if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillSelectedStyle());
+                    if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillDefaultStyle());
+                    if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillDefaultStyle());
+                    updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
+                });
+                smallBtn.setOnMouseEntered(e -> {
+                    if (selectedSizeCost[0] != smallS) smallBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                });
+                smallBtn.setOnMouseExited(e -> {
+                    if (Math.abs(selectedSizeCost[0] - smallS) >= 0.001) smallBtn.setStyle(getPillDefaultStyle());
+                    else smallBtn.setStyle(getPillSelectedStyle());
+                });
+                sizeButtons.getChildren().add(smallBtn);
+            }
+
+            if (hasMedium) {
+                Button mediumBtn = new Button(String.format("Medium (₱%.2f)", mediumS));
+                mediumBtnRef[0] = mediumBtn;
+                mediumBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                mediumBtn.setPadding(new Insets(8, 16, 8, 16));
+                mediumBtn.setStyle(Math.abs(selectedSizeCost[0] - mediumS) < 0.001 ? getPillSelectedStyle() : getPillDefaultStyle());
+                mediumBtn.setOnAction(e -> {
+                    selectedSizeCost[0] = mediumS;
+                    if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillDefaultStyle());
+                    if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillSelectedStyle());
+                    if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillDefaultStyle());
+                    updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
+                });
+                mediumBtn.setOnMouseEntered(e -> {
+                    if (selectedSizeCost[0] != mediumS) mediumBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                });
+                mediumBtn.setOnMouseExited(e -> {
+                    if (Math.abs(selectedSizeCost[0] - mediumS) >= 0.001) mediumBtn.setStyle(getPillDefaultStyle());
+                    else mediumBtn.setStyle(getPillSelectedStyle());
+                });
+                sizeButtons.getChildren().add(mediumBtn);
+            }
+
+            if (hasLarge) {
+                Button largeBtn = new Button(String.format("Large (₱%.2f)", largeS));
+                largeBtnRef[0] = largeBtn;
+                largeBtn.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                largeBtn.setPadding(new Insets(8, 16, 8, 16));
+                largeBtn.setStyle(Math.abs(selectedSizeCost[0] - largeS) < 0.001 ? getPillSelectedStyle() : getPillDefaultStyle());
+                largeBtn.setOnAction(e -> {
+                    selectedSizeCost[0] = largeS;
+                    if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillDefaultStyle());
+                    if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillDefaultStyle());
+                    if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillSelectedStyle());
+                    updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
+                });
+                largeBtn.setOnMouseEntered(e -> {
+                    if (selectedSizeCost[0] != largeS) largeBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                });
+                largeBtn.setOnMouseExited(e -> {
+                    if (Math.abs(selectedSizeCost[0] - largeS) >= 0.001) largeBtn.setStyle(getPillDefaultStyle());
+                    else largeBtn.setStyle(getPillSelectedStyle());
+                });
+                sizeButtons.getChildren().add(largeBtn);
+            }
             sizeSection.getChildren().addAll(sizeTitle, sizeDefault, sizeButtons);
             form.getChildren().add(sizeSection);
             
@@ -2284,13 +2338,30 @@ public class CustomerApp extends Application {
                 }
 
         // Cup size selection: Small (base), Medium (+₱5), Large (+₱10) - displayed as clickable pills
-        final int[] selectedSize = (!isPastry) ? new int[1] : null; // 0: Small, 5: Medium, 10: Large
-        if (selectedSize != null) selectedSize[0] = 0; // Default to Small
-        
+        // Cup size selection (drinks): use product-configured surcharges, displayed as clickable pills
+        Map<String, Double> _sz = null;
+        try { _sz = product.getSizeSurcharges(); } catch (Exception ignored) { _sz = new HashMap<>(); }
+        final double sSmall = _sz.getOrDefault("Small", 0.0);
+        final double sMedium = _sz.getOrDefault("Medium", 5.0);
+        final double sLarge = _sz.getOrDefault("Large", 10.0);
+
+        boolean hasSmall2 = true, hasMedium2 = true, hasLarge2 = true;
+        try { hasSmall2 = product.isHasSmall(); } catch (Exception ignored) {}
+        try { hasMedium2 = product.isHasMedium(); } catch (Exception ignored) {}
+        try { hasLarge2 = product.isHasLarge(); } catch (Exception ignored) {}
+
+        final double[] selectedSizeCost = (!isPastry) ? new double[1] : null;
+        if (selectedSizeCost != null) {
+            if (hasSmall2) selectedSizeCost[0] = sSmall;
+            else if (hasMedium2) selectedSizeCost[0] = sMedium;
+            else if (hasLarge2) selectedSizeCost[0] = sLarge;
+            else selectedSizeCost[0] = sSmall;
+        }
+
         final Button[] sizeSmallPillRef = new Button[1];
         final Button[] sizeMediumPillRef = new Button[1];
         final Button[] sizeLargePillRef = new Button[1];
-        
+
         final VBox sizeSection = (!isPastry) ? new VBox(8) : null;
         if (sizeSection != null) {
             Label sizeTitle = new Label("CUP SIZE");
@@ -2300,65 +2371,52 @@ public class CustomerApp extends Application {
 
             HBox sizeButtons = new HBox(10);
             sizeButtons.setAlignment(Pos.CENTER_LEFT);
-            
-            Button sizeSmallPill = new Button("Small (₱" + String.format("%.2f", product.getPrice()) + ")");
-            sizeSmallPillRef[0] = sizeSmallPill;
-            sizeSmallPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            sizeSmallPill.setPadding(new Insets(8, 16, 8, 16));
-            sizeSmallPill.setStyle(getPillSelectedStyle()); // Start selected
-            sizeSmallPill.setOnAction(e -> {
-                selectedSize[0] = 0;
-                sizeSmallPillRef[0].setStyle(getPillSelectedStyle());
-                sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
-                sizeLargePillRef[0].setStyle(getPillDefaultStyle());
-            });
-            sizeSmallPill.setOnMouseEntered(e -> {
-                if (selectedSize[0] != 0) sizeSmallPill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
-            });
-            sizeSmallPill.setOnMouseExited(e -> {
-                if (selectedSize[0] != 0) sizeSmallPill.setStyle(getPillDefaultStyle());
-                else sizeSmallPill.setStyle(getPillSelectedStyle());
-            });
 
-            Button sizeMediumPill = new Button("Medium (₱" + String.format("%.2f", product.getPrice() + 5.0) + ")");
-            sizeMediumPillRef[0] = sizeMediumPill;
-            sizeMediumPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            sizeMediumPill.setPadding(new Insets(8, 16, 8, 16));
-            sizeMediumPill.setStyle(getPillDefaultStyle());
-            sizeMediumPill.setOnAction(e -> {
-                selectedSize[0] = 5;
-                sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
-                sizeMediumPillRef[0].setStyle(getPillSelectedStyle());
-                sizeLargePillRef[0].setStyle(getPillDefaultStyle());
-            });
-            sizeMediumPill.setOnMouseEntered(e -> {
-                if (selectedSize[0] != 5) sizeMediumPill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
-            });
-            sizeMediumPill.setOnMouseExited(e -> {
-                if (selectedSize[0] != 5) sizeMediumPill.setStyle(getPillDefaultStyle());
-                else sizeMediumPill.setStyle(getPillSelectedStyle());
-            });
+            if (hasSmall2) {
+                Button sizeSmallPill = new Button(String.format("Small (₱%.2f)", product.getPrice()));
+                sizeSmallPillRef[0] = sizeSmallPill;
+                sizeSmallPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                sizeSmallPill.setPadding(new Insets(8, 16, 8, 16));
+                sizeSmallPill.setStyle(selectedSizeCost[0] == sSmall ? getPillSelectedStyle() : getPillDefaultStyle());
+                sizeSmallPill.setOnAction(e -> {
+                    selectedSizeCost[0] = sSmall;
+                    if (sizeSmallPillRef[0] != null) sizeSmallPillRef[0].setStyle(getPillSelectedStyle());
+                    if (sizeMediumPillRef[0] != null) sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
+                    if (sizeLargePillRef[0] != null) sizeLargePillRef[0].setStyle(getPillDefaultStyle());
+                });
+                sizeButtons.getChildren().add(sizeSmallPill);
+            }
 
-            Button sizeLargePill = new Button("Large (₱" + String.format("%.2f", product.getPrice() + 10.0) + ")");
-            sizeLargePillRef[0] = sizeLargePill;
-            sizeLargePill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
-            sizeLargePill.setPadding(new Insets(8, 16, 8, 16));
-            sizeLargePill.setStyle(getPillDefaultStyle());
-            sizeLargePill.setOnAction(e -> {
-                selectedSize[0] = 10;
-                sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
-                sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
-                sizeLargePillRef[0].setStyle(getPillSelectedStyle());
-            });
-            sizeLargePill.setOnMouseEntered(e -> {
-                if (selectedSize[0] != 10) sizeLargePill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
-            });
-            sizeLargePill.setOnMouseExited(e -> {
-                if (selectedSize[0] != 10) sizeLargePill.setStyle(getPillDefaultStyle());
-                else sizeLargePill.setStyle(getPillSelectedStyle());
-            });
+            if (hasMedium2) {
+                Button sizeMediumPill = new Button(String.format("Medium (₱%.2f)", product.getPrice() + sMedium));
+                sizeMediumPillRef[0] = sizeMediumPill;
+                sizeMediumPill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                sizeMediumPill.setPadding(new Insets(8, 16, 8, 16));
+                sizeMediumPill.setStyle(selectedSizeCost[0] == sMedium ? getPillSelectedStyle() : getPillDefaultStyle());
+                sizeMediumPill.setOnAction(e -> {
+                    selectedSizeCost[0] = sMedium;
+                    if (sizeSmallPillRef[0] != null) sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
+                    if (sizeMediumPillRef[0] != null) sizeMediumPillRef[0].setStyle(getPillSelectedStyle());
+                    if (sizeLargePillRef[0] != null) sizeLargePillRef[0].setStyle(getPillDefaultStyle());
+                });
+                sizeButtons.getChildren().add(sizeMediumPill);
+            }
 
-            sizeButtons.getChildren().addAll(sizeSmallPill, sizeMediumPill, sizeLargePill);
+            if (hasLarge2) {
+                Button sizeLargePill = new Button(String.format("Large (₱%.2f)", product.getPrice() + sLarge));
+                sizeLargePillRef[0] = sizeLargePill;
+                sizeLargePill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                sizeLargePill.setPadding(new Insets(8, 16, 8, 16));
+                sizeLargePill.setStyle(selectedSizeCost[0] == sLarge ? getPillSelectedStyle() : getPillDefaultStyle());
+                sizeLargePill.setOnAction(e -> {
+                    selectedSizeCost[0] = sLarge;
+                    if (sizeSmallPillRef[0] != null) sizeSmallPillRef[0].setStyle(getPillDefaultStyle());
+                    if (sizeMediumPillRef[0] != null) sizeMediumPillRef[0].setStyle(getPillDefaultStyle());
+                    if (sizeLargePillRef[0] != null) sizeLargePillRef[0].setStyle(getPillSelectedStyle());
+                });
+                sizeButtons.getChildren().add(sizeLargePill);
+            }
+
             sizeSection.getChildren().addAll(sizeTitle, sizeButtons);
         }
         
@@ -2439,8 +2497,8 @@ public class CustomerApp extends Application {
             if (jelliesCheck != null && jelliesCheck.isSelected()) addOnsCost += 10.00 * jelliesQty[0];
             if (poppingCheck != null && poppingCheck.isSelected()) addOnsCost += 12.00 * poppingQty[0];
 
-            // Include cup size delta (from selectedSize array)
-            double sizeDelta = selectedSize[0];
+            // Include cup size delta (from selectedSizeCost array)
+            double sizeDelta = selectedSizeCost[0];
             addOnsCost += sizeDelta;
 
             double suggestions = suggestionsExtra.get();
@@ -2508,12 +2566,12 @@ public class CustomerApp extends Application {
                 double addOnsCost = 0.0;
 
                 // Include selected cup size (if any)
-                double selSizeDelta = selectedSize != null ? selectedSize[0] : 0.0;
+                double selSizeDelta = selectedSizeCost != null ? selectedSizeCost[0] : 0.0;
                 String selSizeLabel = null;
-                if (selectedSize != null && selectedSize[0] > 0) {
-                    if (selectedSize[0] == 5) {
+                if (selectedSizeCost != null && selectedSizeCost[0] > 0) {
+                    if (selectedSizeCost[0] == sMedium) {
                         selSizeLabel = "Medium";
-                    } else if (selectedSize[0] == 10) {
+                    } else if (selectedSizeCost[0] == sLarge) {
                         selSizeLabel = "Large";
                     }
                 }

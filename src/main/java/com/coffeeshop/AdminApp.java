@@ -101,7 +101,7 @@ public class AdminApp extends Application {
     }
 
     private VBox currentContentArea;
-    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, reportsContent, transactionHistoryContent;
+    private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, reportsContent, transactionHistoryContent, maintenanceContent;
     private VBox archivedContent;
     private TableView<InventoryRow> archivedTable;
 
@@ -148,6 +148,7 @@ public class AdminApp extends Application {
         categoriesContent = createCategoriesTab();
         accountsContent = createAccountsTab();
         archivedContent = createArchivedTab();
+        maintenanceContent = createMaintenanceTab();
         reportsContent = createReportsTab();
         transactionHistoryContent = createTransactionHistoryTab();
         
@@ -404,13 +405,14 @@ public class AdminApp extends Application {
     }
 
     private Button activeNavButton = null;
+    private boolean maintenanceMode = false;
 
     private VBox createSidebar() {
         VBox sidebar = new VBox(0);
         sidebar.setPrefWidth(230);
         sidebar.setMinWidth(230);
         sidebar.setMaxWidth(230);
-        sidebar.setStyle("-fx-background-color: #1F2937;");
+        sidebar.setStyle("-fx-background-color: #FFFFFF;");
         
         // Logo and branding at top
         VBox brandSection = new VBox(5);
@@ -423,16 +425,16 @@ public class AdminApp extends Application {
         // Coffee cup icon
         Label cupIcon = new Label("☕");
         cupIcon.setFont(Font.font("Segoe UI", 24));
-        cupIcon.setTextFill(Color.web("#FFFFFF"));
+        cupIcon.setTextFill(Color.web("#1F2937"));
         
         VBox brandText = new VBox(0);
         Label brewiseLabel = new Label("brewise");
         brewiseLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
-        brewiseLabel.setTextFill(Color.web("#FFFFFF"));
+        brewiseLabel.setTextFill(Color.web("#1F2937"));
         
         Label adminLabel = new Label("ADMIN PANEL");
         adminLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
-        adminLabel.setTextFill(Color.web("#9CA3AF"));
+        adminLabel.setTextFill(Color.web("#6B7280"));
         
         brandText.getChildren().addAll(brewiseLabel, adminLabel);
         logoRow.getChildren().addAll(cupIcon, brandText);
@@ -477,10 +479,11 @@ public class AdminApp extends Application {
         systemHeader.setTextFill(Color.web("#6B7280"));
         systemHeader.setPadding(new Insets(5, 20, 5, 20));
         
-        Button archivedBtn = createNavButton("🗄️", "Archived Items", false);
+        // Archived items removed from sidebar
+        Button maintenanceBtn = createNavButton("🛠️", "Maintenance", false);
         
         VBox systemSection = new VBox(0);
-        systemSection.getChildren().add(systemHeader);
+        systemSection.getChildren().addAll(systemHeader, maintenanceBtn);
         
         navContainer.getChildren().addAll(businessSection, managementSection, systemSection);
         
@@ -491,7 +494,7 @@ public class AdminApp extends Application {
         HBox adminUserBox = new HBox(10);
         adminUserBox.setPadding(new Insets(15, 20, 20, 20));
         adminUserBox.setAlignment(Pos.CENTER_LEFT);
-        adminUserBox.setStyle("-fx-background-color: #374151; -fx-background-radius: 10;");
+        adminUserBox.setStyle("-fx-background-color: #F3F4F6; -fx-background-radius: 10; -fx-border-color: #E5E7EB; -fx-border-radius: 10; -fx-border-width: 1;");
         
         Label adminIcon = new Label("👤");
         adminIcon.setFont(Font.font(20));
@@ -499,7 +502,7 @@ public class AdminApp extends Application {
         
         Label adminNameLabel = new Label("Administrator");
         adminNameLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
-        adminNameLabel.setTextFill(Color.web("#FFFFFF"));
+        adminNameLabel.setTextFill(Color.web("#374151"));
         
         adminUserBox.getChildren().addAll(adminIcon, adminNameLabel);
         
@@ -511,7 +514,7 @@ public class AdminApp extends Application {
         try {
             Label dataPathLabel = new Label("Data: " + PersistenceManager.getDataDirectory());
             dataPathLabel.setFont(Font.font("Segoe UI", 10));
-            dataPathLabel.setTextFill(Color.web("#D1D5DB"));
+            dataPathLabel.setTextFill(Color.web("#6B7280"));
             dataPathLabel.setWrapText(true);
             adminContainer.getChildren().add(dataPathLabel);
         } catch (Exception ignored) {}
@@ -528,7 +531,8 @@ public class AdminApp extends Application {
         specialReqBtn.setOnAction(e -> { setActiveNav(specialReqBtn); refreshSpecialRequestsContent(); showContent(specialRequestsContent); });
         categoriesBtn.setOnAction(e -> { setActiveNav(categoriesBtn); showContent(categoriesContent); });
         accountsBtn.setOnAction(e -> { setActiveNav(accountsBtn); showContent(accountsContent); });
-        archivedBtn.setOnAction(e -> { setActiveNav(archivedBtn); refreshArchivedItems(); showContent(archivedContent); });
+        // Archived items navigation removed
+        maintenanceBtn.setOnAction(e -> { setActiveNav(maintenanceBtn); showContent(maintenanceContent); updateMaintenanceUI(); });
         
         return sidebar;
     }
@@ -557,24 +561,24 @@ public class AdminApp extends Application {
             textLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
             activeNavButton = btn;
         } else {
-            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-cursor: hand;");
-            iconLabel.setTextFill(Color.web("#9CA3AF"));
-            textLabel.setTextFill(Color.web("#9CA3AF"));
+            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #374151; -fx-cursor: hand;");
+            iconLabel.setTextFill(Color.web("#374151"));
+            textLabel.setTextFill(Color.web("#374151"));
         }
         
         btn.setOnMouseEntered(e -> {
             if (btn != activeNavButton) {
-                btn.setStyle("-fx-background-color: #374151; -fx-text-fill: #FFFFFF; -fx-background-radius: 8; -fx-cursor: hand;");
-                iconLabel.setTextFill(Color.web("#FFFFFF"));
-                textLabel.setTextFill(Color.web("#FFFFFF"));
+                btn.setStyle("-fx-background-color: #F3F4F6; -fx-text-fill: #374151; -fx-background-radius: 8; -fx-cursor: hand;");
+                iconLabel.setTextFill(Color.web("#374151"));
+                textLabel.setTextFill(Color.web("#374151"));
             }
         });
-        
+
         btn.setOnMouseExited(e -> {
             if (btn != activeNavButton) {
-                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-cursor: hand;");
-                iconLabel.setTextFill(Color.web("#9CA3AF"));
-                textLabel.setTextFill(Color.web("#9CA3AF"));
+                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #374151; -fx-cursor: hand;");
+                iconLabel.setTextFill(Color.web("#374151"));
+                textLabel.setTextFill(Color.web("#374151"));
             }
         });
         
@@ -588,9 +592,9 @@ public class AdminApp extends Application {
             Label oldIcon = (Label) oldContent.getChildren().get(0);
             Label oldText = (Label) oldContent.getChildren().get(1);
             
-            activeNavButton.setStyle("-fx-background-color: transparent; -fx-text-fill: #9CA3AF; -fx-cursor: hand;");
-            oldIcon.setTextFill(Color.web("#9CA3AF"));
-            oldText.setTextFill(Color.web("#9CA3AF"));
+            activeNavButton.setStyle("-fx-background-color: transparent; -fx-text-fill: #374151; -fx-cursor: hand;");
+            oldIcon.setTextFill(Color.web("#374151"));
+            oldText.setTextFill(Color.web("#374151"));
             oldText.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 14));
         }
         
@@ -605,6 +609,74 @@ public class AdminApp extends Application {
         text.setFont(Font.font("Segoe UI", FontWeight.BOLD, 14));
         
         activeNavButton = btn;
+    }
+
+    private void toggleMaintenance() {
+        maintenanceMode = !maintenanceMode;
+        String msg = maintenanceMode ? "Maintenance Mode enabled. The system is now in maintenance mode." : "Maintenance Mode disabled. System is operational.";
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("Maintenance Mode");
+        alert.setHeaderText(null);
+        alert.setContentText(msg);
+        alert.showAndWait();
+        // Update the maintenance page UI to reflect new state (if open)
+        updateMaintenanceUI();
+    }
+
+    private void setMaintenance(boolean enabled) {
+        maintenanceMode = enabled;
+        String msg = maintenanceMode ? "Maintenance Mode enabled. The system is now in maintenance mode." : "Maintenance Mode disabled. System is operational.";
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+        alert.setTitle("Maintenance Mode");
+        alert.setHeaderText(null);
+        alert.setContentText(msg);
+        alert.showAndWait();
+        // Update maintenance UI (status label, etc.) after changing state
+        updateMaintenanceUI();
+    }
+    
+    // Keep UI in sync when maintenance changed programmatically
+    private void updateMaintenanceUI() {
+        if (maintenanceStatusLabel != null) {
+            maintenanceStatusLabel.setText(maintenanceMode ? "Status: ENABLED" : "Status: OFF");
+            maintenanceStatusLabel.setTextFill(Color.web(maintenanceMode ? "#DC2626" : "#16A34A"));
+        }
+    }
+
+    // UI controls for maintenance page
+    private Label maintenanceStatusLabel;
+
+    private VBox createMaintenanceTab() {
+        VBox panel = new VBox(12);
+        panel.setPadding(new Insets(24));
+
+        Label title = new Label("Maintenance Mode");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 20));
+
+        Label desc = new Label("Toggle maintenance mode to disable certain system features for maintenance windows.");
+        desc.setFont(Font.font("Segoe UI", 12));
+        desc.setWrapText(true);
+
+        HBox controlRow = new HBox(12);
+        controlRow.setAlignment(Pos.CENTER_LEFT);
+
+        Button activateBtn = new Button("Activate");
+        activateBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: #FFFFFF; -fx-background-radius: 6;");
+        activateBtn.setOnAction(e -> setMaintenance(true));
+
+        Button deactivateBtn = new Button("Deactivate");
+        deactivateBtn.setStyle("-fx-background-color: #ef4444; -fx-text-fill: #FFFFFF; -fx-background-radius: 6;");
+        deactivateBtn.setOnAction(e -> setMaintenance(false));
+
+        maintenanceStatusLabel = new Label(maintenanceMode ? "Status: ENABLED" : "Status: OFF");
+        maintenanceStatusLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        maintenanceStatusLabel.setTextFill(Color.web(maintenanceMode ? "#DC2626" : "#16A34A"));
+
+        controlRow.getChildren().addAll(activateBtn, deactivateBtn, maintenanceStatusLabel);
+
+        panel.getChildren().addAll(title, desc, controlRow);
+
+        return panel;
     }
 
     // Removed createTabPane - now using sidebar navigation instead
@@ -1453,6 +1525,13 @@ public class AdminApp extends Application {
         grid.add(productList, 0, 4, 2, 1);
 
         dialog.getDialogPane().setContent(grid);
+
+        // Ensure the edit dialog has size fields accessible to the result converter
+        final TextField smallField = new TextField(); smallField.setPrefWidth(80);
+        final TextField mediumField = new TextField(); mediumField.setPrefWidth(80);
+        final TextField largeField = new TextField(); largeField.setPrefWidth(80);
+        // Default size surcharge values
+        smallField.setText("0"); mediumField.setText("20"); largeField.setText("30");
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
@@ -3005,6 +3084,51 @@ public class AdminApp extends Application {
         grid.add(new Label("Price:"), 0, 2);
         grid.add(priceField, 1, 2);
 
+        // Available sizes rows for new product (each row: checkbox + surcharge field)
+        Label sizesAvailLabel = new Label("Available Sizes:");
+        sizesAvailLabel.setStyle("-fx-font-weight: bold;");
+
+        CheckBox smallAdd = new CheckBox("Small");
+        TextField smallPriceAdd = new TextField("0.0");
+        smallPriceAdd.setPrefWidth(100);
+        CheckBox mediumAdd = new CheckBox("Medium");
+        TextField mediumPriceAdd = new TextField("20.0");
+        mediumPriceAdd.setPrefWidth(100);
+        CheckBox largeAdd = new CheckBox("Large");
+        TextField largePriceAdd = new TextField("30.0");
+        largePriceAdd.setPrefWidth(100);
+
+        // defaults
+        smallAdd.setSelected(false);
+        mediumAdd.setSelected(true);
+        largeAdd.setSelected(true);
+
+        // numeric filter for price fields
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> priceFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$") ) return change;
+            return null;
+        };
+        smallPriceAdd.setTextFormatter(new javafx.scene.control.TextFormatter<>(priceFilter));
+        mediumPriceAdd.setTextFormatter(new javafx.scene.control.TextFormatter<>(priceFilter));
+        largePriceAdd.setTextFormatter(new javafx.scene.control.TextFormatter<>(priceFilter));
+
+        VBox sizesBoxAdd = new VBox(8);
+        HBox rowSmallAdd = new HBox(12, smallAdd, new Label("Surcharge:"), smallPriceAdd);
+        HBox rowMediumAdd = new HBox(12, mediumAdd, new Label("Surcharge:"), mediumPriceAdd);
+        HBox rowLargeAdd = new HBox(12, largeAdd, new Label("Surcharge:"), largePriceAdd);
+        rowSmallAdd.setAlignment(Pos.CENTER_LEFT);
+        rowMediumAdd.setAlignment(Pos.CENTER_LEFT);
+        rowLargeAdd.setAlignment(Pos.CENTER_LEFT);
+        sizesBoxAdd.getChildren().addAll(rowSmallAdd, rowMediumAdd, rowLargeAdd);
+        grid.add(sizesAvailLabel, 0, 3);
+        grid.add(sizesBoxAdd, 1, 3);
+
+        
+
+        
+        
+
         // Category selector
         ComboBox<String> categoryBox = new ComboBox<>();
         try {
@@ -3019,8 +3143,8 @@ public class AdminApp extends Application {
         }
         categoryBox.setEditable(true);
         categoryBox.setPromptText("Select or type a category");
-        grid.add(new Label("Category:"), 0, 3);
-        grid.add(categoryBox, 1, 3);
+        grid.add(new Label("Category:"), 0, 4);
+        grid.add(categoryBox, 1, 4);
 
         // Image preview and upload
         javafx.scene.image.ImageView imagePreview = new javafx.scene.image.ImageView();
@@ -3223,7 +3347,19 @@ public class AdminApp extends Application {
                         }
                     }
 
-                    return new Product(id, name, price, cleaned, category);
+                    Product newProd = new Product(id, name, price, cleaned, category);
+                    try {
+                        newProd.setHasSizes((smallAdd.isSelected() || mediumAdd.isSelected() || largeAdd.isSelected()));
+                        newProd.setHasSmall(smallAdd.isSelected());
+                        newProd.setHasMedium(mediumAdd.isSelected());
+                        newProd.setHasLarge(largeAdd.isSelected());
+                        java.util.Map<String, Double> sizesMap = new java.util.HashMap<>();
+                        sizesMap.put("Small", Double.parseDouble(smallPriceAdd.getText().isEmpty() ? "0" : smallPriceAdd.getText()));
+                        sizesMap.put("Medium", Double.parseDouble(mediumPriceAdd.getText().isEmpty() ? "0" : mediumPriceAdd.getText()));
+                        sizesMap.put("Large", Double.parseDouble(largePriceAdd.getText().isEmpty() ? "0" : largePriceAdd.getText()));
+                        newProd.setSizeSurcharges(sizesMap);
+                    } catch (Exception ignored) {}
+                    return newProd;
                 } catch (NumberFormatException ex) {
                     showAlert("Error", "Invalid price format. Please enter a valid number.", Alert.AlertType.ERROR);
                     return null;
@@ -3360,6 +3496,48 @@ public class AdminApp extends Application {
         grid.add(nameField, 1, 1);
         grid.add(new Label("Price:"), 0, 2);
         grid.add(priceField, 1, 2);
+
+        // Available sizes rows for editing this product (each row: checkbox + surcharge field)
+        Label sizesAvailEditLabel = new Label("Available Sizes:");
+        sizesAvailEditLabel.setStyle("-fx-font-weight: bold;");
+        CheckBox smallEdit = new CheckBox("Small");
+        CheckBox mediumEdit = new CheckBox("Medium");
+        CheckBox largeEdit = new CheckBox("Large");
+        TextField smallPriceEdit = new TextField();
+        TextField mediumPriceEdit = new TextField();
+        TextField largePriceEdit = new TextField();
+        try {
+            smallEdit.setSelected(product.isHasSmall());
+            mediumEdit.setSelected(product.isHasMedium());
+            largeEdit.setSelected(product.isHasLarge());
+        } catch (Exception ignored) {
+            smallEdit.setSelected(false); mediumEdit.setSelected(true); largeEdit.setSelected(true);
+        }
+        java.util.Map<String, Double> existing = product.getSizeSurcharges();
+        smallPriceEdit.setText(String.valueOf(existing.getOrDefault("Small", 0.0)));
+        mediumPriceEdit.setText(String.valueOf(existing.getOrDefault("Medium", 0.0)));
+        largePriceEdit.setText(String.valueOf(existing.getOrDefault("Large", 0.0)));
+
+        // numeric filter for edit price fields
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> editPriceFilter2 = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$") ) return change;
+            return null;
+        };
+        smallPriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(editPriceFilter2));
+        mediumPriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(editPriceFilter2));
+        largePriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(editPriceFilter2));
+
+        VBox sizesBoxEdit = new VBox(8);
+        HBox rowSmallEdit = new HBox(12, smallEdit, new Label("Surcharge:"), smallPriceEdit);
+        HBox rowMediumEdit = new HBox(12, mediumEdit, new Label("Surcharge:"), mediumPriceEdit);
+        HBox rowLargeEdit = new HBox(12, largeEdit, new Label("Surcharge:"), largePriceEdit);
+        rowSmallEdit.setAlignment(Pos.CENTER_LEFT);
+        rowMediumEdit.setAlignment(Pos.CENTER_LEFT);
+        rowLargeEdit.setAlignment(Pos.CENTER_LEFT);
+        sizesBoxEdit.getChildren().addAll(rowSmallEdit, rowMediumEdit, rowLargeEdit);
+        grid.add(sizesAvailEditLabel, 0, 3);
+        grid.add(sizesBoxEdit, 1, 3);
 
         // Image preview and upload
         javafx.scene.image.ImageView imagePreview = new javafx.scene.image.ImageView();
@@ -3592,6 +3770,19 @@ public class AdminApp extends Application {
                     double newPrice = Double.parseDouble(priceField.getText());
                     // Update price
                     product.setPrice(newPrice);
+
+                    // Update whether this product has sizes and surcharges
+                    try {
+                        product.setHasSizes((smallEdit.isSelected() || mediumEdit.isSelected() || largeEdit.isSelected()));
+                        product.setHasSmall(smallEdit.isSelected());
+                        product.setHasMedium(mediumEdit.isSelected());
+                        product.setHasLarge(largeEdit.isSelected());
+                        java.util.Map<String, Double> sizesMap = new java.util.HashMap<>();
+                        sizesMap.put("Small", Double.parseDouble(smallPriceEdit.getText().isEmpty() ? "0" : smallPriceEdit.getText()));
+                        sizesMap.put("Medium", Double.parseDouble(mediumPriceEdit.getText().isEmpty() ? "0" : mediumPriceEdit.getText()));
+                        sizesMap.put("Large", Double.parseDouble(largePriceEdit.getText().isEmpty() ? "0" : largePriceEdit.getText()));
+                        product.setSizeSurcharges(sizesMap);
+                    } catch (Exception ignored) {}
 
                     // Validate selected ingredient quantities
                     if (selectedIngredients != null) {

@@ -26,64 +26,36 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.XYChart;
 import java.io.File;
+import java.util.*;
+import java.util.concurrent.*;
 
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import com.coffeeshop.service.SalesAnalytics;
 
 public class CashierApp extends Application {
     private Store store;
     private BorderPane rootPane;
-    // currently logged-in cashier id (e.g., "cashier1")
-    private String currentCashierId;
-    // Removed customer search input to simplify UI and enlarge order queue
-    
-    // Order queue management (use PendingOrder so we preserve status lifecycle)
-    private javafx.collections.ObservableList<com.coffeeshop.model.PendingOrder> orderQueue = FXCollections.observableArrayList();
-    private TableView<com.coffeeshop.model.PendingOrder> orderQueueTable;
-    // Per-stage lists & tables
-    private ObservableList<com.coffeeshop.model.PendingOrder> pendingList = FXCollections.observableArrayList();
-    private ObservableList<com.coffeeshop.model.PendingOrder> preparingList = FXCollections.observableArrayList();
-    private ObservableList<com.coffeeshop.model.PendingOrder> completedList = FXCollections.observableArrayList();
-    private TableView<com.coffeeshop.model.PendingOrder> pendingTable;
-    private TableView<com.coffeeshop.model.PendingOrder> preparingTable;
-    private TableView<com.coffeeshop.model.PendingOrder> completedTable;
-    private java.util.HashMap<String, String> orderCustomerNames = new java.util.HashMap<>();
-    private java.util.HashMap<String, String> orderTypes = new java.util.HashMap<>(); // orderId -> orderType
-    // Last cash payment recorded from the cash dialog (so receipts include correct values)
+    private String currentCashierId = null;
+    private Label headerDateLabel;
+    private Label cashierInfoLabel;
+    private java.util.concurrent.ScheduledExecutorService scheduler;
+    private javafx.collections.ObservableList<Receipt> receiptHistory = FXCollections.observableArrayList();
+    private javafx.collections.ObservableList<PendingOrder> orderQueue = FXCollections.observableArrayList();
+    private javafx.collections.ObservableList<PendingOrder> pendingList = FXCollections.observableArrayList();
+    private javafx.collections.ObservableList<PendingOrder> preparingList = FXCollections.observableArrayList();
+    private javafx.collections.ObservableList<PendingOrder> completedList = FXCollections.observableArrayList();
+    private java.util.Map<String,String> orderCustomerNames = new java.util.HashMap<>();
+    private java.util.Map<String,String> orderTypes = new java.util.HashMap<>();
+    private VBox dashboardPanel;
+    private TableView<Receipt> receiptHistoryTable;
+    private Stage primaryStageRef;
+    private TextArea receiptDetailArea;
     private double lastCashReceived = 0.0;
     private double lastChange = 0.0;
-    
-    // Receipt management
-    private ObservableList<Receipt> receiptHistory = FXCollections.observableArrayList();
-    private TableView<Receipt> receiptHistoryTable;
-    private TextArea receiptDetailArea;
-    private VBox dashboardPanel; // cached dashboard panel
-
-    private ScheduledExecutorService scheduler;
-    private Stage primaryStageRef;
 
     @Override
     public void start(Stage primaryStage) {
-        this.primaryStageRef = primaryStage;
-        // Require login before initializing the UI
-        currentCashierId = null;
-        boolean ok = showLoginDialog(null);
-        System.out.println("DEBUG: Login result: ok=" + ok + ", currentCashierId=" + currentCashierId);
-        if (!ok) {
-            // user cancelled or failed to login; exit
-            System.out.println("DEBUG: Login failed, exiting");
-            javafx.application.Platform.exit();
-            return;
-        }
-
-        System.out.println("DEBUG: Setting up main UI...");
+        primaryStageRef = primaryStage;
         store = Store.getInstance();
         loadReceiptHistory();
         loadPendingOrdersFromFile();
@@ -270,35 +242,72 @@ public class CashierApp extends Application {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
         // Date and cashier info
-        VBox infoBox = new VBox(5);
+        VBox infoBox = new VBox(6);
         infoBox.setAlignment(Pos.CENTER_RIGHT);
-        
-        Label dateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")));
-        dateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
-        dateLabel.setTextFill(Color.web("#6B7280"));
-        
+
+        headerDateLabel = new Label(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")));
+        headerDateLabel.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        headerDateLabel.setTextFill(Color.web("#6B7280"));
+
+        cashierInfoLabel = new Label();
+        cashierInfoLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        cashierInfoLabel.setTextFill(Color.web("#1F2937"));
+
         if (currentCashierId != null && !currentCashierId.isEmpty()) {
             HBox cashierRow = new HBox(8);
             cashierRow.setAlignment(Pos.CENTER_RIGHT);
-            
-            Label cashierIcon = new Label("👤");
-            cashierIcon.setFont(Font.font(12));
-            
-            Label cashierLabel = new Label(currentCashierId);
-            cashierLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
-            cashierLabel.setTextFill(Color.web("#1F2937"));
-            
+
+            // user menu (clickable icon) with Logout option
+            MenuButton userMenu = new MenuButton();
+            Label userIcon = new Label("👤");
+            userIcon.setFont(Font.font(12));
+            userMenu.setGraphic(userIcon);
+            userMenu.setText("");
+            MenuItem logoutItem = new MenuItem("Logout");
+            logoutItem.setOnAction(ev -> {
+                // Immediately clear current session and update UI
+                stopBackgroundSync();
+                currentCashierId = null;
+                cashierInfoLabel.setText("Not signed in");
+
+                // Show login dialog to sign in again
+                boolean ok = showLoginDialog(primaryStageRef);
+                if (!ok) {
+                    // User cancelled login; exit application
+                    Platform.exit();
+                    return;
+                }
+
+                // Login succeeded: refresh data and update header
+                loadReceiptHistory();
+                loadPendingOrdersFromFile();
+                headerDateLabel.setText(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM dd, yyyy")));
+                cashierInfoLabel.setText(currentCashierId != null && !currentCashierId.isEmpty() ? currentCashierId : "Not signed in");
+                startBackgroundSync();
+            });
+            userMenu.getItems().add(logoutItem);
+
+            cashierInfoLabel.setText(currentCashierId);
+
             Label statusBadge = new Label("Logged In");
             statusBadge.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
             statusBadge.setTextFill(Color.web("#10B981"));
             statusBadge.setStyle("-fx-background-color: #D1FAE5; -fx-padding: 4 10; -fx-background-radius: 12;");
-            
-            cashierRow.getChildren().addAll(cashierIcon, cashierLabel, statusBadge);
+
+            cashierRow.getChildren().addAll(userMenu, cashierInfoLabel, statusBadge);
             infoBox.getChildren().add(cashierRow);
+        } else {
+            cashierInfoLabel.setText("Not signed in");
+            infoBox.getChildren().add(cashierInfoLabel);
         }
-        
-        infoBox.getChildren().add(dateLabel);
-        
+
+        // date row
+        HBox bottomRow = new HBox(10);
+        bottomRow.setAlignment(Pos.CENTER_RIGHT);
+        bottomRow.getChildren().add(headerDateLabel);
+
+        infoBox.getChildren().add(bottomRow);
+
         header.getChildren().addAll(brandBox, spacer, infoBox);
         
         VBox wrapper = new VBox(header);

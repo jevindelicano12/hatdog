@@ -1,0 +1,87 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj
+5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+4 0 obj << /Length 1223 >> stream
+BT
+/F1 24 Tf
+50 750 Td
+(BREWISE COFFEE SHOP - Sales Dashboard Report) Tj
+/F1 12 Tf
+0 -30 Td
+(Generated: 2025-11-27 12:53:05) Tj
+0 -40 Td
+/F1 16 Tf
+(=== SALES SUMMARY ===) Tj
+/F1 12 Tf
+0 -25 Td
+(Total Revenue: P19040.75) Tj
+0 -20 Td
+(Today's Revenue: P4042.25) Tj
+0 -20 Td
+(Total Orders: 99) Tj
+0 -20 Td
+(Today's Orders: 23) Tj
+0 -40 Td
+/F1 16 Tf
+(=== TOP SELLING ITEMS ===) Tj
+/F1 12 Tf
+0 -20 Td
+(Espresso - 8 sold) Tj
+0 -20 Td
+(Cappuccino - 18 sold) Tj
+0 -20 Td
+(Latte - 7 sold) Tj
+0 -20 Td
+(Matcha Latte - 3 sold) Tj
+0 -20 Td
+(Blueberry Muffin - 3 sold) Tj
+0 -20 Td
+(Crossants - 1 sold) Tj
+0 -20 Td
+(Iced Frappe - 2 sold) Tj
+0 -20 Td
+(Mango - 1 sold) Tj
+0 -20 Td
+(Croissants - 4 sold) Tj
+0 -20 Td
+(boydila - 10 sold) Tj
+0 -40 Td
+/F1 16 Tf
+(=== RECENT TRANSACTIONS ===) Tj
+/F1 10 Tf
+0 -18 Td
+(jerwin | P90.75 | 11-27 02:49) Tj
+0 -18 Td
+(Guest | P90.75 | 11-27 02:49) Tj
+0 -18 Td
+(Guest | P190.00 | 11-27 02:09) Tj
+0 -18 Td
+(Guest | P190.00 | 11-27 01:37) Tj
+0 -18 Td
+(Guest | P60.00 | 11-27 00:59) Tj
+0 -18 Td
+(Guest | P134.50 | 11-27 00:57) Tj
+0 -18 Td
+(Guest | P620.75 | 11-27 00:56) Tj
+0 -18 Td
+(Guest | P130.00 | 11-27 00:48) Tj
+0 -18 Td
+(Guest | P80.00 | 11-27 00:48) Tj
+0 -18 Td
+(Guest | P90.00 | 11-27 00:48) Tj
+ET
+endstream endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000270 00000 n
+0000000350 00000 n
+trailer << /Size 6 /Root 1 0 R >>
+startxref
+450
+%%EOF
