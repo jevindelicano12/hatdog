@@ -301,8 +301,63 @@ public class CustomerApp extends Application {
             }
         }
     }
+    
+    /**
+     * Show maintenance mode screen when system is under maintenance
+     */
+    private void showMaintenanceScreen() {
+        StackPane root = new StackPane();
+        root.setStyle("-fx-background-color: linear-gradient(to bottom, #1a1a2e, #16213e);");
+        
+        VBox content = new VBox(30);
+        content.setAlignment(Pos.CENTER);
+        content.setPadding(new Insets(60));
+        
+        // Maintenance icon
+        Label icon = new Label("🔧");
+        icon.setFont(Font.font(100));
+        
+        Label title = new Label("System Under Maintenance");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 42));
+        title.setTextFill(Color.WHITE);
+        
+        Label subtitle = new Label("We're currently performing scheduled maintenance.\nPlease try again later.");
+        subtitle.setFont(Font.font("Segoe UI", 18));
+        subtitle.setTextFill(Color.web("#a0a0a0"));
+        subtitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        subtitle.setWrapText(true);
+        
+        // Auto-retry button
+        Button retryBtn = new Button("🔄 Check Again");
+        retryBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        retryBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-padding: 15 40; -fx-background-radius: 30; -fx-cursor: hand;");
+        retryBtn.setOnMouseEntered(e -> retryBtn.setStyle("-fx-background-color: #059669; -fx-text-fill: white; -fx-padding: 15 40; -fx-background-radius: 30; -fx-cursor: hand;"));
+        retryBtn.setOnMouseExited(e -> retryBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-padding: 15 40; -fx-background-radius: 30; -fx-cursor: hand;"));
+        retryBtn.setOnAction(e -> showWelcomeScreen());
+        
+        content.getChildren().addAll(icon, title, subtitle, retryBtn);
+        root.getChildren().add(content);
+        
+        Scene scene = new Scene(root, 1600, 900);
+        setScenePreserveWindowSize(scene);
+        
+        // Periodically check if maintenance mode has been disabled
+        Timeline maintenanceChecker = new Timeline(new KeyFrame(Duration.seconds(10), ev -> {
+            if (!TextDatabase.isMaintenanceMode()) {
+                showWelcomeScreen();
+            }
+        }));
+        maintenanceChecker.setCycleCount(Timeline.INDEFINITE);
+        maintenanceChecker.play();
+    }
 
     private void showWelcomeScreen() {
+        // Check if maintenance mode is enabled
+        if (TextDatabase.isMaintenanceMode()) {
+            showMaintenanceScreen();
+            return;
+        }
+        
         StackPane root = new StackPane();
         root.setStyle("-fx-background-color: #FFFFFF;"); // Modern White Background
 
@@ -1442,7 +1497,11 @@ public class CustomerApp extends Application {
         productName.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
         productName.setTextFill(Color.web("#1A1A1A"));
         
-        Label productDesc = new Label("Customize your drink exactly\nhow you like it.");
+        String descText = product.getDescription();
+        if (descText == null || descText.trim().isEmpty()) {
+            descText = "Customize your drink exactly how you like it.";
+        }
+        Label productDesc = new Label(descText);
         productDesc.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
         productDesc.setTextFill(Color.web("#666666"));
         productDesc.setWrapText(true);
@@ -1466,8 +1525,15 @@ public class CustomerApp extends Application {
         headerRow.getChildren().addAll(leftHeader, spacer1, closeBtn);
         
         // Content: Size, Milk Options, Add-ons in a grid
-        Label totalPrice = new Label("₱" + String.format("%.2f", product.getPrice())); // Default Small size
-        VBox customContent = createCompactCustomizationForm(product, totalPrice, customizationDefaultSize);
+        Label totalPrice = new Label("₱0.00"); // Starts at 0, updates when size selected
+        
+        // Quantity state - declared early so form can access it
+        final int[] qty = {0};
+        
+        // Recompute callback - will be set after form is created
+        final Runnable[] recomputeTotalRef = new Runnable[1];
+        
+        VBox customContent = createCompactCustomizationForm(product, totalPrice, customizationDefaultSize, qty, recomputeTotalRef);
         // Clear default after it has been used to avoid leaking selection to other products
         customizationDefaultSize = null;
         
@@ -1492,7 +1558,7 @@ public class CustomerApp extends Application {
         qtyMinus.setOnMouseEntered(e -> qtyMinus.setStyle("-fx-background-color: #EEEEEE; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
         qtyMinus.setOnMouseExited(e -> qtyMinus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
         
-        Label qtyVal = new Label("1");
+        Label qtyVal = new Label("0");
         qtyVal.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
         qtyVal.setTextFill(Color.web("#1A1A1A"));
         qtyVal.setPrefWidth(30);
@@ -1504,9 +1570,19 @@ public class CustomerApp extends Application {
         qtyPlus.setOnMouseEntered(e -> qtyPlus.setStyle("-fx-background-color: #EEEEEE; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
         qtyPlus.setOnMouseExited(e -> qtyPlus.setStyle("-fx-background-color: #F5F5F5; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 16; -fx-cursor: hand;"));
         
-        final int[] qty = {1};
-        qtyMinus.setOnAction(e -> { if (qty[0] > 1) { qty[0]--; qtyVal.setText(String.valueOf(qty[0])); } });
-        qtyPlus.setOnAction(e -> { qty[0]++; qtyVal.setText(String.valueOf(qty[0])); });
+        // qty array was declared earlier - update handlers to also recompute total
+        qtyMinus.setOnAction(e -> { 
+            if (qty[0] >= 1) { 
+                qty[0]--; 
+                qtyVal.setText(String.valueOf(qty[0])); 
+                if (recomputeTotalRef[0] != null) recomputeTotalRef[0].run();
+            } 
+        });
+        qtyPlus.setOnAction(e -> { 
+            qty[0]++; 
+            qtyVal.setText(String.valueOf(qty[0])); 
+            if (recomputeTotalRef[0] != null) recomputeTotalRef[0].run();
+        });
         
         qtyBox.getChildren().addAll(qtyLbl, qtyMinus, qtyVal, qtyPlus);
         
@@ -1554,7 +1630,7 @@ public class CustomerApp extends Application {
     }
     
     // Create compact customization form with size, milk, and add-ons
-    private VBox createCompactCustomizationForm(Product product, Label totalPrice, Double initialSize) {
+    private VBox createCompactCustomizationForm(Product product, Label totalPrice, Double initialSize, int[] qty, Runnable[] recomputeTotalRef) {
         VBox form = new VBox(20);
         form.setAlignment(Pos.TOP_LEFT);
         
@@ -1599,6 +1675,36 @@ public class CustomerApp extends Application {
         }
         final double[] selectedSizeCost = { defaultSize }; // declared at method level so ADD-ONS section can access it
         final Runnable[] recomputeRef = new Runnable[1];
+        
+        // Reference to addOnsGrid for recompute function (will be set later if add-ons exist)
+        final HBox[] addOnsGridRef = new HBox[1];
+        
+        // Create recompute function that updates total based on qty, size, milk, and add-ons
+        Runnable recomputeTotal = () -> {
+            try {
+                double unitPrice = product.getPrice() + selectedSizeCost[0] + selectedMilkCost[0];
+                // Add selected add-ons if grid exists
+                if (addOnsGridRef[0] != null) {
+                    for (javafx.scene.Node n : addOnsGridRef[0].getChildren()) {
+                        if (n instanceof javafx.scene.control.Button) {
+                            javafx.scene.control.Button b = (javafx.scene.control.Button) n;
+                            if (b.getStyle() != null && b.getStyle().equals(getPillSelectedStyle())) {
+                                Object ud = b.getUserData();
+                                if (ud instanceof com.coffeeshop.model.AddOn) {
+                                    unitPrice += ((com.coffeeshop.model.AddOn) ud).getPrice();
+                                }
+                            }
+                        }
+                    }
+                }
+                double total = unitPrice * qty[0];
+                final double finalTotal = total;
+                javafx.application.Platform.runLater(() -> totalPrice.setText("₱" + String.format("%.2f", finalTotal)));
+            } catch (Exception ignored) {}
+        };
+        // Set the reference so quantity buttons and add-ons can call it
+        recomputeTotalRef[0] = recomputeTotal;
+        recomputeRef[0] = recomputeTotal;
 
         // SIZE SECTION - converted to clickable pills (only show if at least one size is available)
         boolean hasAnySizes = hasSmall || hasMedium || hasLarge;
@@ -1632,7 +1738,7 @@ public class CustomerApp extends Application {
                     if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillSelectedStyle());
                     if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillDefaultStyle());
                     if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillDefaultStyle());
-                    updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
+                    recomputeTotal.run();
                 });
                 smallBtn.setOnMouseEntered(e -> {
                     if (selectedSizeCost[0] != smallS) smallBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
@@ -1655,7 +1761,7 @@ public class CustomerApp extends Application {
                     if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillDefaultStyle());
                     if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillSelectedStyle());
                     if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillDefaultStyle());
-                    updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
+                    recomputeTotal.run();
                 });
                 mediumBtn.setOnMouseEntered(e -> {
                     if (selectedSizeCost[0] != mediumS) mediumBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
@@ -1678,7 +1784,7 @@ public class CustomerApp extends Application {
                     if (smallBtnRef[0] != null) smallBtnRef[0].setStyle(getPillDefaultStyle());
                     if (mediumBtnRef[0] != null) mediumBtnRef[0].setStyle(getPillDefaultStyle());
                     if (largeBtnRef[0] != null) largeBtnRef[0].setStyle(getPillSelectedStyle());
-                    updateTotalPrice(totalPrice, product, selectedSizeCost[0]);
+                    recomputeTotal.run();
                 });
                 largeBtn.setOnMouseEntered(e -> {
                     if (selectedSizeCost[0] != largeS) largeBtn.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
@@ -1696,8 +1802,9 @@ public class CustomerApp extends Application {
             form.setUserData(selectedSizeCost);
         }
         
-        // MILK OPTIONS SECTION (for Milk Tea)
-        if (isMilkTea) {
+        // MILK OPTIONS SECTION (uses product settings from admin panel)
+        boolean hasMilkOptions = product.isHasMilkOptions();
+        if (hasMilkOptions) {
             VBox milkSection = new VBox(12);
             Label milkTitle = new Label("MILK OPTIONS");
             milkTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
@@ -1706,63 +1813,66 @@ public class CustomerApp extends Application {
             HBox milkButtons = new HBox(12);
             milkButtons.setAlignment(Pos.CENTER_LEFT);
             
-            Button oatBtn = createMilkOptionPill("Oat Milk (+₱25)");
-            Button almondBtn = createMilkOptionPill("Almond Milk (+₱25)");
-            Button soyBtn = createMilkOptionPill("Soy Milk (+₱25)");
-
-            // Attach AddOn-like userData so handleAddToCart recognizes selected milk as an add-on
-            try {
-                oatBtn.setUserData(new com.coffeeshop.model.AddOn("milk-oat", "Oat Milk", 25.0, "Milk"));
-                almondBtn.setUserData(new com.coffeeshop.model.AddOn("milk-almond", "Almond Milk", 25.0, "Milk"));
-                soyBtn.setUserData(new com.coffeeshop.model.AddOn("milk-soy", "Soy Milk", 25.0, "Milk"));
-            } catch (Exception ignored) {}
-
-            // Make milk options toggleable and mutually exclusive, update displayed total
-            oatBtn.setOnAction(e -> {
-                boolean nowSelected = !oatBtn.getStyle().equals(getPillSelectedStyle());
-                if (nowSelected) {
-                    oatBtn.setStyle(getPillSelectedStyle());
-                    almondBtn.setStyle(getPillDefaultStyle());
-                    soyBtn.setStyle(getPillDefaultStyle());
-                    selectedMilkCost[0] = 25.0;
-                } else {
-                    oatBtn.setStyle(getPillDefaultStyle());
-                    selectedMilkCost[0] = 0.0;
-                }
-                if (recomputeRef[0] != null) recomputeRef[0].run();
-            });
-
-            almondBtn.setOnAction(e -> {
-                boolean nowSelected = !almondBtn.getStyle().equals(getPillSelectedStyle());
-                if (nowSelected) {
-                    almondBtn.setStyle(getPillSelectedStyle());
-                    oatBtn.setStyle(getPillDefaultStyle());
-                    soyBtn.setStyle(getPillDefaultStyle());
-                    selectedMilkCost[0] = 25.0;
-                } else {
-                    almondBtn.setStyle(getPillDefaultStyle());
-                    selectedMilkCost[0] = 0.0;
-                }
-                if (recomputeRef[0] != null) recomputeRef[0].run();
-            });
-
-            soyBtn.setOnAction(e -> {
-                boolean nowSelected = !soyBtn.getStyle().equals(getPillSelectedStyle());
-                if (nowSelected) {
-                    soyBtn.setStyle(getPillSelectedStyle());
-                    oatBtn.setStyle(getPillDefaultStyle());
-                    almondBtn.setStyle(getPillDefaultStyle());
-                    selectedMilkCost[0] = 25.0;
-                } else {
-                    soyBtn.setStyle(getPillDefaultStyle());
-                    selectedMilkCost[0] = 0.0;
-                }
-                if (recomputeRef[0] != null) recomputeRef[0].run();
-            });
+            // Get prices from product settings
+            double oatPrice = product.getOatMilkPrice();
+            double almondPrice = product.getAlmondMilkPrice();
+            double soyPrice = product.getSoyMilkPrice();
             
-            milkButtons.getChildren().addAll(oatBtn, almondBtn, soyBtn);
-            milkSection.getChildren().addAll(milkTitle, milkButtons);
-            form.getChildren().add(milkSection);
+            // Create buttons only for enabled milk options
+            java.util.List<Button> allMilkBtns = new java.util.ArrayList<>();
+            
+            Button oatBtn = null;
+            Button almondBtn = null;
+            Button soyBtn = null;
+            
+            if (product.isHasOatMilk()) {
+                oatBtn = createMilkOptionPill("Oat Milk (+₱" + String.format("%.0f", oatPrice) + ")");
+                oatBtn.setUserData(new com.coffeeshop.model.AddOn("milk-oat", "Oat Milk", oatPrice, "Milk"));
+                allMilkBtns.add(oatBtn);
+                milkButtons.getChildren().add(oatBtn);
+            }
+            
+            if (product.isHasAlmondMilk()) {
+                almondBtn = createMilkOptionPill("Almond Milk (+₱" + String.format("%.0f", almondPrice) + ")");
+                almondBtn.setUserData(new com.coffeeshop.model.AddOn("milk-almond", "Almond Milk", almondPrice, "Milk"));
+                allMilkBtns.add(almondBtn);
+                milkButtons.getChildren().add(almondBtn);
+            }
+            
+            if (product.isHasSoyMilk()) {
+                soyBtn = createMilkOptionPill("Soy Milk (+₱" + String.format("%.0f", soyPrice) + ")");
+                soyBtn.setUserData(new com.coffeeshop.model.AddOn("milk-soy", "Soy Milk", soyPrice, "Milk"));
+                allMilkBtns.add(soyBtn);
+                milkButtons.getChildren().add(soyBtn);
+            }
+
+            // Make milk options toggleable and mutually exclusive
+            for (Button btn : allMilkBtns) {
+                final Button currentBtn = btn;
+                final double milkCost = ((com.coffeeshop.model.AddOn) btn.getUserData()).getPrice();
+                btn.setOnAction(e -> {
+                    boolean nowSelected = !currentBtn.getStyle().equals(getPillSelectedStyle());
+                    if (nowSelected) {
+                        // Deselect all others
+                        for (Button other : allMilkBtns) {
+                            if (other != currentBtn) {
+                                other.setStyle(getPillDefaultStyle());
+                            }
+                        }
+                        currentBtn.setStyle(getPillSelectedStyle());
+                        selectedMilkCost[0] = milkCost;
+                    } else {
+                        currentBtn.setStyle(getPillDefaultStyle());
+                        selectedMilkCost[0] = 0.0;
+                    }
+                    if (recomputeRef[0] != null) recomputeRef[0].run();
+                });
+            }
+            
+            if (!milkButtons.getChildren().isEmpty()) {
+                milkSection.getChildren().addAll(milkTitle, milkButtons);
+                form.getChildren().add(milkSection);
+            }
         }
         
         // ADD-ONS SECTION - Dynamically loaded from database
@@ -1803,27 +1913,9 @@ public class CustomerApp extends Application {
             }
             
             addOnsSection.getChildren().addAll(addOnsTitle, addOnsGrid);
-            // Recompute function: recompute total price including size, milk, and selected dynamic add-ons
-            recomputeRef[0] = () -> {
-                try {
-                    double total = product.getPrice() + selectedSizeCost[0] + selectedMilkCost[0];
-                    // Sum selected dynamic add-ons from addOnsGrid
-                    for (javafx.scene.Node n : addOnsGrid.getChildren()) {
-                        if (n instanceof javafx.scene.control.Button) {
-                            javafx.scene.control.Button b = (javafx.scene.control.Button) n;
-                            if (b.getStyle() != null && b.getStyle().equals(getPillSelectedStyle())) {
-                                Object ud = b.getUserData();
-                                if (ud instanceof com.coffeeshop.model.AddOn) {
-                                    total += ((com.coffeeshop.model.AddOn) ud).getPrice();
-                                }
-                            }
-                        }
-                    }
-                    final double finalTotal = total;
-                    javafx.application.Platform.runLater(() -> totalPrice.setText("₱" + String.format("%.2f", finalTotal)));
-                } catch (Exception ignored) {}
-            };
-            // Initial compute
+            // Set the addOnsGrid reference so recomputeTotal can access it
+            addOnsGridRef[0] = addOnsGrid;
+            // Initial compute with add-ons
             if (recomputeRef[0] != null) recomputeRef[0].run();
             form.getChildren().add(addOnsSection);
         }
@@ -1876,10 +1968,19 @@ public class CustomerApp extends Application {
         Button pill = new Button(label);
         pill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
         pill.setPadding(new Insets(8, 16, 8, 16));
-        pill.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;");
+        pill.setStyle(getPillDefaultStyle());
         
-        pill.setOnMouseEntered(e -> pill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;"));
-        pill.setOnMouseExited(e -> pill.setStyle("-fx-text-fill: #666666; -fx-border-color: #E0E0E0; -fx-border-width: 1; -fx-background-color: #FFFFFF; -fx-background-radius: 6; -fx-border-radius: 6; -fx-cursor: hand;"));
+        // Fix hover animation - preserve selected state
+        pill.setOnMouseEntered(e -> {
+            if (!pill.getStyle().equals(getPillSelectedStyle())) {
+                pill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-cursor: hand;");
+            }
+        });
+        pill.setOnMouseExited(e -> {
+            if (!pill.getStyle().equals(getPillSelectedStyle())) {
+                pill.setStyle(getPillDefaultStyle());
+            }
+        });
         
         return pill;
     }
@@ -1904,6 +2005,16 @@ public class CustomerApp extends Application {
     // Handle adding item to cart
     private void handleAddToCart(Product product, int quantity, VBox customContent) {
         try {
+            // Validate quantity - must be at least 1
+            if (quantity < 1) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Invalid Quantity");
+                alert.setHeaderText(null);
+                alert.setContentText("Please select at least 1 item before adding to order.");
+                alert.showAndWait();
+                return;
+            }
+            
             // Create order item with basic details
             OrderItem item = new OrderItem(product, quantity, "Hot", 0);
             
@@ -2439,7 +2550,7 @@ public class CustomerApp extends Application {
         minusBtn.setOnMouseEntered(e -> minusBtn.setStyle("-fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         minusBtn.setOnMouseExited(e -> minusBtn.setStyle("-fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
-        Label qtyValueLabel = new Label("1");
+        Label qtyValueLabel = new Label("0");
         qtyValueLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 16));
         qtyValueLabel.setTextFill(Color.web("#1A1A1A"));
         qtyValueLabel.setPrefWidth(36);
@@ -2456,9 +2567,9 @@ public class CustomerApp extends Application {
         plusBtn.setOnMouseEntered(e -> plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #F0F0F0; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #1A1A1A; -fx-border-radius: 6; -fx-background-radius: 6;"));
         plusBtn.setOnMouseExited(e -> plusBtn.setStyle("-fx-alignment: center; -fx-background-color: #FAFAFA; -fx-cursor: hand; -fx-font-size: 18; -fx-text-fill: #333333; -fx-border-radius: 6; -fx-background-radius: 6;"));
         
-        final int[] quantity = {1};
+        final int[] quantity = {0};
         minusBtn.setOnAction(e -> {
-            if (quantity[0] > 1) {
+            if (quantity[0] >= 1) {
                 quantity[0]--;
                 qtyValueLabel.setText(String.valueOf(quantity[0]));
             }
@@ -3478,30 +3589,9 @@ public class CustomerApp extends Application {
         try {
             store.checkoutBasket(currentOrder);
             
-            // Show success message
-            Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
-            successAlert.setTitle("Order Completed");
-            successAlert.setHeaderText("Payment Successful!");
-            successAlert.setContentText("""
-                Your order has been placed successfully.
-
-                Order ID: %s
-                Payment Method: %s
-                Total: ₱%.2f
-                Order Type: %s
-
-                Please wait for your order to be prepared.
-                """.formatted(
-                    currentOrder.getOrderId(),
-                    paymentMethod,
-                    currentOrder.getTotalAmount(),
-                    orderType
-                ));
-            successAlert.showAndWait();
-            
-            // Persist a pending order so the cashier can pick it up
+            // Persist a pending order so the cashier can pick it up (name will be set by cashier)
             try {
-                // Build PendingOrder from currentOrder
+                // Build PendingOrder from currentOrder - customer name is "Guest" until cashier sets it
                 PendingOrder p = new PendingOrder(currentOrder.getOrderId(), "Guest", (orderType != null && !orderType.isEmpty()) ? orderType : "Dine In", currentCashierId);
                 for (OrderItem oi : currentOrder.getItems()) {
                     double price = oi.getProduct().getPrice() + oi.getAddOnsCost();
@@ -3514,22 +3604,11 @@ public class CustomerApp extends Application {
                 System.err.println("Error saving pending order: " + ex.getMessage());
             }
 
-            // Also save a receipt record for bookkeeping
-            try {
-                String rid = UUID.randomUUID().toString().substring(0, 8);
-                Receipt receipt = new Receipt(rid, currentOrder.getOrderId(), "Guest", currentOrder.getTotalAmount(), currentOrder.getTotalAmount(), 0.0);
-                // Include printable content for convenience
-                try {
-                    receipt.setReceiptContent(currentOrder.printReceipt());
-                } catch (Exception ign) {}
-                TextDatabase.saveReceipt(receipt);
-            } catch (Exception ex) {
-                System.err.println("Error saving receipt: " + ex.getMessage());
-            }
-
-            // Reset for new order and go back to main menu
+            // Show receipt-style confirmation screen
+            showOrderReceiptScreen(currentOrder.getOrderId(), paymentMethod, currentOrder.getTotalAmount());
+            
+            // Reset for new order
             currentOrder = new Order(TextDatabase.getNextOrderNumber());
-            showMainMenu();
             
         } catch (IllegalStateException e) {
             // Handle inventory issues specifically
@@ -3562,6 +3641,108 @@ public class CustomerApp extends Application {
             errorAlert.setContentText("There was an error processing your order.\n\nError: " + e.getMessage());
             errorAlert.showAndWait();
         }
+    }
+    
+    /**
+     * Show a receipt-style confirmation screen and auto-return to welcome screen
+     */
+    private void showOrderReceiptScreen(String orderId, String paymentMethod, double total) {
+        StackPane root = new StackPane();
+        root.setStyle("-fx-background-color: #F5F5F5;");
+        
+        VBox receiptCard = new VBox(20);
+        receiptCard.setAlignment(Pos.CENTER);
+        receiptCard.setPadding(new Insets(50));
+        receiptCard.setMaxWidth(500);
+        receiptCard.setMaxHeight(600);
+        receiptCard.setStyle("-fx-background-color: white; -fx-background-radius: 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 20, 0, 0, 5);");
+        
+        // Success icon
+        Label checkIcon = new Label("✓");
+        checkIcon.setFont(Font.font("Segoe UI", FontWeight.BOLD, 60));
+        checkIcon.setTextFill(Color.WHITE);
+        StackPane iconCircle = new StackPane(checkIcon);
+        iconCircle.setPrefSize(100, 100);
+        iconCircle.setMaxSize(100, 100);
+        iconCircle.setStyle("-fx-background-color: #4CAF50; -fx-background-radius: 50;");
+        
+        // Thank you message
+        Label thankYou = new Label("Thank You!");
+        thankYou.setFont(Font.font("Segoe UI", FontWeight.BOLD, 36));
+        thankYou.setTextFill(Color.web("#1A1A1A"));
+        
+        Label orderPlaced = new Label("Your order has been placed");
+        orderPlaced.setFont(Font.font("Segoe UI", 18));
+        orderPlaced.setTextFill(Color.web("#666666"));
+        
+        // Receipt details
+        VBox receiptDetails = new VBox(12);
+        receiptDetails.setAlignment(Pos.CENTER);
+        receiptDetails.setPadding(new Insets(20));
+        receiptDetails.setStyle("-fx-background-color: #F9F9F9; -fx-background-radius: 10;");
+        
+        Label orderLabel = new Label("Order #" + orderId);
+        orderLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        orderLabel.setTextFill(Color.web("#333333"));
+        
+        Label totalLabel = new Label("Total: ₱" + String.format("%.2f", total));
+        totalLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 20));
+        totalLabel.setTextFill(Color.web("#4CAF50"));
+        
+        Label paymentLabel = new Label("Payment: " + paymentMethod);
+        paymentLabel.setFont(Font.font("Segoe UI", 16));
+        paymentLabel.setTextFill(Color.web("#666666"));
+        
+        Label typeLabel = new Label("Order Type: " + orderType);
+        typeLabel.setFont(Font.font("Segoe UI", 16));
+        typeLabel.setTextFill(Color.web("#666666"));
+        
+        receiptDetails.getChildren().addAll(orderLabel, totalLabel, paymentLabel, typeLabel);
+        
+        // Instructions
+        Label instructions = new Label("Please proceed to the counter.\nThe cashier will ask for your name.");
+        instructions.setFont(Font.font("Segoe UI", 14));
+        instructions.setTextFill(Color.web("#888888"));
+        instructions.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        instructions.setWrapText(true);
+        
+        // Auto-redirect countdown
+        Label countdown = new Label("Returning to menu in 5 seconds...");
+        countdown.setFont(Font.font("Segoe UI", 12));
+        countdown.setTextFill(Color.web("#AAAAAA"));
+        
+        // Done button
+        Button doneBtn = new Button("Done");
+        doneBtn.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
+        doneBtn.setPadding(new Insets(15, 60, 15, 60));
+        doneBtn.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-background-radius: 30; -fx-cursor: hand;");
+        doneBtn.setOnMouseEntered(e -> doneBtn.setStyle("-fx-background-color: #333333; -fx-text-fill: white; -fx-background-radius: 30; -fx-cursor: hand;"));
+        doneBtn.setOnMouseExited(e -> doneBtn.setStyle("-fx-background-color: #1A1A1A; -fx-text-fill: white; -fx-background-radius: 30; -fx-cursor: hand;"));
+        
+        receiptCard.getChildren().addAll(iconCircle, thankYou, orderPlaced, receiptDetails, instructions, countdown, doneBtn);
+        root.getChildren().add(receiptCard);
+        
+        Scene scene = new Scene(root, 1600, 900);
+        setScenePreserveWindowSize(scene);
+        
+        // Auto-return to welcome screen after 5 seconds
+        final int[] secondsLeft = {5};
+        Timeline autoReturn = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
+            secondsLeft[0]--;
+            if (secondsLeft[0] > 0) {
+                countdown.setText("Returning to menu in " + secondsLeft[0] + " seconds...");
+            } else {
+                showWelcomeScreen();
+            }
+        }));
+        autoReturn.setCycleCount(5);
+        autoReturn.play();
+        
+        // Done button returns immediately
+        doneBtn.setOnAction(e -> {
+            autoReturn.stop();
+            showWelcomeScreen();
+        });
     }
 
     // Load product image from data/images folder

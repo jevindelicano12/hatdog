@@ -33,6 +33,7 @@ public class Complaint {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public void setDescription(String description) { this.description = description; }
 
     public String toTextRecord() {
         DateTimeFormatter f = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");

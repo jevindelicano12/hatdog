@@ -55,3 +55,10 @@ Matcha Latte|30.0|Hot|Regular|0
 Espresso|50.0|Hot|Regular|0
 Latte|50.0|Hot|Regular|0
 Cappuccino|60.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0
+Cappuccino|60.0|Hot|Regular|0
+boydila|500.0|Hot|Regular|0
+boydila|500.0|Hot|Regular|0
+boydila|500.0|Hot|Regular|0

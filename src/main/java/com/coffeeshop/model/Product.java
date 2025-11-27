@@ -6,6 +6,7 @@ import java.util.Map;
 public class Product {
     private String id;
     private String name;
+    private String description = ""; // Product description
     private double price;
     private Map<String, Double> recipe; // ingredient name -> quantity needed per serving
     private String category;
@@ -14,6 +15,14 @@ public class Product {
     private boolean hasSmall = true;
     private boolean hasMedium = true;
     private boolean hasLarge = true;
+    // Milk options (for Milk Tea and similar products)
+    private boolean hasMilkOptions = false;
+    private boolean hasOatMilk = false;
+    private boolean hasAlmondMilk = false;
+    private boolean hasSoyMilk = false;
+    private double oatMilkPrice = 25.0;
+    private double almondMilkPrice = 25.0;
+    private double soyMilkPrice = 25.0;
 
     public Product(String id, String name, double price) {
         this.id = id;
@@ -63,6 +72,14 @@ public class Product {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description != null ? description : "";
+    }
+
+    public void setDescription(String description) {
+        this.description = description != null ? description : "";
     }
 
     public double getPrice() {
@@ -129,6 +146,63 @@ public class Product {
 
     public void setHasLarge(boolean hasLarge) {
         this.hasLarge = hasLarge;
+    }
+
+    // Milk Options getters and setters
+    public boolean isHasMilkOptions() {
+        return hasMilkOptions;
+    }
+
+    public void setHasMilkOptions(boolean hasMilkOptions) {
+        this.hasMilkOptions = hasMilkOptions;
+    }
+
+    public boolean isHasOatMilk() {
+        return hasOatMilk;
+    }
+
+    public void setHasOatMilk(boolean hasOatMilk) {
+        this.hasOatMilk = hasOatMilk;
+    }
+
+    public boolean isHasAlmondMilk() {
+        return hasAlmondMilk;
+    }
+
+    public void setHasAlmondMilk(boolean hasAlmondMilk) {
+        this.hasAlmondMilk = hasAlmondMilk;
+    }
+
+    public boolean isHasSoyMilk() {
+        return hasSoyMilk;
+    }
+
+    public void setHasSoyMilk(boolean hasSoyMilk) {
+        this.hasSoyMilk = hasSoyMilk;
+    }
+
+    public double getOatMilkPrice() {
+        return oatMilkPrice;
+    }
+
+    public void setOatMilkPrice(double oatMilkPrice) {
+        this.oatMilkPrice = oatMilkPrice;
+    }
+
+    public double getAlmondMilkPrice() {
+        return almondMilkPrice;
+    }
+
+    public void setAlmondMilkPrice(double almondMilkPrice) {
+        this.almondMilkPrice = almondMilkPrice;
+    }
+
+    public double getSoyMilkPrice() {
+        return soyMilkPrice;
+    }
+
+    public void setSoyMilkPrice(double soyMilkPrice) {
+        this.soyMilkPrice = soyMilkPrice;
     }
 
     public void setSizeSurcharges(Map<String, Double> sizeSurcharges) {

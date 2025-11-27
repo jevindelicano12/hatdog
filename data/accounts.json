@@ -10,5 +10,11 @@
     "username": "cashier2",
     "password": "cashier2",
     "active": true
+  },
+   {
+    "id": "C003",
+    "username": "1",
+    "password": "1",
+    "active": true
   }
 ]

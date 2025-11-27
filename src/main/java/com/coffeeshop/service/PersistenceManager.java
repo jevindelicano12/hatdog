@@ -82,6 +82,23 @@ public class PersistenceManager {
             List<Product> products = gson.fromJson(reader, listType);
             
             if (products != null) {
+                // Apply size defaults for products loaded from JSON that don't have size flags set
+                for (Product p : products) {
+                    // If none of the size flags are true, assume all sizes should be available
+                    if (!p.isHasSmall() && !p.isHasMedium() && !p.isHasLarge()) {
+                        p.setHasSmall(true);
+                        p.setHasMedium(true);
+                        p.setHasLarge(true);
+                    }
+                    // Ensure size surcharges are initialized
+                    if (p.getSizeSurcharges() == null || p.getSizeSurcharges().isEmpty()) {
+                        java.util.Map<String, Double> surcharges = new java.util.HashMap<>();
+                        surcharges.put("Small", 0.0);
+                        surcharges.put("Medium", 20.0);
+                        surcharges.put("Large", 30.0);
+                        p.setSizeSurcharges(surcharges);
+                    }
+                }
                 return products;
             }
             return initializeDefaultProducts();

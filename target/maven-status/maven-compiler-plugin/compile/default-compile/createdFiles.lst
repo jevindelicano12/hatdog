@@ -9,11 +9,13 @@ com\coffeeshop\util\BackupManager.class
 com\coffeeshop\model\PendingOrder$OrderItemData.class
 com\coffeeshop\service\PersistenceManager$4.class
 com\coffeeshop\service\PersistenceManager$7.class
+com\coffeeshop\AdminApp$8.class
 com\coffeeshop\AdminApp$2.class
 com\coffeeshop\CashierApp$2.class
 com\coffeeshop\model\SpecialRequest.class
 com\coffeeshop\AdminApp.class
 com\coffeeshop\service\SalesAnalytics.class
+com\coffeeshop\AdminApp$9.class
 com\coffeeshop\model\Product.class
 com\coffeeshop\model\OrderRecord.class
 com\coffeeshop\service\PersistenceManager$1.class
@@ -28,7 +30,6 @@ com\coffeeshop\CashierApp.class
 com\coffeeshop\util\AlertUtils.class
 com\coffeeshop\service\PersistenceManager$2.class
 com\coffeeshop\AdminApp$6.class
-com\coffeeshop\CashierApp$3.class
 com\coffeeshop\CustomerApp$2.class
 module-info.class
 com\coffeeshop\AdminApp$3.class
@@ -36,6 +37,7 @@ com\coffeeshop\model\AddOn.class
 com\coffeeshop\CashierApp$ReturnAction.class
 com\coffeeshop\AdminApp$InventoryRow.class
 com\coffeeshop\service\Store.class
+com\coffeeshop\AdminApp$7.class
 com\coffeeshop\service\DatabaseDemo.class
 com\coffeeshop\AdminApp$ProductRow.class
 com\coffeeshop\model\Receipt.class
@@ -46,6 +48,7 @@ com\coffeeshop\service\TextDatabase.class
 com\coffeeshop\UIUtils.class
 com\coffeeshop\model\ReturnTransaction$ReturnItem.class
 com\coffeeshop\CustomerApp$1.class
+com\coffeeshop\AdminApp$10.class
 com\coffeeshop\model\CashTransaction.class
 com\coffeeshop\AdminApp$4.class
 com\coffeeshop\service\PersistenceManager$6.class

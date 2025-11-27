@@ -658,4 +658,34 @@ public class Store {
             return TextDatabase.loadAllComplaints();
         } catch (Exception ignored) { return new java.util.ArrayList<>(); }
     }
+    
+    /**
+     * Check if an order already has a complaint filed (resolved or unresolved).
+     * Returns the complaint if found, null otherwise.
+     */
+    public com.coffeeshop.model.Complaint getComplaintByOrderId(String orderId) {
+        if (orderId == null || orderId.isEmpty()) return null;
+        java.util.List<com.coffeeshop.model.Complaint> complaints = getAllComplaints();
+        for (com.coffeeshop.model.Complaint c : complaints) {
+            if (orderId.equalsIgnoreCase(c.getOrderId())) {
+                return c;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Check if an order has an unresolved (OPEN) complaint.
+     */
+    public boolean hasUnresolvedComplaint(String orderId) {
+        com.coffeeshop.model.Complaint c = getComplaintByOrderId(orderId);
+        return c != null && !"RESOLVED".equalsIgnoreCase(c.getStatus());
+    }
+    
+    /**
+     * Check if an order already has any complaint (resolved or not).
+     */
+    public boolean hasAnyComplaint(String orderId) {
+        return getComplaintByOrderId(orderId) != null;
+    }
 }

@@ -103,6 +103,8 @@ public class AdminApp extends Application {
     private VBox currentContentArea;
     private VBox dashboardContent, productsContent, inventoryContent, addOnsContent, specialRequestsContent, categoriesContent, accountsContent, reportsContent, transactionHistoryContent, maintenanceContent;
     private VBox archivedContent;
+    private VBox complaintsContent;
+    private VBox remittanceContent;
     private TableView<InventoryRow> archivedTable;
 
     @Override
@@ -149,6 +151,8 @@ public class AdminApp extends Application {
         accountsContent = createAccountsTab();
         archivedContent = createArchivedTab();
         maintenanceContent = createMaintenanceTab();
+        complaintsContent = createComplaintsTab();
+        remittanceContent = createRemittanceTab();
         reportsContent = createReportsTab();
         transactionHistoryContent = createTransactionHistoryTab();
         
@@ -405,7 +409,7 @@ public class AdminApp extends Application {
     }
 
     private Button activeNavButton = null;
-    private boolean maintenanceMode = false;
+    private boolean maintenanceMode = TextDatabase.isMaintenanceMode(); // Load from file on startup
 
     private VBox createSidebar() {
         VBox sidebar = new VBox(0);
@@ -453,9 +457,10 @@ public class AdminApp extends Application {
         Button dashboardBtn = createNavButton("📊", "Dashboard", true);
         Button reportsBtn = createNavButton("📈", "Sales Reports", false);
         Button transactionsBtn = createNavButton("💳", "Transactions", false);
+        Button remittanceBtn = createNavButton("💰", "Remittance", false);
         
         VBox businessSection = new VBox(0);
-        businessSection.getChildren().addAll(businessHeader, dashboardBtn, reportsBtn, transactionsBtn);
+        businessSection.getChildren().addAll(businessHeader, dashboardBtn, reportsBtn, transactionsBtn, remittanceBtn);
         
         // MANAGEMENT section
         Label managementHeader = new Label("MANAGEMENT");
@@ -473,6 +478,17 @@ public class AdminApp extends Application {
         VBox managementSection = new VBox(0);
         managementSection.getChildren().addAll(managementHeader, productsBtn, inventoryBtn, addOnsBtn, specialReqBtn, categoriesBtn, accountsBtn);
         
+        // SUPPORT section
+        Label supportHeader = new Label("SUPPORT");
+        supportHeader.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
+        supportHeader.setTextFill(Color.web("#6B7280"));
+        supportHeader.setPadding(new Insets(5, 20, 5, 20));
+        
+        Button complaintsBtn = createNavButton("😕", "Complaints", false);
+        
+        VBox supportSection = new VBox(0);
+        supportSection.getChildren().addAll(supportHeader, complaintsBtn);
+        
         // SYSTEM section
         Label systemHeader = new Label("SYSTEM");
         systemHeader.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 11));
@@ -485,7 +501,7 @@ public class AdminApp extends Application {
         VBox systemSection = new VBox(0);
         systemSection.getChildren().addAll(systemHeader, maintenanceBtn);
         
-        navContainer.getChildren().addAll(businessSection, managementSection, systemSection);
+        navContainer.getChildren().addAll(businessSection, managementSection, supportSection, systemSection);
         
         // Admin user at bottom
         Region spacer = new Region();
@@ -525,6 +541,7 @@ public class AdminApp extends Application {
         dashboardBtn.setOnAction(e -> { setActiveNav(dashboardBtn); showContent(dashboardContent); });
         reportsBtn.setOnAction(e -> { setActiveNav(reportsBtn); showContent(reportsContent); });
         transactionsBtn.setOnAction(e -> { setActiveNav(transactionsBtn); refreshTransactionHistoryContent(); showContent(transactionHistoryContent); });
+        remittanceBtn.setOnAction(e -> { setActiveNav(remittanceBtn); refreshRemittanceContent(); showContent(remittanceContent); });
         productsBtn.setOnAction(e -> { setActiveNav(productsBtn); showContent(productsContent); });
         inventoryBtn.setOnAction(e -> { setActiveNav(inventoryBtn); showContent(inventoryContent); });
         addOnsBtn.setOnAction(e -> { setActiveNav(addOnsBtn); refreshAddOnsContent(); showContent(addOnsContent); });
@@ -533,6 +550,7 @@ public class AdminApp extends Application {
         accountsBtn.setOnAction(e -> { setActiveNav(accountsBtn); showContent(accountsContent); });
         // Archived items navigation removed
         maintenanceBtn.setOnAction(e -> { setActiveNav(maintenanceBtn); showContent(maintenanceContent); updateMaintenanceUI(); });
+        complaintsBtn.setOnAction(e -> { setActiveNav(complaintsBtn); refreshComplaintsContent(); showContent(complaintsContent); });
         
         return sidebar;
     }
@@ -625,7 +643,10 @@ public class AdminApp extends Application {
 
     private void setMaintenance(boolean enabled) {
         maintenanceMode = enabled;
-        String msg = maintenanceMode ? "Maintenance Mode enabled. The system is now in maintenance mode." : "Maintenance Mode disabled. System is operational.";
+        // Persist to file so other apps can check
+        TextDatabase.setMaintenanceMode(enabled);
+        
+        String msg = maintenanceMode ? "Maintenance Mode ENABLED.\n\nCustomerApp and CashierApp will be blocked until maintenance is disabled." : "Maintenance Mode DISABLED.\n\nSystem is now operational.";
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
         alert.setTitle("Maintenance Mode");
         alert.setHeaderText(null);
@@ -704,18 +725,20 @@ public class AdminApp extends Application {
         statusCol.setPrefWidth(150);
 
         TableColumn<CashierRow, Void> actionsCol = new TableColumn<>("Actions");
-        actionsCol.setPrefWidth(400);
+        actionsCol.setPrefWidth(500);
         actionsCol.setCellFactory(col -> new TableCell<>() {
             private final HBox box = new HBox(8);
             private final Button toggleBtn = new Button();
+            private final Button viewPwdBtn = new Button("View Password");
             private final Button pwdBtn = new Button("Change Password");
             private final Button userBtn = new Button("Change Username");
 
             {
                 toggleBtn.setStyle("-fx-font-weight: bold; -fx-font-size: 11px;");
+                viewPwdBtn.setStyle("-fx-font-size: 11px; -fx-background-color: #9C27B0; -fx-text-fill: white;");
                 pwdBtn.setStyle("-fx-font-size: 11px;");
                 userBtn.setStyle("-fx-font-size: 11px; -fx-background-color: #1976D2; -fx-text-fill: white;");
-                box.getChildren().addAll(toggleBtn, pwdBtn, userBtn);
+                box.getChildren().addAll(toggleBtn, viewPwdBtn, pwdBtn, userBtn);
                 
                 toggleBtn.setOnAction(e -> {
                     CashierRow row = getTableView().getItems().get(getIndex());
@@ -724,6 +747,23 @@ public class AdminApp extends Application {
                     row.setStatus(newActive ? "Active" : "Inactive");
                     row.setActiveFlag(newActive);
                     getTableView().refresh();
+                });
+
+                viewPwdBtn.setOnAction(e -> {
+                    CashierRow row = getTableView().getItems().get(getIndex());
+                    // Find the password from the store
+                    String password = "";
+                    for (CashierAccount acc : Store.getInstance().getCashiers()) {
+                        if (acc.getId().equals(row.getId())) {
+                            password = acc.getPassword();
+                            break;
+                        }
+                    }
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("View Password");
+                    alert.setHeaderText("Password for: " + row.getUsername());
+                    alert.setContentText("Password: " + password);
+                    alert.showAndWait();
                 });
 
                 pwdBtn.setOnAction(e -> {
@@ -862,33 +902,102 @@ public class AdminApp extends Application {
         title.setTextFill(Color.web("#1a1a1a"));
         Region headerSpacer = new Region(); HBox.setHgrow(headerSpacer, Priority.ALWAYS);
         
+        // Refresh button
+        Button refreshBtn = new Button("🔄 Refresh");
+        refreshBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        refreshBtn.setOnMouseEntered(e -> refreshBtn.setStyle("-fx-background-color: #059669; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"));
+        refreshBtn.setOnMouseExited(e -> refreshBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"));
+        
         // Export PDF button
-        Button exportPdfBtn = new Button("📄 Export PDF");
+        Button exportPdfBtn = new Button("📊 Export Report");
         exportPdfBtn.setStyle("-fx-background-color: #3498DB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         exportPdfBtn.setOnMouseEntered(e -> exportPdfBtn.setStyle("-fx-background-color: #2980B9; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"));
         exportPdfBtn.setOnMouseExited(e -> exportPdfBtn.setStyle("-fx-background-color: #3498DB; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;"));
         exportPdfBtn.setOnAction(e -> exportDashboardToPdf(panel));
         
-        header.getChildren().addAll(title, headerSpacer, exportPdfBtn);
+        header.getChildren().addAll(title, headerSpacer, refreshBtn, exportPdfBtn);
 
         // Top metric cards
         HBox metricsRow = new HBox(14);
         metricsRow.setPadding(new Insets(6,0,6,0));
 
-        // Create cards with icons and proper styling
-        VBox cardTotal = createMetricCardWithIcon("💵", "Total Revenue", "₱0.00", "+2%", "#E8F8F5");
+        // Create Revenue card with toggle (Today/Total)
+        VBox cardRevenue = new VBox(8);
+        cardRevenue.setPadding(new Insets(18));
+        cardRevenue.setStyle("-fx-background-color: #E8F8F5; -fx-background-radius: 14;");
+        cardRevenue.setAlignment(Pos.TOP_LEFT);
+        
+        // Toggle buttons for Today/Total
+        HBox revenueToggle = new HBox(5);
+        revenueToggle.setAlignment(Pos.CENTER_LEFT);
+        
+        Button todayRevenueBtn = new Button("Today");
+        todayRevenueBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 4 10; -fx-background-radius: 12; -fx-cursor: hand;");
+        
+        Button totalRevenueBtn = new Button("Total");
+        totalRevenueBtn.setStyle("-fx-background-color: #E5E7EB; -fx-text-fill: #374151; -fx-font-size: 10px; -fx-padding: 4 10; -fx-background-radius: 12; -fx-cursor: hand;");
+        
+        revenueToggle.getChildren().addAll(todayRevenueBtn, totalRevenueBtn);
+        
+        // Icon and title
+        HBox revenueTitleRow = new HBox(8);
+        revenueTitleRow.setAlignment(Pos.CENTER_LEFT);
+        Label revenueIcon = new Label("💵");
+        revenueIcon.setFont(Font.font(20));
+        Label revenueTitleLabel = new Label("Today's Revenue");
+        revenueTitleLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        revenueTitleLabel.setTextFill(Color.web("#374151"));
+        revenueTitleRow.getChildren().addAll(revenueIcon, revenueTitleLabel);
+        
+        // Value label
+        Label revenueValueLabel = new Label("₱0.00");
+        revenueValueLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 24));
+        revenueValueLabel.setTextFill(Color.web("#111827"));
+        revenueValueLabel.setId("revenueValue");
+        
+        // Badge/subtitle
+        Label revenueBadge = new Label("Updated live");
+        revenueBadge.setFont(Font.font("Segoe UI", 11));
+        revenueBadge.setTextFill(Color.web("#10B981"));
+        
+        cardRevenue.getChildren().addAll(revenueToggle, revenueTitleRow, revenueValueLabel, revenueBadge);
+        
+        // Toggle button actions
+        final boolean[] showingToday = {true};
+        
+        todayRevenueBtn.setOnAction(e -> {
+            showingToday[0] = true;
+            todayRevenueBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 4 10; -fx-background-radius: 12; -fx-cursor: hand;");
+            totalRevenueBtn.setStyle("-fx-background-color: #E5E7EB; -fx-text-fill: #374151; -fx-font-size: 10px; -fx-padding: 4 10; -fx-background-radius: 12; -fx-cursor: hand;");
+            revenueTitleLabel.setText("Today's Revenue");
+            List<Receipt> receipts = TextDatabase.loadAllReceipts();
+            double todayRev = SalesAnalytics.getTotalSalesForDate(receipts, LocalDate.now());
+            revenueValueLabel.setText(String.format("₱%.2f", todayRev));
+            revenueBadge.setText("Today only");
+        });
+        
+        totalRevenueBtn.setOnAction(e -> {
+            showingToday[0] = false;
+            totalRevenueBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-size: 10px; -fx-padding: 4 10; -fx-background-radius: 12; -fx-cursor: hand;");
+            todayRevenueBtn.setStyle("-fx-background-color: #E5E7EB; -fx-text-fill: #374151; -fx-font-size: 10px; -fx-padding: 4 10; -fx-background-radius: 12; -fx-cursor: hand;");
+            revenueTitleLabel.setText("Total Revenue");
+            List<Receipt> receipts = TextDatabase.loadAllReceipts();
+            double totalRev = SalesAnalytics.getTotalSales(receipts);
+            revenueValueLabel.setText(String.format("₱%.2f", totalRev));
+            revenueBadge.setText("All time");
+        });
+
+        // Other metric cards
         VBox cardOnProgress = createMetricCardWithIcon("⏱", "On Progress", "10", "Orders", "#FEF6E6");
         VBox cardPerformance = createMetricCardWithIcon("✓", "Performance", "Good", "2/24", "#E8F5E9");
-        VBox cardToday = createMetricCardWithIcon("📊", "Today Sales", "234", "+2%", "#E8F5E9");
-        VBox cardOnProgress2 = createMetricCardWithIcon("📈", "On Progress", "10", "Orders", "#E3F2FD");
+        VBox cardToday = createMetricCardWithIcon("📊", "Today Orders", "0", "orders", "#E8F5E9");
 
-        HBox.setHgrow(cardTotal, Priority.ALWAYS);
+        HBox.setHgrow(cardRevenue, Priority.ALWAYS);
         HBox.setHgrow(cardOnProgress, Priority.ALWAYS);
         HBox.setHgrow(cardPerformance, Priority.ALWAYS);
         HBox.setHgrow(cardToday, Priority.ALWAYS);
-        HBox.setHgrow(cardOnProgress2, Priority.ALWAYS);
 
-        metricsRow.getChildren().addAll(cardTotal, cardOnProgress, cardPerformance, cardToday, cardOnProgress2);
+        metricsRow.getChildren().addAll(cardRevenue, cardOnProgress, cardPerformance, cardToday);
 
         // Main content: left (charts) and right (score + recent transactions)
         HBox mainRow = new HBox(18);
@@ -1097,43 +1206,8 @@ public class AdminApp extends Application {
         
         leftCol.getChildren().addAll(salesStatCard, bottomRow);
 
-        // Right column: score gauge + complaint cards
-        VBox rightCol = new VBox(12);
-        rightCol.setPrefWidth(350);
-        rightCol.setMinWidth(350);
-
-        // Score card with gauge visualization
-        VBox scoreCard = new VBox(12);
-        scoreCard.setPadding(new Insets(18));
-        scoreCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10,0,0,2);");
-        
-        HBox scoreHeader = new HBox();
-        scoreHeader.setAlignment(Pos.CENTER_LEFT);
-        Label scoreTitle = new Label("⭐ Score");
-        scoreTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 16));
-        Region scoreSpacer = new Region();
-        HBox.setHgrow(scoreSpacer, Priority.ALWAYS);
-        Label moreIcon = new Label("⋯");
-        moreIcon.setFont(Font.font(20));
-        scoreHeader.getChildren().addAll(scoreTitle, scoreSpacer, moreIcon);
-        
-        // Score gauge
-        Canvas gaugeCanvas = new Canvas(320, 180);
-        drawScoreGauge(gaugeCanvas, 98);
-        
-        Label scoreSub = new Label("2/98 order Complains");
-        scoreSub.setFont(Font.font("Segoe UI", 12));
-        scoreSub.setTextFill(Color.web("#6c757d"));
-        scoreSub.setAlignment(Pos.CENTER);
-        
-        scoreCard.getChildren().addAll(scoreHeader, gaugeCanvas, scoreSub);
-
-        // Complaint cards (only showing unresolved complaints)
-        VBox complaintCard1 = createComplaintCard("🔴", "Wrong Menu", "Andrew Tate", "Solve");
-
-        rightCol.getChildren().addAll(scoreCard, complaintCard1);
-
-        mainRow.getChildren().addAll(leftCol, rightCol);
+        // Main content area - just left column with charts
+        mainRow.getChildren().addAll(leftCol);
 
         // Build loader to populate charts and lists
         Runnable load = () -> {
@@ -1142,11 +1216,20 @@ public class AdminApp extends Application {
 
             // Populate metric cards - update the value labels
             double totalAll = SalesAnalytics.getTotalSales(receipts);
-            double today = SalesAnalytics.getTotalSalesForDate(receipts, LocalDate.now());
+            double todayRev = SalesAnalytics.getTotalSalesForDate(receipts, LocalDate.now());
             long ordersToday = SalesAnalytics.getOrderCountForDate(receipts, LocalDate.now());
+            long pendingOrders = TextDatabase.loadAllPendingOrders().stream()
+                .filter(po -> !PendingOrder.STATUS_COMPLETED.equals(po.getStatus()))
+                .count();
             
-            updateMetricCardValue(cardTotal, String.format("₱%.2f", totalAll));
-            updateMetricCardValue(cardOnProgress, String.valueOf(ordersToday));
+            // Update revenue card based on current toggle state
+            if (showingToday[0]) {
+                revenueValueLabel.setText(String.format("₱%.2f", todayRev));
+            } else {
+                revenueValueLabel.setText(String.format("₱%.2f", totalAll));
+            }
+            
+            updateMetricCardValue(cardOnProgress, String.valueOf(pendingOrders));
             updateMetricCardValue(cardToday, String.valueOf(ordersToday));
 
             // Update the sales chart using actual receipts/orders aggregation
@@ -1158,6 +1241,18 @@ public class AdminApp extends Application {
             int max = Math.min(4, receipts.size());
             for (int i = 0; i < max; i++) recentTable.getItems().add(receipts.get(i));
         };
+        
+        // Connect refresh button to load function
+        refreshBtn.setOnAction(e -> {
+            load.run();
+            // Show brief feedback
+            refreshBtn.setText("✓ Refreshed");
+            refreshBtn.setStyle("-fx-background-color: #059669; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+            new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
+                refreshBtn.setText("🔄 Refresh");
+                refreshBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+            })).play();
+        });
 
         // initial load
         load.run();
@@ -1796,6 +1891,513 @@ public class AdminApp extends Application {
         dlg.showAndWait();
     }
 
+    // ==================== REMITTANCE TAB ====================
+    
+    private void refreshRemittanceContent() {
+        if (remittanceContent == null) return;
+        remittanceContent.getChildren().clear();
+        remittanceContent.getChildren().addAll(createRemittanceTab().getChildren());
+    }
+    
+    private VBox createRemittanceTab() {
+        VBox panel = new VBox(20);
+        panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #F3F4F6;");
+
+        // Header
+        VBox headerBox = new VBox(5);
+        Label titleLabel = new Label("💰 Remittance Report");
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        titleLabel.setTextFill(Color.web("#1F2937"));
+        Label subtitleLabel = new Label("Cash transaction history for all cashiers");
+        subtitleLabel.setFont(Font.font("Segoe UI", 14));
+        subtitleLabel.setTextFill(Color.web("#6B7280"));
+        headerBox.getChildren().addAll(titleLabel, subtitleLabel);
+        panel.getChildren().add(headerBox);
+
+        // Cashier filter dropdown
+        HBox filterBox = new HBox(15);
+        filterBox.setAlignment(Pos.CENTER_LEFT);
+        filterBox.setPadding(new Insets(10, 0, 10, 0));
+        
+        Label filterLabel = new Label("Filter by Cashier:");
+        filterLabel.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        filterLabel.setTextFill(Color.web("#374151"));
+        
+        ComboBox<String> cashierFilter = new ComboBox<>();
+        cashierFilter.getItems().add("All Cashiers");
+        
+        // Load all cashiers
+        java.util.List<CashierAccount> accounts = com.coffeeshop.service.PersistenceManager.loadAccounts();
+        for (CashierAccount acc : accounts) {
+            cashierFilter.getItems().add(acc.getUsername());
+        }
+        cashierFilter.setValue("All Cashiers");
+        cashierFilter.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
+        
+        filterBox.getChildren().addAll(filterLabel, cashierFilter);
+        panel.getChildren().add(filterBox);
+
+        // Summary cards
+        HBox summaryBox = new HBox(20);
+        summaryBox.setPrefHeight(120);
+
+        VBox totalSalesBox = createRemittanceSummaryCard("💵 Total Sales", "₱0.00", "#10B981");
+        VBox totalRefundsBox = createRemittanceSummaryCard("🔄 Total Refunds", "₱0.00", "#EF4444");
+        VBox netBox = createRemittanceSummaryCard("📈 Net Amount", "₱0.00", "#3B82F6");
+
+        summaryBox.getChildren().addAll(totalSalesBox, totalRefundsBox, netBox);
+        HBox.setHgrow(totalSalesBox, Priority.ALWAYS);
+        HBox.setHgrow(totalRefundsBox, Priority.ALWAYS);
+        HBox.setHgrow(netBox, Priority.ALWAYS);
+        panel.getChildren().add(summaryBox);
+
+        // Transactions table
+        TableView<CashTransaction> transactionTable = new TableView<>();
+        transactionTable.setPrefHeight(400);
+        transactionTable.setStyle("-fx-background-color: white; -fx-background-radius: 12;");
+
+        TableColumn<CashTransaction, String> cashierCol = new TableColumn<>("Cashier");
+        cashierCol.setPrefWidth(120);
+        cashierCol.setCellValueFactory(new PropertyValueFactory<>("cashierId"));
+
+        TableColumn<CashTransaction, String> typeCol = new TableColumn<>("Type");
+        typeCol.setPrefWidth(100);
+        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        typeCol.setCellFactory(col -> new TableCell<CashTransaction, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if (CashTransaction.TYPE_SALE.equals(item)) {
+                        setStyle("-fx-text-fill: #10B981; -fx-font-weight: bold;");
+                    } else if (CashTransaction.TYPE_REFUND.equals(item)) {
+                        setStyle("-fx-text-fill: #EF4444; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-text-fill: #6B7280;");
+                    }
+                }
+            }
+        });
+
+        TableColumn<CashTransaction, String> timeCol = new TableColumn<>("Time");
+        timeCol.setPrefWidth(180);
+        timeCol.setCellValueFactory(cellData -> {
+            CashTransaction tx = cellData.getValue();
+            String formatted = tx.getTransactionTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            return new javafx.beans.property.SimpleStringProperty(formatted);
+        });
+
+        TableColumn<CashTransaction, Double> amountCol = new TableColumn<>("Amount (₱)");
+        amountCol.setPrefWidth(130);
+        amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
+        amountCol.setCellFactory(col -> new TableCell<CashTransaction, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(String.format("%.2f", item));
+                    setStyle(item >= 0 ? "-fx-text-fill: #10B981; -fx-font-weight: bold;" : "-fx-text-fill: #EF4444; -fx-font-weight: bold;");
+                }
+            }
+        });
+
+        TableColumn<CashTransaction, String> referenceCol = new TableColumn<>("Reference");
+        referenceCol.setPrefWidth(150);
+        referenceCol.setCellValueFactory(new PropertyValueFactory<>("reference"));
+
+        TableColumn<CashTransaction, String> notesCol = new TableColumn<>("Notes");
+        notesCol.setPrefWidth(250);
+        notesCol.setCellValueFactory(new PropertyValueFactory<>("notes"));
+
+        transactionTable.getColumns().addAll(cashierCol, typeCol, timeCol, amountCol, referenceCol, notesCol);
+
+        // Load all transactions initially
+        java.util.List<CashTransaction> allTransactions = TextDatabase.loadAllCashTransactions();
+        javafx.collections.ObservableList<CashTransaction> data = javafx.collections.FXCollections.observableArrayList(allTransactions);
+        transactionTable.setItems(data);
+
+        // Update summary with all transactions
+        updateRemittanceSummary(allTransactions, totalSalesBox, totalRefundsBox, netBox);
+
+        // Filter listener
+        cashierFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
+            java.util.List<CashTransaction> filtered;
+            if ("All Cashiers".equals(newVal)) {
+                filtered = TextDatabase.loadAllCashTransactions();
+            } else {
+                filtered = TextDatabase.loadCashTransactionsByCashier(newVal);
+            }
+            data.setAll(filtered);
+            updateRemittanceSummary(filtered, totalSalesBox, totalRefundsBox, netBox);
+        });
+
+        VBox tableContainer = new VBox(transactionTable);
+        tableContainer.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3);");
+        tableContainer.setPadding(new Insets(15));
+        VBox.setVgrow(transactionTable, Priority.ALWAYS);
+        VBox.setVgrow(tableContainer, Priority.ALWAYS);
+        panel.getChildren().add(tableContainer);
+
+        return panel;
+    }
+    
+    private VBox createRemittanceSummaryCard(String label, String value, String color) {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(20));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3);");
+        card.setAlignment(Pos.CENTER_LEFT);
+
+        Label labelLbl = new Label(label);
+        labelLbl.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
+        labelLbl.setTextFill(Color.web("#6B7280"));
+
+        Label valueLbl = new Label(value);
+        valueLbl.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        valueLbl.setTextFill(Color.web(color));
+        valueLbl.setId("remittanceSummaryValue");
+
+        card.getChildren().addAll(labelLbl, valueLbl);
+        return card;
+    }
+    
+    private void updateRemittanceSummary(java.util.List<CashTransaction> transactions, VBox salesCard, VBox refundsCard, VBox netCard) {
+        double totalSales = transactions.stream()
+            .filter(tx -> CashTransaction.TYPE_SALE.equals(tx.getType()))
+            .mapToDouble(CashTransaction::getAmount)
+            .sum();
+        double totalRefunds = transactions.stream()
+            .filter(tx -> CashTransaction.TYPE_REFUND.equals(tx.getType()))
+            .mapToDouble(CashTransaction::getAmount)
+            .sum();
+        double net = totalSales + totalRefunds;
+
+        updateRemittanceCardValue(salesCard, String.format("₱%.2f", totalSales));
+        updateRemittanceCardValue(refundsCard, String.format("₱%.2f", totalRefunds));
+        updateRemittanceCardValue(netCard, String.format("₱%.2f", net));
+    }
+    
+    private void updateRemittanceCardValue(VBox card, String newValue) {
+        for (javafx.scene.Node node : card.getChildren()) {
+            if (node instanceof Label) {
+                Label lbl = (Label) node;
+                if ("remittanceSummaryValue".equals(lbl.getId())) {
+                    lbl.setText(newValue);
+                }
+            }
+        }
+    }
+
+    // ==================== COMPLAINTS TAB ====================
+    
+    private void refreshComplaintsContent() {
+        if (complaintsContent == null) return;
+        complaintsContent.getChildren().clear();
+        complaintsContent.getChildren().addAll(createComplaintsTab().getChildren());
+    }
+    
+    private VBox createComplaintsTab() {
+        VBox panel = new VBox(20);
+        panel.setPadding(new Insets(30));
+        panel.setStyle("-fx-background-color: #F3F4F6;");
+        
+        // Header
+        HBox header = new HBox(15);
+        header.setAlignment(Pos.CENTER_LEFT);
+        
+        Label title = new Label("😕 Customer Complaints");
+        title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 28));
+        title.setTextFill(Color.web("#111827"));
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Button refreshBtn = new Button("🔄 Refresh");
+        refreshBtn.setStyle("-fx-background-color: #3B82F6; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        refreshBtn.setOnAction(e -> refreshComplaintsContent());
+        
+        header.getChildren().addAll(title, spacer, refreshBtn);
+        
+        // Complaints table
+        TableView<com.coffeeshop.model.Complaint> complaintsTable = new TableView<>();
+        complaintsTable.setStyle("-fx-background-color: white; -fx-background-radius: 12;");
+        VBox.setVgrow(complaintsTable, Priority.ALWAYS);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getId()));
+        idCol.setPrefWidth(120);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> orderIdCol = new TableColumn<>("Order ID");
+        orderIdCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getOrderId()));
+        orderIdCol.setPrefWidth(120);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> customerCol = new TableColumn<>("Customer");
+        customerCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getCustomerName()));
+        customerCol.setPrefWidth(150);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> issueCol = new TableColumn<>("Issue Type");
+        issueCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getIssueType()));
+        issueCol.setPrefWidth(130);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> descCol = new TableColumn<>("Description");
+        descCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getDescription()));
+        descCol.setPrefWidth(250);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> cashierCol = new TableColumn<>("Cashier");
+        cashierCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getCashierId()));
+        cashierCol.setPrefWidth(100);
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getStatus()));
+        statusCol.setPrefWidth(100);
+        statusCol.setCellFactory(col -> new TableCell<com.coffeeshop.model.Complaint, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if ("RESOLVED".equalsIgnoreCase(item)) {
+                        setStyle("-fx-text-fill: #10B981; -fx-font-weight: bold;");
+                    } else if ("PENDING_APPROVAL".equalsIgnoreCase(item)) {
+                        setStyle("-fx-text-fill: #8B5CF6; -fx-font-weight: bold;"); // Purple for pending approval
+                    } else if ("REJECTED".equalsIgnoreCase(item)) {
+                        setStyle("-fx-text-fill: #EF4444; -fx-font-weight: bold;"); // Red for rejected
+                    } else if ("OPEN".equalsIgnoreCase(item)) {
+                        setStyle("-fx-text-fill: #F59E0B; -fx-font-weight: bold;"); // Orange for open
+                    } else {
+                        setStyle("-fx-text-fill: #6B7280; -fx-font-weight: bold;");
+                    }
+                }
+            }
+        });
+        
+        TableColumn<com.coffeeshop.model.Complaint, String> dateCol = new TableColumn<>("Date");
+        dateCol.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(
+            data.getValue().getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+        ));
+        dateCol.setPrefWidth(140);
+        
+        TableColumn<com.coffeeshop.model.Complaint, Void> actionsCol = new TableColumn<>("Actions");
+        actionsCol.setPrefWidth(280);
+        actionsCol.setCellFactory(param -> new TableCell<>() {
+            private final Button approveBtn = new Button("✓ Approve");
+            private final Button rejectBtn = new Button("✗ Reject");
+            private final Button viewBtn = new Button("👁 View");
+            private final HBox buttons = new HBox(8, viewBtn, approveBtn, rejectBtn);
+            
+            {
+                approveBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-background-radius: 5; -fx-cursor: hand;");
+                rejectBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-background-radius: 5; -fx-cursor: hand;");
+                viewBtn.setStyle("-fx-background-color: #3B82F6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-background-radius: 5; -fx-cursor: hand;");
+                buttons.setAlignment(Pos.CENTER);
+                
+                viewBtn.setOnAction(e -> {
+                    com.coffeeshop.model.Complaint c = getTableView().getItems().get(getIndex());
+                    showComplaintDetails(c);
+                });
+                
+                approveBtn.setOnAction(e -> {
+                    com.coffeeshop.model.Complaint c = getTableView().getItems().get(getIndex());
+                    // Show confirmation dialog
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Approve Resolution");
+                    confirm.setHeaderText("Approve Complaint Resolution");
+                    confirm.setContentText("Are you sure you want to approve the resolution for this complaint?\n\nComplaint ID: " + c.getId() + "\nIssue: " + c.getIssueType());
+                    confirm.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.OK) {
+                            c.setStatus("RESOLVED");
+                            Store.getInstance().saveComplaint(c);
+                            refreshComplaintsContent();
+                        }
+                    });
+                });
+                
+                rejectBtn.setOnAction(e -> {
+                    com.coffeeshop.model.Complaint c = getTableView().getItems().get(getIndex());
+                    // Show rejection dialog with reason
+                    TextInputDialog reasonDialog = new TextInputDialog();
+                    reasonDialog.setTitle("Reject Resolution");
+                    reasonDialog.setHeaderText("Reject Complaint Resolution");
+                    reasonDialog.setContentText("Enter reason for rejection (optional):");
+                    reasonDialog.showAndWait().ifPresent(reason -> {
+                        c.setStatus("REJECTED");
+                        // Append rejection reason to description if provided
+                        if (reason != null && !reason.trim().isEmpty()) {
+                            c.setDescription(c.getDescription() + " [REJECTED: " + reason + "]");
+                        }
+                        Store.getInstance().saveComplaint(c);
+                        refreshComplaintsContent();
+                    });
+                });
+            }
+            
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    com.coffeeshop.model.Complaint c = getTableView().getItems().get(getIndex());
+                    String status = c.getStatus();
+                    // Show approve/reject only for PENDING_APPROVAL
+                    boolean isPendingApproval = "PENDING_APPROVAL".equalsIgnoreCase(status);
+                    boolean isResolved = "RESOLVED".equalsIgnoreCase(status);
+                    boolean isRejected = "REJECTED".equalsIgnoreCase(status);
+                    
+                    approveBtn.setDisable(!isPendingApproval);
+                    rejectBtn.setDisable(!isPendingApproval);
+                    approveBtn.setVisible(isPendingApproval || isResolved);
+                    rejectBtn.setVisible(isPendingApproval || isRejected);
+                    
+                    setGraphic(buttons);
+                }
+            }
+        });
+        
+        complaintsTable.getColumns().addAll(idCol, orderIdCol, customerCol, issueCol, descCol, cashierCol, statusCol, dateCol, actionsCol);
+        
+        // Load complaints data
+        java.util.List<com.coffeeshop.model.Complaint> allComplaints = Store.getInstance().getAllComplaints();
+        if (allComplaints == null) allComplaints = new java.util.ArrayList<>();
+        
+        // Sort by date (newest first)
+        allComplaints.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        
+        complaintsTable.setItems(javafx.collections.FXCollections.observableArrayList(allComplaints));
+        
+        // Stats cards
+        HBox statsRow = new HBox(20);
+        statsRow.setAlignment(Pos.CENTER_LEFT);
+        
+        int totalComplaints = allComplaints.size();
+        long openCount = allComplaints.stream().filter(c -> "OPEN".equalsIgnoreCase(c.getStatus())).count();
+        long pendingApprovalCount = allComplaints.stream().filter(c -> "PENDING_APPROVAL".equalsIgnoreCase(c.getStatus())).count();
+        long resolvedCount = allComplaints.stream().filter(c -> "RESOLVED".equalsIgnoreCase(c.getStatus())).count();
+        
+        VBox totalCard = createComplaintStatCard("📋", "Total Complaints", String.valueOf(totalComplaints), "#3B82F6");
+        VBox openCard = createComplaintStatCard("🔴", "Open", String.valueOf(openCount), "#EF4444");
+        VBox pendingApprovalCard = createComplaintStatCard("⏳", "Pending Approval", String.valueOf(pendingApprovalCount), "#8B5CF6");
+        VBox resolvedCard = createComplaintStatCard("✅", "Resolved", String.valueOf(resolvedCount), "#10B981");
+        
+        statsRow.getChildren().addAll(totalCard, openCard, pendingApprovalCard, resolvedCard);
+        
+        // Empty state message
+        if (allComplaints.isEmpty()) {
+            VBox emptyState = new VBox(15);
+            emptyState.setAlignment(Pos.CENTER);
+            emptyState.setPadding(new Insets(60));
+            
+            Label emptyIcon = new Label("📭");
+            emptyIcon.setFont(Font.font(60));
+            
+            Label emptyMsg = new Label("No complaints yet");
+            emptyMsg.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 18));
+            emptyMsg.setTextFill(Color.web("#6B7280"));
+            
+            Label emptyDesc = new Label("Complaints filed from the Returns/Exchange dialog will appear here.");
+            emptyDesc.setFont(Font.font("Segoe UI", 14));
+            emptyDesc.setTextFill(Color.web("#9CA3AF"));
+            
+            emptyState.getChildren().addAll(emptyIcon, emptyMsg, emptyDesc);
+            panel.getChildren().addAll(header, statsRow, emptyState);
+        } else {
+            panel.getChildren().addAll(header, statsRow, complaintsTable);
+        }
+        
+        return panel;
+    }
+    
+    private VBox createComplaintStatCard(String icon, String label, String value, String color) {
+        VBox card = new VBox(8);
+        card.setPadding(new Insets(20));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 2);");
+        card.setMinWidth(180);
+        
+        HBox iconRow = new HBox(10);
+        iconRow.setAlignment(Pos.CENTER_LEFT);
+        
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(24));
+        
+        Label labelText = new Label(label);
+        labelText.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 13));
+        labelText.setTextFill(Color.web("#6B7280"));
+        
+        iconRow.getChildren().addAll(iconLabel, labelText);
+        
+        Label valueLabel = new Label(value);
+        valueLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 32));
+        valueLabel.setTextFill(Color.web(color));
+        
+        card.getChildren().addAll(iconRow, valueLabel);
+        return card;
+    }
+    
+    private void showComplaintDetails(com.coffeeshop.model.Complaint c) {
+        Dialog<Void> dlg = new Dialog<>();
+        dlg.setTitle("Complaint Details");
+        dlg.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setPrefWidth(500);
+        
+        Label titleLabel = new Label("😕 Complaint: " + c.getId());
+        titleLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 18));
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(15);
+        grid.setVgap(10);
+        
+        int row = 0;
+        grid.add(new Label("Order ID:"), 0, row);
+        grid.add(new Label(c.getOrderId()), 1, row++);
+        
+        grid.add(new Label("Customer:"), 0, row);
+        grid.add(new Label(c.getCustomerName()), 1, row++);
+        
+        grid.add(new Label("Issue Type:"), 0, row);
+        Label issueLabel = new Label(c.getIssueType());
+        issueLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #EF4444;");
+        grid.add(issueLabel, 1, row++);
+        
+        grid.add(new Label("Cashier:"), 0, row);
+        grid.add(new Label(c.getCashierId()), 1, row++);
+        
+        grid.add(new Label("Status:"), 0, row);
+        Label statusLabel = new Label(c.getStatus());
+        statusLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + 
+            ("RESOLVED".equalsIgnoreCase(c.getStatus()) ? "#10B981" : "#F59E0B") + ";");
+        grid.add(statusLabel, 1, row++);
+        
+        grid.add(new Label("Date:"), 0, row);
+        grid.add(new Label(c.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))), 1, row++);
+        
+        Label descTitle = new Label("Description:");
+        descTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 13));
+        
+        TextArea descArea = new TextArea(c.getDescription());
+        descArea.setEditable(false);
+        descArea.setWrapText(true);
+        descArea.setPrefRowCount(4);
+        
+        content.getChildren().addAll(titleLabel, new Separator(), grid, descTitle, descArea);
+        
+        dlg.getDialogPane().setContent(content);
+        dlg.setResizable(true);
+        dlg.showAndWait();
+    }
+
     private VBox createCategoriesTab() {
         VBox panel = new VBox(12);
         panel.setPadding(new Insets(20));
@@ -2094,7 +2696,7 @@ public class AdminApp extends Application {
     }
     
     /**
-     * Export Sales Dashboard data to PDF file
+     * Export Sales Dashboard data to PDF file with improved design
      */
     private void exportDashboardToPdf(VBox dashboardPanel) {
         FileChooser fileChooser = new FileChooser();
@@ -2113,114 +2715,269 @@ public class AdminApp extends Application {
             long ordersToday = SalesAnalytics.getOrderCountForDate(receipts, LocalDate.now());
             long totalOrders = receipts.size();
             
-            // Get recent transactions
-            List<Receipt> recentReceipts = receipts.size() > 10 ? receipts.subList(0, 10) : receipts;
+            // Calculate average order value
+            double avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+            double avgOrderToday = ordersToday > 0 ? todayRevenue / ordersToday : 0;
+            
+            // Get recent transactions (last 15)
+            List<Receipt> sortedReceipts = new java.util.ArrayList<>(receipts);
+            sortedReceipts.sort((a, b) -> b.getReceiptTime().compareTo(a.getReceiptTime()));
+            List<Receipt> recentReceipts = sortedReceipts.size() > 15 ? sortedReceipts.subList(0, 15) : sortedReceipts;
             
             // Get items performance data
             List<OrderRecord> orders = TextDatabase.loadAllOrders();
             Map<String, Integer> itemCounts = new LinkedHashMap<>();
+            Map<String, Double> itemRevenue = new LinkedHashMap<>();
+            
+            // Load products to get prices
+            Map<String, Double> productPrices = new java.util.HashMap<>();
+            for (Product p : store.getProducts()) {
+                productPrices.put(p.getName(), p.getPrice());
+            }
+            
             for (OrderRecord order : orders) {
                 String itemName = order.getItemName();
                 itemCounts.put(itemName, itemCounts.getOrDefault(itemName, 0) + 1);
+                double price = productPrices.getOrDefault(itemName, 50.0); // default price if not found
+                itemRevenue.put(itemName, itemRevenue.getOrDefault(itemName, 0.0) + price);
             }
             
-            // Create PDF using basic text format (simplified PDF)
-            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            // Sort by count descending
+            List<Map.Entry<String, Integer>> sortedItems = new java.util.ArrayList<>(itemCounts.entrySet());
+            sortedItems.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+            
+            // Create proper PDF file
+            try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file, "rw")) {
+                StringBuilder pdf = new StringBuilder();
+                
                 // PDF Header
-                writer.println("%PDF-1.4");
-                writer.println("1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj");
-                writer.println("2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj");
-                writer.println("3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj");
-                writer.println("5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj");
+                pdf.append("%PDF-1.4\n");
+                pdf.append("%\u00E2\u00E3\u00CF\u00D3\n");
                 
-                // Build content
+                // Object 1: Catalog
+                int obj1Pos = pdf.length();
+                pdf.append("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+                
+                // Object 2: Pages
+                int obj2Pos = pdf.length();
+                pdf.append("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+                
+                // Object 5: Font
+                int obj5Pos = pdf.length();
+                pdf.append("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n");
+                
+                // Object 6: Bold Font
+                int obj6Pos = pdf.length();
+                pdf.append("6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n");
+                
+                // Build page content
                 StringBuilder content = new StringBuilder();
-                content.append("BT\n");
-                content.append("/F1 24 Tf\n");
-                content.append("50 750 Td\n");
-                content.append("(BREWISE COFFEE SHOP - Sales Dashboard Report) Tj\n");
+                int yPos = 780;
                 
-                content.append("/F1 12 Tf\n");
-                content.append("0 -30 Td\n");
-                content.append("(Generated: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + ") Tj\n");
+                // White background
+                content.append("q\n1 1 1 rg\n0 0 612 792 re\nf\nQ\n");
                 
-                content.append("0 -40 Td\n");
-                content.append("/F1 16 Tf\n");
-                content.append("(=== SALES SUMMARY ===) Tj\n");
+                // Dark header bar
+                content.append("q\n0.1 0.1 0.18 rg\n0 720 612 72 re\nf\nQ\n");
                 
-                content.append("/F1 12 Tf\n");
-                content.append("0 -25 Td\n");
-                content.append("(Total Revenue: P" + String.format("%.2f", totalRevenue) + ") Tj\n");
+                // Title
+                content.append("BT\n1 1 1 rg\n/F2 22 Tf\n50 752 Td\n(BREWISE COFFEE SHOP) Tj\nET\n");
+                content.append("BT\n1 0.85 0 rg\n/F1 12 Tf\n50 732 Td\n(Sales Dashboard Report) Tj\nET\n");
+                String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMMM dd, yyyy - hh:mm a"));
+                content.append("BT\n0.8 0.8 0.8 rg\n/F1 9 Tf\n400 745 Td\n(" + dateStr + ") Tj\nET\n");
                 
-                content.append("0 -20 Td\n");
-                content.append("(Today's Revenue: P" + String.format("%.2f", todayRevenue) + ") Tj\n");
+                yPos = 690;
                 
-                content.append("0 -20 Td\n");
-                content.append("(Total Orders: " + totalOrders + ") Tj\n");
+                // Section: Sales Summary
+                content.append("BT\n0.3 0.2 0.5 rg\n/F2 14 Tf\n50 " + yPos + " Td\n(SALES SUMMARY) Tj\nET\n");
+                content.append("q\n0.3 0.2 0.5 RG\n1.5 w\n50 " + (yPos - 5) + " m\n200 " + (yPos - 5) + " l\nS\nQ\n");
                 
-                content.append("0 -20 Td\n");
-                content.append("(Today's Orders: " + ordersToday + ") Tj\n");
+                yPos -= 35;
                 
-                content.append("0 -40 Td\n");
-                content.append("/F1 16 Tf\n");
-                content.append("(=== TOP SELLING ITEMS ===) Tj\n");
+                // Stats boxes
+                int bx = 50, bw = 125, bh = 50, gap = 10;
                 
-                content.append("/F1 12 Tf\n");
-                int itemCount = 0;
-                for (Map.Entry<String, Integer> entry : itemCounts.entrySet()) {
-                    if (itemCount >= 10) break;
-                    content.append("0 -20 Td\n");
-                    String itemLine = entry.getKey().replaceAll("[()]", "") + " - " + entry.getValue() + " sold";
-                    content.append("(" + itemLine + ") Tj\n");
-                    itemCount++;
+                // Box 1: Total Revenue
+                content.append("q\n0.96 0.96 0.96 rg\n" + bx + " " + (yPos - bh) + " " + bw + " " + bh + " re\nf\nQ\n");
+                content.append("q\n0.16 0.65 0.27 RG\n3 w\n" + bx + " " + (yPos - bh) + " m\n" + bx + " " + yPos + " l\nS\nQ\n");
+                content.append("BT\n0.1 0.1 0.15 rg\n/F2 12 Tf\n" + (bx + 8) + " " + (yPos - 22) + " Td\n(P" + String.format("%,.2f", totalRevenue) + ") Tj\nET\n");
+                content.append("BT\n0.4 0.4 0.45 rg\n/F1 8 Tf\n" + (bx + 8) + " " + (yPos - 40) + " Td\n(Total Revenue) Tj\nET\n");
+                
+                // Box 2: Today's Revenue
+                bx += bw + gap;
+                content.append("q\n0.96 0.96 0.96 rg\n" + bx + " " + (yPos - bh) + " " + bw + " " + bh + " re\nf\nQ\n");
+                content.append("q\n0 0.48 1 RG\n3 w\n" + bx + " " + (yPos - bh) + " m\n" + bx + " " + yPos + " l\nS\nQ\n");
+                content.append("BT\n0.1 0.1 0.15 rg\n/F2 12 Tf\n" + (bx + 8) + " " + (yPos - 22) + " Td\n(P" + String.format("%,.2f", todayRevenue) + ") Tj\nET\n");
+                content.append("BT\n0.4 0.4 0.45 rg\n/F1 8 Tf\n" + (bx + 8) + " " + (yPos - 40) + " Td\n(Today Revenue) Tj\nET\n");
+                
+                // Box 3: Total Orders
+                bx += bw + gap;
+                content.append("q\n0.96 0.96 0.96 rg\n" + bx + " " + (yPos - bh) + " " + bw + " " + bh + " re\nf\nQ\n");
+                content.append("q\n1 0.76 0.03 RG\n3 w\n" + bx + " " + (yPos - bh) + " m\n" + bx + " " + yPos + " l\nS\nQ\n");
+                content.append("BT\n0.1 0.1 0.15 rg\n/F2 12 Tf\n" + (bx + 8) + " " + (yPos - 22) + " Td\n(" + totalOrders + ") Tj\nET\n");
+                content.append("BT\n0.4 0.4 0.45 rg\n/F1 8 Tf\n" + (bx + 8) + " " + (yPos - 40) + " Td\n(Total Orders) Tj\nET\n");
+                
+                // Box 4: Avg Order
+                bx += bw + gap;
+                content.append("q\n0.96 0.96 0.96 rg\n" + bx + " " + (yPos - bh) + " " + bw + " " + bh + " re\nf\nQ\n");
+                content.append("q\n0.44 0.26 0.76 RG\n3 w\n" + bx + " " + (yPos - bh) + " m\n" + bx + " " + yPos + " l\nS\nQ\n");
+                content.append("BT\n0.1 0.1 0.15 rg\n/F2 12 Tf\n" + (bx + 8) + " " + (yPos - 22) + " Td\n(P" + String.format("%,.2f", avgOrderValue) + ") Tj\nET\n");
+                content.append("BT\n0.4 0.4 0.45 rg\n/F1 8 Tf\n" + (bx + 8) + " " + (yPos - 40) + " Td\n(Avg Order) Tj\nET\n");
+                
+                yPos -= 70;
+                
+                // Second row
+                bx = 50;
+                content.append("q\n0.96 0.96 0.96 rg\n" + bx + " " + (yPos - bh) + " " + bw + " " + bh + " re\nf\nQ\n");
+                content.append("q\n0 0.48 1 RG\n3 w\n" + bx + " " + (yPos - bh) + " m\n" + bx + " " + yPos + " l\nS\nQ\n");
+                content.append("BT\n0.1 0.1 0.15 rg\n/F2 12 Tf\n" + (bx + 8) + " " + (yPos - 22) + " Td\n(" + ordersToday + ") Tj\nET\n");
+                content.append("BT\n0.4 0.4 0.45 rg\n/F1 8 Tf\n" + (bx + 8) + " " + (yPos - 40) + " Td\n(Orders Today) Tj\nET\n");
+                
+                bx += bw + gap;
+                content.append("q\n0.96 0.96 0.96 rg\n" + bx + " " + (yPos - bh) + " " + bw + " " + bh + " re\nf\nQ\n");
+                content.append("q\n0.44 0.26 0.76 RG\n3 w\n" + bx + " " + (yPos - bh) + " m\n" + bx + " " + yPos + " l\nS\nQ\n");
+                content.append("BT\n0.1 0.1 0.15 rg\n/F2 12 Tf\n" + (bx + 8) + " " + (yPos - 22) + " Td\n(P" + String.format("%,.2f", avgOrderToday) + ") Tj\nET\n");
+                content.append("BT\n0.4 0.4 0.45 rg\n/F1 8 Tf\n" + (bx + 8) + " " + (yPos - 40) + " Td\n(Avg Today) Tj\nET\n");
+                
+                yPos -= 80;
+                
+                // Section: Top Selling Items
+                content.append("BT\n0.3 0.2 0.5 rg\n/F2 12 Tf\n50 " + yPos + " Td\n(TOP SELLING ITEMS) Tj\nET\n");
+                content.append("q\n0.3 0.2 0.5 RG\n1.5 w\n50 " + (yPos - 5) + " m\n200 " + (yPos - 5) + " l\nS\nQ\n");
+                
+                yPos -= 25;
+                
+                // Table header
+                content.append("q\n0.1 0.1 0.15 rg\n50 " + (yPos - 3) + " 510 18 re\nf\nQ\n");
+                content.append("BT\n1 1 1 rg\n/F2 9 Tf\n55 " + yPos + " Td\n(#) Tj\n25 0 Td\n(PRODUCT NAME) Tj\n180 0 Td\n(UNITS SOLD) Tj\n90 0 Td\n(REVENUE) Tj\nET\n");
+                
+                yPos -= 22;
+                
+                int rank = 1;
+                for (Map.Entry<String, Integer> entry : sortedItems) {
+                    if (rank > 10 || yPos < 280) break;
+                    
+                    if (rank % 2 == 0) {
+                        content.append("q\n0.96 0.96 0.96 rg\n50 " + (yPos - 3) + " 510 16 re\nf\nQ\n");
+                    }
+                    
+                    double rev = itemRevenue.getOrDefault(entry.getKey(), 0.0);
+                    String name = entry.getKey();
+                    if (name.length() > 22) name = name.substring(0, 19) + "...";
+                    
+                    content.append("BT\n0.1 0.1 0.1 rg\n/F1 9 Tf\n55 " + yPos + " Td\n(" + rank + ") Tj\n");
+                    content.append("/F2 9 Tf\n25 0 Td\n(" + escapePdfText(name) + ") Tj\n");
+                    content.append("/F1 9 Tf\n180 0 Td\n(" + entry.getValue() + ") Tj\n");
+                    content.append("0.16 0.65 0.27 rg\n90 0 Td\n(P" + String.format("%,.2f", rev) + ") Tj\nET\n");
+                    
+                    yPos -= 16;
+                    rank++;
                 }
                 
-                content.append("0 -40 Td\n");
-                content.append("/F1 16 Tf\n");
-                content.append("(=== RECENT TRANSACTIONS ===) Tj\n");
+                yPos -= 25;
                 
-                content.append("/F1 10 Tf\n");
+                // Section: Recent Transactions
+                content.append("BT\n0.3 0.2 0.5 rg\n/F2 12 Tf\n50 " + yPos + " Td\n(RECENT TRANSACTIONS) Tj\nET\n");
+                content.append("q\n0.3 0.2 0.5 RG\n1.5 w\n50 " + (yPos - 5) + " m\n220 " + (yPos - 5) + " l\nS\nQ\n");
+                
+                yPos -= 25;
+                
+                // Table header
+                content.append("q\n0.1 0.1 0.15 rg\n50 " + (yPos - 3) + " 510 18 re\nf\nQ\n");
+                content.append("BT\n1 1 1 rg\n/F2 9 Tf\n55 " + yPos + " Td\n(CUSTOMER) Tj\n110 0 Td\n(ORDER ID) Tj\n110 0 Td\n(AMOUNT) Tj\n90 0 Td\n(DATE/TIME) Tj\nET\n");
+                
+                yPos -= 22;
+                
+                int txCount = 0;
                 for (Receipt receipt : recentReceipts) {
-                    content.append("0 -18 Td\n");
-                    String receiptLine = receipt.getUserName().replaceAll("[()]", "") + " | P" + String.format("%.2f", receipt.getTotalAmount()) + " | " + receipt.getReceiptTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"));
-                    content.append("(" + receiptLine + ") Tj\n");
+                    if (txCount >= 8 || yPos < 60) break;
+                    
+                    if (txCount % 2 == 0) {
+                        content.append("q\n0.96 0.96 0.96 rg\n50 " + (yPos - 3) + " 510 16 re\nf\nQ\n");
+                    }
+                    
+                    String cName = receipt.getUserName() != null ? receipt.getUserName() : "Guest";
+                    if (cName.length() > 14) cName = cName.substring(0, 11) + "...";
+                    String oId = receipt.getOrderId() != null ? receipt.getOrderId() : receipt.getReceiptId();
+                    if (oId.length() > 14) oId = oId.substring(0, 11) + "...";
+                    String dtStr = receipt.getReceiptTime().format(DateTimeFormatter.ofPattern("MM/dd/yy hh:mm a"));
+                    
+                    content.append("BT\n0.1 0.1 0.1 rg\n/F2 9 Tf\n55 " + yPos + " Td\n(" + escapePdfText(cName) + ") Tj\n");
+                    content.append("/F1 8 Tf\n110 0 Td\n(" + escapePdfText(oId) + ") Tj\n");
+                    content.append("0.16 0.65 0.27 rg\n/F2 9 Tf\n110 0 Td\n(P" + String.format("%,.2f", receipt.getTotalAmount()) + ") Tj\n");
+                    content.append("0.4 0.4 0.4 rg\n/F1 8 Tf\n90 0 Td\n(" + dtStr + ") Tj\nET\n");
+                    
+                    yPos -= 16;
+                    txCount++;
                 }
                 
-                content.append("ET\n");
+                // Footer
+                content.append("BT\n0.5 0.5 0.5 rg\n/F1 8 Tf\n180 35 Td\n(c " + LocalDate.now().getYear() + " Brewise Coffee Shop - Generated by POS System) Tj\nET\n");
                 
                 String contentStr = content.toString();
-                writer.println("4 0 obj << /Length " + contentStr.length() + " >> stream");
-                writer.print(contentStr);
-                writer.println("endstream endobj");
+                byte[] contentBytes = contentStr.getBytes("ISO-8859-1");
                 
-                writer.println("xref");
-                writer.println("0 6");
-                writer.println("0000000000 65535 f");
-                writer.println("0000000009 00000 n");
-                writer.println("0000000058 00000 n");
-                writer.println("0000000115 00000 n");
-                writer.println("0000000270 00000 n");
-                writer.println("0000000350 00000 n");
-                writer.println("trailer << /Size 6 /Root 1 0 R >>");
-                writer.println("startxref");
-                writer.println("450");
-                writer.println("%%EOF");
+                // Object 4: Content stream
+                int obj4Pos = pdf.length();
+                pdf.append("4 0 obj\n<< /Length " + contentBytes.length + " >>\nstream\n");
+                
+                // Write header
+                raf.write(pdf.toString().getBytes("ISO-8859-1"));
+                // Write content
+                raf.write(contentBytes);
+                
+                StringBuilder pdfEnd = new StringBuilder();
+                pdfEnd.append("endstream\nendobj\n");
+                
+                // Object 3: Page
+                int obj3Pos = (int)(pdf.length() + contentBytes.length + pdfEnd.length());
+                pdfEnd.append("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n");
+                
+                // Cross-reference
+                int xrefPos = (int)(pdf.length() + contentBytes.length + pdfEnd.length());
+                pdfEnd.append("xref\n0 7\n");
+                pdfEnd.append("0000000000 65535 f \n");
+                pdfEnd.append(String.format("%010d 00000 n \n", obj1Pos));
+                pdfEnd.append(String.format("%010d 00000 n \n", obj2Pos));
+                pdfEnd.append(String.format("%010d 00000 n \n", obj3Pos));
+                pdfEnd.append(String.format("%010d 00000 n \n", obj4Pos));
+                pdfEnd.append(String.format("%010d 00000 n \n", obj5Pos));
+                pdfEnd.append(String.format("%010d 00000 n \n", obj6Pos));
+                pdfEnd.append("trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n" + xrefPos + "\n%%EOF\n");
+                
+                raf.write(pdfEnd.toString().getBytes("ISO-8859-1"));
             }
             
-            // Show success message
+            // Success message
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Export Successful");
-            alert.setHeaderText(null);
-            alert.setContentText("Sales Dashboard report has been exported to:\n" + file.getAbsolutePath());
+            alert.setHeaderText("PDF Report Generated!");
+            alert.setContentText("Sales Dashboard exported to:\n" + file.getAbsolutePath());
             alert.showAndWait();
             
+            // Open PDF
+            try {
+                Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start", "", file.getAbsolutePath()});
+            } catch (Exception ignored) {}
+            
         } catch (Exception e) {
+            e.printStackTrace();
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Export Failed");
             alert.setHeaderText(null);
             alert.setContentText("Failed to export PDF: " + e.getMessage());
             alert.showAndWait();
         }
+    }
+    
+    /**
+     * Escape special PDF text characters
+     */
+    private String escapePdfText(String text) {
+        if (text == null) return "";
+        return text.replace("\\", "\\\\")
+                   .replace("(", "\\(")
+                   .replace(")", "\\)");
     }
     
     private Button createFilterButton(String text, boolean active) {
@@ -3083,6 +3840,16 @@ public class AdminApp extends Application {
         grid.add(nameField, 1, 1);
         grid.add(new Label("Price:"), 0, 2);
         grid.add(priceField, 1, 2);
+        
+        // Description field
+        Label descLabel = new Label("Description:");
+        TextArea descriptionField = new TextArea();
+        descriptionField.setPromptText("Enter product description (shown to customers)");
+        descriptionField.setPrefRowCount(2);
+        descriptionField.setWrapText(true);
+        descriptionField.setPrefHeight(60);
+        grid.add(descLabel, 0, 3);
+        grid.add(descriptionField, 1, 3);
 
         // Available sizes rows for new product (each row: checkbox + surcharge field)
         Label sizesAvailLabel = new Label("Available Sizes:");
@@ -3121,13 +3888,72 @@ public class AdminApp extends Application {
         rowMediumAdd.setAlignment(Pos.CENTER_LEFT);
         rowLargeAdd.setAlignment(Pos.CENTER_LEFT);
         sizesBoxAdd.getChildren().addAll(rowSmallAdd, rowMediumAdd, rowLargeAdd);
-        grid.add(sizesAvailLabel, 0, 3);
-        grid.add(sizesBoxAdd, 1, 3);
+        grid.add(sizesAvailLabel, 0, 4);
+        grid.add(sizesBoxAdd, 1, 4);
 
+        // Milk Options Section (for products like Milk Tea, Coffee, etc.)
+        Label milkOptionsLabel = new Label("🥛 Milk Options:");
+        milkOptionsLabel.setStyle("-fx-font-weight: bold;");
         
-
+        CheckBox enableMilkOptionsAdd = new CheckBox("Enable Milk Options");
+        enableMilkOptionsAdd.setSelected(false);
         
+        CheckBox oatMilkAdd = new CheckBox("Oat Milk");
+        TextField oatMilkPriceAdd = new TextField("25.0");
+        oatMilkPriceAdd.setPrefWidth(80);
+        oatMilkPriceAdd.setDisable(true);
         
+        CheckBox almondMilkAdd = new CheckBox("Almond Milk");
+        TextField almondMilkPriceAdd = new TextField("25.0");
+        almondMilkPriceAdd.setPrefWidth(80);
+        almondMilkPriceAdd.setDisable(true);
+        
+        CheckBox soyMilkAdd = new CheckBox("Soy Milk");
+        TextField soyMilkPriceAdd = new TextField("25.0");
+        soyMilkPriceAdd.setPrefWidth(80);
+        soyMilkPriceAdd.setDisable(true);
+        
+        // Numeric filter for milk prices
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> milkPriceFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+            return null;
+        };
+        oatMilkPriceAdd.setTextFormatter(new javafx.scene.control.TextFormatter<>(milkPriceFilter));
+        almondMilkPriceAdd.setTextFormatter(new javafx.scene.control.TextFormatter<>(milkPriceFilter));
+        soyMilkPriceAdd.setTextFormatter(new javafx.scene.control.TextFormatter<>(milkPriceFilter));
+        
+        // Enable/disable milk option rows based on main toggle
+        enableMilkOptionsAdd.selectedProperty().addListener((obs, oldV, newV) -> {
+            oatMilkAdd.setDisable(!newV);
+            almondMilkAdd.setDisable(!newV);
+            soyMilkAdd.setDisable(!newV);
+            if (!newV) {
+                oatMilkAdd.setSelected(false);
+                almondMilkAdd.setSelected(false);
+                soyMilkAdd.setSelected(false);
+            }
+        });
+        
+        // Enable price field when milk type is selected
+        oatMilkAdd.selectedProperty().addListener((obs, oldV, newV) -> oatMilkPriceAdd.setDisable(!newV));
+        almondMilkAdd.selectedProperty().addListener((obs, oldV, newV) -> almondMilkPriceAdd.setDisable(!newV));
+        soyMilkAdd.selectedProperty().addListener((obs, oldV, newV) -> soyMilkPriceAdd.setDisable(!newV));
+        
+        VBox milkOptionsBoxAdd = new VBox(8);
+        milkOptionsBoxAdd.getChildren().add(enableMilkOptionsAdd);
+        HBox rowOatAdd = new HBox(12, oatMilkAdd, new Label("Price (+₱):"), oatMilkPriceAdd);
+        HBox rowAlmondAdd = new HBox(12, almondMilkAdd, new Label("Price (+₱):"), almondMilkPriceAdd);
+        HBox rowSoyAdd = new HBox(12, soyMilkAdd, new Label("Price (+₱):"), soyMilkPriceAdd);
+        rowOatAdd.setAlignment(Pos.CENTER_LEFT);
+        rowAlmondAdd.setAlignment(Pos.CENTER_LEFT);
+        rowSoyAdd.setAlignment(Pos.CENTER_LEFT);
+        milkOptionsBoxAdd.getChildren().addAll(rowOatAdd, rowAlmondAdd, rowSoyAdd);
+        
+        // Initially disable milk type checkboxes
+        oatMilkAdd.setDisable(true);
+        almondMilkAdd.setDisable(true);
+        soyMilkAdd.setDisable(true);
 
         // Category selector
         ComboBox<String> categoryBox = new ComboBox<>();
@@ -3143,8 +3969,12 @@ public class AdminApp extends Application {
         }
         categoryBox.setEditable(true);
         categoryBox.setPromptText("Select or type a category");
-        grid.add(new Label("Category:"), 0, 4);
-        grid.add(categoryBox, 1, 4);
+        grid.add(new Label("Category:"), 0, 5);
+        grid.add(categoryBox, 1, 5);
+        
+        // Add milk options section to grid
+        grid.add(milkOptionsLabel, 0, 6);
+        grid.add(milkOptionsBoxAdd, 1, 6);
 
         // Image preview and upload
         javafx.scene.image.ImageView imagePreview = new javafx.scene.image.ImageView();
@@ -3190,12 +4020,12 @@ public class AdminApp extends Application {
             imagePathLabel
         );
 
-        grid.add(imageSection, 0, 4, 2, 1);
+        grid.add(imageSection, 0, 7, 2, 1);
 
         // Ingredients section (limited by selected category)
         Label ingredientLabel = new Label("🧪 Select Ingredients:");
         ingredientLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
-        grid.add(ingredientLabel, 0, 5, 2, 1);
+        grid.add(ingredientLabel, 0, 8, 2, 1);
 
         // Create ingredient selector UI (will be rebuilt when category changes)
         VBox ingredientSection = new VBox(10);
@@ -3289,7 +4119,7 @@ public class AdminApp extends Application {
 
         ingredientList.setMaxWidth(Double.MAX_VALUE);
         ingredientSection.getChildren().add(ingredientList);
-        grid.add(ingredientSection, 0, 6, 2, 1);
+        grid.add(ingredientSection, 0, 9, 2, 1);
 
         // Wrap the grid in a ScrollPane so the dialog content can scroll and the button bar remains visible
         ScrollPane addScroll = new ScrollPane(grid);
@@ -3349,6 +4179,9 @@ public class AdminApp extends Application {
 
                     Product newProd = new Product(id, name, price, cleaned, category);
                     try {
+                        // Save description
+                        newProd.setDescription(descriptionField.getText());
+                        
                         newProd.setHasSizes((smallAdd.isSelected() || mediumAdd.isSelected() || largeAdd.isSelected()));
                         newProd.setHasSmall(smallAdd.isSelected());
                         newProd.setHasMedium(mediumAdd.isSelected());
@@ -3358,6 +4191,15 @@ public class AdminApp extends Application {
                         sizesMap.put("Medium", Double.parseDouble(mediumPriceAdd.getText().isEmpty() ? "0" : mediumPriceAdd.getText()));
                         sizesMap.put("Large", Double.parseDouble(largePriceAdd.getText().isEmpty() ? "0" : largePriceAdd.getText()));
                         newProd.setSizeSurcharges(sizesMap);
+                        
+                        // Save milk options
+                        newProd.setHasMilkOptions(enableMilkOptionsAdd.isSelected());
+                        newProd.setHasOatMilk(oatMilkAdd.isSelected());
+                        newProd.setHasAlmondMilk(almondMilkAdd.isSelected());
+                        newProd.setHasSoyMilk(soyMilkAdd.isSelected());
+                        newProd.setOatMilkPrice(Double.parseDouble(oatMilkPriceAdd.getText().isEmpty() ? "25" : oatMilkPriceAdd.getText()));
+                        newProd.setAlmondMilkPrice(Double.parseDouble(almondMilkPriceAdd.getText().isEmpty() ? "25" : almondMilkPriceAdd.getText()));
+                        newProd.setSoyMilkPrice(Double.parseDouble(soyMilkPriceAdd.getText().isEmpty() ? "25" : soyMilkPriceAdd.getText()));
                     } catch (Exception ignored) {}
                     return newProd;
                 } catch (NumberFormatException ex) {
@@ -3496,6 +4338,16 @@ public class AdminApp extends Application {
         grid.add(nameField, 1, 1);
         grid.add(new Label("Price:"), 0, 2);
         grid.add(priceField, 1, 2);
+        
+        // Description field
+        Label descEditLabel = new Label("Description:");
+        TextArea descriptionEditField = new TextArea(product.getDescription());
+        descriptionEditField.setPromptText("Enter product description (shown to customers)");
+        descriptionEditField.setPrefRowCount(2);
+        descriptionEditField.setWrapText(true);
+        descriptionEditField.setPrefHeight(60);
+        grid.add(descEditLabel, 0, 3);
+        grid.add(descriptionEditField, 1, 3);
 
         // Available sizes rows for editing this product (each row: checkbox + surcharge field)
         Label sizesAvailEditLabel = new Label("Available Sizes:");
@@ -3536,8 +4388,79 @@ public class AdminApp extends Application {
         rowMediumEdit.setAlignment(Pos.CENTER_LEFT);
         rowLargeEdit.setAlignment(Pos.CENTER_LEFT);
         sizesBoxEdit.getChildren().addAll(rowSmallEdit, rowMediumEdit, rowLargeEdit);
-        grid.add(sizesAvailEditLabel, 0, 3);
-        grid.add(sizesBoxEdit, 1, 3);
+        grid.add(sizesAvailEditLabel, 0, 4);
+        grid.add(sizesBoxEdit, 1, 4);
+
+        // Milk Options Section for Edit
+        Label milkOptionsEditLabel = new Label("🥛 Milk Options:");
+        milkOptionsEditLabel.setStyle("-fx-font-weight: bold;");
+        
+        CheckBox enableMilkOptionsEdit = new CheckBox("Enable Milk Options");
+        enableMilkOptionsEdit.setSelected(product.isHasMilkOptions());
+        
+        CheckBox oatMilkEdit = new CheckBox("Oat Milk");
+        oatMilkEdit.setSelected(product.isHasOatMilk());
+        TextField oatMilkPriceEdit = new TextField(String.valueOf(product.getOatMilkPrice()));
+        oatMilkPriceEdit.setPrefWidth(80);
+        
+        CheckBox almondMilkEdit = new CheckBox("Almond Milk");
+        almondMilkEdit.setSelected(product.isHasAlmondMilk());
+        TextField almondMilkPriceEdit = new TextField(String.valueOf(product.getAlmondMilkPrice()));
+        almondMilkPriceEdit.setPrefWidth(80);
+        
+        CheckBox soyMilkEdit = new CheckBox("Soy Milk");
+        soyMilkEdit.setSelected(product.isHasSoyMilk());
+        TextField soyMilkPriceEdit = new TextField(String.valueOf(product.getSoyMilkPrice()));
+        soyMilkPriceEdit.setPrefWidth(80);
+        
+        // Numeric filter for milk prices
+        java.util.function.UnaryOperator<javafx.scene.control.TextFormatter.Change> milkPriceEditFilter = change -> {
+            String newText = change.getControlNewText();
+            if (newText.matches("^\\d*(\\.\\d*)?$")) return change;
+            return null;
+        };
+        oatMilkPriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(milkPriceEditFilter));
+        almondMilkPriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(milkPriceEditFilter));
+        soyMilkPriceEdit.setTextFormatter(new javafx.scene.control.TextFormatter<>(milkPriceEditFilter));
+        
+        // Enable/disable milk option rows based on main toggle
+        enableMilkOptionsEdit.selectedProperty().addListener((obs, oldV, newV) -> {
+            oatMilkEdit.setDisable(!newV);
+            almondMilkEdit.setDisable(!newV);
+            soyMilkEdit.setDisable(!newV);
+            if (!newV) {
+                oatMilkEdit.setSelected(false);
+                almondMilkEdit.setSelected(false);
+                soyMilkEdit.setSelected(false);
+            }
+        });
+        
+        // Enable price field when milk type is selected
+        oatMilkEdit.selectedProperty().addListener((obs, oldV, newV) -> oatMilkPriceEdit.setDisable(!newV));
+        almondMilkEdit.selectedProperty().addListener((obs, oldV, newV) -> almondMilkPriceEdit.setDisable(!newV));
+        soyMilkEdit.selectedProperty().addListener((obs, oldV, newV) -> soyMilkPriceEdit.setDisable(!newV));
+        
+        VBox milkOptionsBoxEdit = new VBox(8);
+        milkOptionsBoxEdit.getChildren().add(enableMilkOptionsEdit);
+        HBox rowOatEdit = new HBox(12, oatMilkEdit, new Label("Price (+₱):"), oatMilkPriceEdit);
+        HBox rowAlmondEdit = new HBox(12, almondMilkEdit, new Label("Price (+₱):"), almondMilkPriceEdit);
+        HBox rowSoyEdit = new HBox(12, soyMilkEdit, new Label("Price (+₱):"), soyMilkPriceEdit);
+        rowOatEdit.setAlignment(Pos.CENTER_LEFT);
+        rowAlmondEdit.setAlignment(Pos.CENTER_LEFT);
+        rowSoyEdit.setAlignment(Pos.CENTER_LEFT);
+        milkOptionsBoxEdit.getChildren().addAll(rowOatEdit, rowAlmondEdit, rowSoyEdit);
+        
+        // Set initial disable state based on current product settings
+        boolean milkEnabled = product.isHasMilkOptions();
+        oatMilkEdit.setDisable(!milkEnabled);
+        almondMilkEdit.setDisable(!milkEnabled);
+        soyMilkEdit.setDisable(!milkEnabled);
+        oatMilkPriceEdit.setDisable(!product.isHasOatMilk());
+        almondMilkPriceEdit.setDisable(!product.isHasAlmondMilk());
+        soyMilkPriceEdit.setDisable(!product.isHasSoyMilk());
+        
+        grid.add(milkOptionsEditLabel, 0, 5);
+        grid.add(milkOptionsBoxEdit, 1, 5);
 
         // Image preview and upload
         javafx.scene.image.ImageView imagePreview = new javafx.scene.image.ImageView();
@@ -3581,13 +4504,13 @@ public class AdminApp extends Application {
             imagePathLabel
         );
 
-        grid.add(imageSection, 0, 4, 2, 1);
+        grid.add(imageSection, 0, 5, 2, 1);
 
         // Ingredients editor: allow admin to edit which ingredients and quantities are associated with the product
         // NOTE: quantities entered here are the amount deducted from inventory when a single product is sold (use inventory unit)
         Label ingredientLabel = new Label("🧪 Edit Ingredients (amount to deduct per product in inventory unit):");
         ingredientLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12;");
-        grid.add(ingredientLabel, 0, 5, 2, 1);
+        grid.add(ingredientLabel, 0, 6, 2, 1);
 
         // Build ingredient editor limited by product category
         VBox ingredientSection = new VBox(10);
@@ -3740,7 +4663,7 @@ public class AdminApp extends Application {
         });
 
         ingredientSection.getChildren().addAll(addChoiceRow, ingredientScroll);
-        grid.add(ingredientSection, 0, 6, 2, 1);
+        grid.add(ingredientSection, 0, 8, 2, 1);
 
         // Wrap edit grid in a ScrollPane so action buttons stay visible on small screens
         ScrollPane editScroll = new ScrollPane(grid);
@@ -3767,6 +4690,9 @@ public class AdminApp extends Application {
                     }
                     product.setName(newName);
                     
+                    // Update description
+                    product.setDescription(descriptionEditField.getText());
+                    
                     double newPrice = Double.parseDouble(priceField.getText());
                     // Update price
                     product.setPrice(newPrice);
@@ -3782,6 +4708,15 @@ public class AdminApp extends Application {
                         sizesMap.put("Medium", Double.parseDouble(mediumPriceEdit.getText().isEmpty() ? "0" : mediumPriceEdit.getText()));
                         sizesMap.put("Large", Double.parseDouble(largePriceEdit.getText().isEmpty() ? "0" : largePriceEdit.getText()));
                         product.setSizeSurcharges(sizesMap);
+                        
+                        // Update milk options
+                        product.setHasMilkOptions(enableMilkOptionsEdit.isSelected());
+                        product.setHasOatMilk(oatMilkEdit.isSelected());
+                        product.setHasAlmondMilk(almondMilkEdit.isSelected());
+                        product.setHasSoyMilk(soyMilkEdit.isSelected());
+                        product.setOatMilkPrice(Double.parseDouble(oatMilkPriceEdit.getText().isEmpty() ? "25" : oatMilkPriceEdit.getText()));
+                        product.setAlmondMilkPrice(Double.parseDouble(almondMilkPriceEdit.getText().isEmpty() ? "25" : almondMilkPriceEdit.getText()));
+                        product.setSoyMilkPrice(Double.parseDouble(soyMilkPriceEdit.getText().isEmpty() ? "25" : soyMilkPriceEdit.getText()));
                     } catch (Exception ignored) {}
 
                     // Validate selected ingredient quantities

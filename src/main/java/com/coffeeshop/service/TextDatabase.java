@@ -118,10 +118,22 @@ public class TextDatabase {
     // ==================== ORDERS DATABASE ====================
 
     /**
-     * Save an order to the orders database
+     * Save an order to the orders database.
+     * Checks for duplicate order IDs to prevent duplicate entries.
      */
     public static void saveOrder(OrderRecord order) {
         ensureDataDirectory();
+        
+        // Check if an order with this ID and item already exists
+        List<OrderRecord> existingOrders = loadAllOrders();
+        for (OrderRecord existing : existingOrders) {
+            if (existing.getOrderId() != null && existing.getOrderId().equals(order.getOrderId()) 
+                && existing.getItemName() != null && existing.getItemName().equals(order.getItemName())) {
+                System.out.println("Order record for " + order.getOrderId() + " / " + order.getItemName() + " already exists. Skipping duplicate.");
+                return;
+            }
+        }
+        
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(ORDERS_DB, true))) {
             writer.write(order.toTextRecord());
             writer.newLine();
@@ -249,10 +261,21 @@ public class TextDatabase {
     // ==================== RECEIPTS DATABASE ====================
 
     /**
-     * Save a receipt to the receipts database
+     * Save a receipt to the receipts database.
+     * Checks for duplicate order IDs to prevent duplicate receipts.
      */
     public static void saveReceipt(Receipt receipt) {
         ensureDataDirectory();
+        
+        // Check if a receipt with this order ID already exists
+        List<Receipt> existingReceipts = loadAllReceipts();
+        for (Receipt existing : existingReceipts) {
+            if (existing.getOrderId() != null && existing.getOrderId().equals(receipt.getOrderId())) {
+                System.out.println("Receipt for order " + receipt.getOrderId() + " already exists. Skipping duplicate.");
+                return;
+            }
+        }
+        
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(RECEIPTS_DB, true))) {
             writer.write(receipt.toTextRecord());
             writer.newLine();
@@ -532,6 +555,19 @@ public class TextDatabase {
         return returns;
     }
 
+    /**
+     * Check if a receipt has already been processed for return/exchange
+     */
+    public static boolean isReceiptAlreadyReturned(String receiptId) {
+        List<ReturnTransaction> allReturns = loadAllReturns();
+        for (ReturnTransaction rt : allReturns) {
+            if (rt.getOriginalReceiptId() != null && rt.getOriginalReceiptId().equals(receiptId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ==================== COMPLAINTS DATABASE ====================
 
     public static void saveComplaint(com.coffeeshop.model.Complaint complaint) {
@@ -676,5 +712,41 @@ public class TextDatabase {
             }
         }
         return 0;
+    }
+    
+    // ==================== MAINTENANCE MODE ====================
+    
+    private static final String MAINTENANCE_FILE = DATA_DIR + "/maintenance_mode.txt";
+    
+    /**
+     * Save maintenance mode status to file
+     */
+    public static void setMaintenanceMode(boolean enabled) {
+        ensureDataDirectory();
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(MAINTENANCE_FILE, false))) {
+            writer.write(enabled ? "true" : "false");
+            writer.newLine();
+        } catch (IOException e) {
+            System.err.println("Error saving maintenance mode: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Check if maintenance mode is enabled
+     */
+    public static boolean isMaintenanceMode() {
+        ensureDataDirectory();
+        File file = new File(MAINTENANCE_FILE);
+        if (!file.exists()) {
+            return false;
+        }
+        
+        try (BufferedReader reader = new BufferedReader(new FileReader(MAINTENANCE_FILE))) {
+            String line = reader.readLine();
+            return line != null && line.trim().equalsIgnoreCase("true");
+        } catch (IOException e) {
+            System.err.println("Error reading maintenance mode: " + e.getMessage());
+            return false;
+        }
     }
 }
