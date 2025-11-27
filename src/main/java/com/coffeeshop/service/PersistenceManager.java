@@ -83,20 +83,36 @@ public class PersistenceManager {
             
             if (products != null) {
                 // Apply size defaults for products loaded from JSON that don't have size flags set
+                // BUT skip pastries/bakery/snacks - they don't have sizes
                 for (Product p : products) {
-                    // If none of the size flags are true, assume all sizes should be available
-                    if (!p.isHasSmall() && !p.isHasMedium() && !p.isHasLarge()) {
-                        p.setHasSmall(true);
-                        p.setHasMedium(true);
-                        p.setHasLarge(true);
+                    // Check if this is a pastry/bakery/snack - no size options for these
+                    boolean isPastry = false;
+                    if (p.getCategory() != null) {
+                        String cat = p.getCategory().toLowerCase();
+                        isPastry = cat.contains("pastr") || cat.contains("bakery") || cat.contains("snack") || cat.contains("pastry");
                     }
-                    // Ensure size surcharges are initialized
-                    if (p.getSizeSurcharges() == null || p.getSizeSurcharges().isEmpty()) {
-                        java.util.Map<String, Double> surcharges = new java.util.HashMap<>();
-                        surcharges.put("Small", 0.0);
-                        surcharges.put("Medium", 20.0);
-                        surcharges.put("Large", 30.0);
-                        p.setSizeSurcharges(surcharges);
+                    
+                    if (isPastry) {
+                        // Pastries don't have sizes - clear any size surcharges and disable size flags
+                        p.setHasSmall(false);
+                        p.setHasMedium(false);
+                        p.setHasLarge(false);
+                        p.setSizeSurcharges(new java.util.HashMap<>());
+                    } else {
+                        // For beverages: If none of the size flags are true, assume all sizes should be available
+                        if (!p.isHasSmall() && !p.isHasMedium() && !p.isHasLarge()) {
+                            p.setHasSmall(true);
+                            p.setHasMedium(true);
+                            p.setHasLarge(true);
+                        }
+                        // Ensure size surcharges are initialized for beverages
+                        if (p.getSizeSurcharges() == null || p.getSizeSurcharges().isEmpty()) {
+                            java.util.Map<String, Double> surcharges = new java.util.HashMap<>();
+                            surcharges.put("Small", 0.0);
+                            surcharges.put("Medium", 20.0);
+                            surcharges.put("Large", 30.0);
+                            p.setSizeSurcharges(surcharges);
+                        }
                     }
                 }
                 return products;

@@ -109,9 +109,8 @@ public class Product {
     public Map<String, Double> getSizeSurcharges() {
         if (this.sizeSurcharges == null) {
             this.sizeSurcharges = new HashMap<>();
-            this.sizeSurcharges.put("Small", 0.0);
-            this.sizeSurcharges.put("Medium", 20.0);
-            this.sizeSurcharges.put("Large", 30.0);
+            // Don't add default surcharges here - let PersistenceManager handle it
+            // based on product category (pastries don't have sizes)
         }
         return sizeSurcharges;
     }
