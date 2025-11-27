@@ -2710,8 +2710,8 @@ public class CustomerApp extends Application {
             if (poppingCheck != null && poppingCheck.isSelected()) addOnsCost += 12.00 * poppingQty[0];
 
             // For beverages (products with sizes), the size value IS the price, not a surcharge
-            // For pastries, use the product's base price
-            double sizeDelta = selectedSizeCost[0];
+            // For pastries, use the product's base price (no size cost)
+            double sizeDelta = (selectedSizeCost != null) ? selectedSizeCost[0] : 0.0;
             double base = isPastry ? product.getPrice() : 0.0; // Beverages: size IS the price, Pastries: use base price
             addOnsCost += sizeDelta;
 
@@ -2840,11 +2840,10 @@ public class CustomerApp extends Application {
                     if (poppingQty[0] > 1) addOnsText.append(" x").append(poppingQty[0]);
                 }
 
-                // Append size information and include its delta per unit
+                // Append size information (don't add to addOnsCost - it's set separately via setSizeCost)
                 if (selSizeLabel != null) {
                     if (addOnsText.length() > 0) addOnsText.append(", ");
                     addOnsText.append(selSizeLabel);
-                    addOnsCost += selSizeDelta;
                 }
                 
                 if (customizingOrderItem != null) {
@@ -2856,6 +2855,7 @@ public class CustomerApp extends Application {
                     
                     // Create updated item with new customizations but keep original quantity
                     OrderItem updatedItem = new OrderItem(product, customizingOrderItem.getQuantity(), temperature, sugarLevel);
+                    updatedItem.setSizeCost(selSizeDelta); // Set size cost separately
                     if (addOnsText.length() > 0) {
                         updatedItem.setAddOns(addOnsText.toString());
                         updatedItem.setAddOnsCost(addOnsCost);
@@ -2895,6 +2895,7 @@ public class CustomerApp extends Application {
                     // Adding new item to cart
                     System.out.println("Debug: Creating order item - " + product.getName() + ", qty: " + quantity[0] + ", temp: " + temperature + ", sugar: " + sugarLevel);
                     OrderItem item = new OrderItem(product, quantity[0], temperature, sugarLevel);
+                    item.setSizeCost(selSizeDelta); // Set size cost separately
                     
                     if (addOnsText.length() > 0) {
                         item.setAddOns(addOnsText.toString());
