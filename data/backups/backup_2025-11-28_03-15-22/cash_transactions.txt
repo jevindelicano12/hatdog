@@ -8,4 +8,3 @@
 7e763211-e1b7-48c0-a031-f0d24fbd80f1|cashier2|2025-11-28 00:32:43|SALE|200.75|1005|Payment received from Jhames|
 dd48a17c-d7a2-4033-b80f-150c383dc2f7|cashier2|2025-11-28 00:35:28|REFUND|-33.25|RTN-FB765B80|Refund for return - Original receipt: RCP-716D27AD|
 f21c6659-eb82-4e57-b5eb-f6498386b1ae|JERWIN|2025-11-28 01:50:29|SALE|100.0|1008|Payment received from Juan|
-a3b87177-dd83-4ce2-bf80-7407eae0b78a|JERWIN|2025-11-28 03:35:43|SALE|80.75|1012|Payment received from daigo|

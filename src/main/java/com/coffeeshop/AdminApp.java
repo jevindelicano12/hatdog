@@ -1030,11 +1030,11 @@ public class AdminApp extends Application {
         Button customBtn = createFilterButton("Custom", false);
         filterButtons.getChildren().addAll(dayBtn, monthBtn, yearBtn, allBtn, customBtn);
         
-        Label maxLabel = new Label("≈ ₱120,00.00");
-        maxLabel.setFont(Font.font("Segoe UI", 11));
-        maxLabel.setTextFill(Color.web("#6c757d"));
+        Label totalSalesLabel = new Label("= ₱0.00");
+        totalSalesLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+        totalSalesLabel.setTextFill(Color.web("#2e7d32"));
         
-        chartHeader.getChildren().addAll(chartTitle, chartSpacer, filterButtons, maxLabel);
+        chartHeader.getChildren().addAll(chartTitle, chartSpacer, filterButtons, totalSalesLabel);
         
         // Multi-line chart with legend
         CategoryAxis xAxis = new CategoryAxis();
@@ -1054,32 +1054,32 @@ public class AdminApp extends Application {
         dayBtn.setOnAction(e -> {
             salesGranularity = "Day";
             setActiveFilterButtons(dayBtn, monthBtn, yearBtn, allBtn, customBtn);
-            updateSalesChart(salesChart, salesGranularity);
+            updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
         });
         monthBtn.setOnAction(e -> {
             salesGranularity = "Month";
             setActiveFilterButtons(monthBtn, dayBtn, yearBtn, allBtn, customBtn);
-            updateSalesChart(salesChart, salesGranularity);
+            updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
         });
         yearBtn.setOnAction(e -> {
             salesGranularity = "Year";
             setActiveFilterButtons(yearBtn, dayBtn, monthBtn, allBtn, customBtn);
-            updateSalesChart(salesChart, salesGranularity);
+            updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
         });
         allBtn.setOnAction(e -> {
             salesGranularity = "All";
             setActiveFilterButtons(allBtn, dayBtn, monthBtn, yearBtn, customBtn);
-            updateSalesChart(salesChart, salesGranularity);
+            updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
         });
         customBtn.setOnAction(e -> {
             salesGranularity = "Custom";
             setActiveFilterButtons(customBtn, dayBtn, monthBtn, yearBtn, allBtn);
-            updateSalesChart(salesChart, salesGranularity);
+            updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
         });
 
         // Initial chart load
         setActiveFilterButtons(dayBtn, monthBtn, yearBtn, allBtn, customBtn);
-        updateSalesChart(salesChart, salesGranularity);
+        updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
 
         // Small hover affordance: slight lift so users notice interactivity
         salesStatCard.setOnMouseEntered(e -> {
@@ -1234,7 +1234,7 @@ public class AdminApp extends Application {
 
             // Update the sales chart using actual receipts/orders aggregation
             // Use the current granularity (set when filters are clicked)
-            updateSalesChart(salesChart, salesGranularity);
+            updateSalesChart(salesChart, salesGranularity, totalSalesLabel);
 
             // Recent transactions
             recentTable.getItems().clear();
@@ -3420,7 +3420,7 @@ public class AdminApp extends Application {
     }
 
     // Update the sales chart data based on selected granularity using real order records
-    private void updateSalesChart(LineChart<String, Number> chart, String granularity) {
+    private void updateSalesChart(LineChart<String, Number> chart, String granularity, Label totalLabel) {
         chart.getData().clear();
 
         List<OrderRecord> orders = TextDatabase.loadAllOrders();
@@ -3436,21 +3436,37 @@ public class AdminApp extends Application {
         List<String> labels = new ArrayList<>();
         // Map label -> total sales amount
         Map<String, Double> salesAmounts = new LinkedHashMap<>();
+        double periodTotal = 0.0;
 
         if ("Day".equalsIgnoreCase(granularity)) {
-            for (int h = 10; h <= 16; h++) {
-                String label = String.format("%02d:00%s", (h <= 12 ? h : h - 12), (h < 12 ? "AM" : "PM"));
+            // Show all 24 hours to cover any transaction time
+            for (int h = 0; h <= 23; h++) {
+                String label;
+                if (h == 0) label = "12AM";
+                else if (h < 12) label = h + "AM";
+                else if (h == 12) label = "12PM";
+                else label = (h - 12) + "PM";
                 labels.add(label);
                 salesAmounts.put(label, 0.0);
             }
 
+            // Calculate total for today regardless of hour
             for (Receipt r : receipts) {
                 if (!r.getReceiptTime().toLocalDate().equals(today)) continue;
                 int hour = r.getReceiptTime().getHour();
-                if (hour < 10 || hour > 16) continue;
-                String label = String.format("%02d:00%s", (hour <= 12 ? hour : hour - 12), (hour < 12 ? "AM" : "PM"));
-                double prev = salesAmounts.getOrDefault(label, 0.0);
-                salesAmounts.put(label, prev + r.getTotalAmount());
+                String label;
+                if (hour == 0) label = "12AM";
+                else if (hour < 12) label = hour + "AM";
+                else if (hour == 12) label = "12PM";
+                else label = (hour - 12) + "PM";
+                
+                // Add to chart if within displayed range
+                if (salesAmounts.containsKey(label)) {
+                    double prev = salesAmounts.getOrDefault(label, 0.0);
+                    salesAmounts.put(label, prev + r.getTotalAmount());
+                }
+                // Always count toward period total for today
+                periodTotal += r.getTotalAmount();
             }
 
         } else if ("Month".equalsIgnoreCase(granularity)) {
@@ -3461,11 +3477,15 @@ public class AdminApp extends Application {
                 salesAmounts.put(label, 0.0);
             }
             for (Receipt r : receipts) {
+                LocalDate receiptDate = r.getReceiptTime().toLocalDate();
+                // Only include receipts from the last 7 days
+                if (receiptDate.isBefore(today.minusDays(6)) || receiptDate.isAfter(today)) continue;
                 String label = r.getReceiptTime().getMonthValue() + "/" + r.getReceiptTime().getDayOfMonth();
                 // accumulate only if this label is part of the displayed labels
                 if (!salesAmounts.containsKey(label)) continue;
                 double prev = salesAmounts.getOrDefault(label, 0.0);
                 salesAmounts.put(label, prev + r.getTotalAmount());
+                periodTotal += r.getTotalAmount();
             }
 
         } else if ("Year".equalsIgnoreCase(granularity)) {
@@ -3477,10 +3497,14 @@ public class AdminApp extends Application {
                 salesAmounts.put(label, 0.0);
             }
             for (Receipt r : receipts) {
+                LocalDate receiptDate = r.getReceiptTime().toLocalDate();
+                // Only include receipts from the last 6 months
+                if (receiptDate.isBefore(start) || receiptDate.isAfter(today)) continue;
                 String label = r.getReceiptTime().getMonth().toString().substring(0,3);
                 if (!salesAmounts.containsKey(label)) continue;
                 double prev = salesAmounts.getOrDefault(label, 0.0);
                 salesAmounts.put(label, prev + r.getTotalAmount());
+                periodTotal += r.getTotalAmount();
             }
 
         } else {
@@ -3502,8 +3526,15 @@ public class AdminApp extends Application {
                     if (!salesAmounts.containsKey(label)) continue;
                     double prev = salesAmounts.getOrDefault(label, 0.0);
                     salesAmounts.put(label, prev + r.getTotalAmount());
+                    periodTotal += r.getTotalAmount();
                 }
             }
+        }
+
+        // Update the total label
+        final double finalTotal = periodTotal;
+        if (totalLabel != null) {
+            totalLabel.setText("= ₱" + String.format("%,.2f", finalTotal));
         }
 
         // Build total sales series (revenue) using receipts
@@ -4828,8 +4859,8 @@ public class AdminApp extends Application {
             
             VBox content = new VBox(12);
             content.setPadding(new Insets(15));
-            content.setPrefWidth(500);
-            content.setPrefHeight(400);
+            content.setPrefWidth(650);
+            content.setPrefHeight(500);
             
             // Get available ingredients
             final java.util.List<String> baseIngredients = new java.util.ArrayList<>(store.getInventory().keySet());
@@ -4844,8 +4875,10 @@ public class AdminApp extends Application {
                 if (k != null && !k.trim().isEmpty() && !baseIngredients.contains(k)) baseIngredients.add(k);
             }
             
-            java.util.List<String> filteredIngredients = filterIngredientsByCategory(baseIngredients, product.getCategory());
-            if (filteredIngredients == null) filteredIngredients = new java.util.ArrayList<>(baseIngredients);
+            // Show ALL ingredients (no category filtering) so admin can assign any ingredient
+            java.util.List<String> filteredIngredients = new java.util.ArrayList<>(baseIngredients);
+            // Sort alphabetically for easier selection
+            java.util.Collections.sort(filteredIngredients, String.CASE_INSENSITIVE_ORDER);
             
             // Temporary map for this dialog
             java.util.Map<String, Double> tempSelection = new java.util.HashMap<>(selectedIngredients);
@@ -4893,9 +4926,108 @@ public class AdminApp extends Application {
             TextField addQtyField = new TextField("1.0");
             addQtyField.setPrefWidth(70);
             addQtyField.setPromptText("Qty");
-            Button addBtn = new Button("+ Add");
-            addBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
-            addRow.getChildren().addAll(ingredientCombo, addQtyField, unitLabel, addBtn);
+            Button addBtn = new Button("Add");
+            addBtn.setMinWidth(60);
+            addBtn.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 15;");
+            addBtn.setTooltip(new Tooltip("Add selected ingredient to recipe"));
+            
+            // Button to create a new ingredient in inventory
+            Button newIngredientBtn = new Button("+ New Ingredient");
+            newIngredientBtn.setMinWidth(130);
+            newIngredientBtn.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 5 10;");
+            newIngredientBtn.setTooltip(new Tooltip("Create new ingredient in inventory"));
+            
+            // References for refresh
+            final java.util.List<String> baseIngredientsRef = baseIngredients;
+            final java.util.List<String> filteredIngredientsRef = filteredIngredients;
+            
+            newIngredientBtn.setOnAction(ev -> {
+                // Open dialog to create new inventory ingredient
+                Dialog<InventoryItem> newIngDialog = new Dialog<>();
+                newIngDialog.setTitle("Add New Ingredient");
+                newIngDialog.setHeaderText("Create a new ingredient in inventory");
+                newIngDialog.initOwner(ingredientDialog.getDialogPane().getScene().getWindow());
+                
+                ButtonType createBtn = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
+                newIngDialog.getDialogPane().getButtonTypes().addAll(createBtn, ButtonType.CANCEL);
+                
+                GridPane ingGrid = new GridPane();
+                ingGrid.setHgap(10);
+                ingGrid.setVgap(10);
+                ingGrid.setPadding(new Insets(20));
+                
+                TextField ingNameField = new TextField();
+                ingNameField.setPromptText("e.g., Matcha Powder");
+                ingNameField.setPrefWidth(200);
+                
+                TextField ingQtyField = new TextField("100");
+                ingQtyField.setPromptText("Initial quantity");
+                ingQtyField.setPrefWidth(100);
+                
+                ComboBox<String> unitCombo = new ComboBox<>();
+                unitCombo.getItems().addAll("ml", "g", "pcs", "oz", "cups", "tbsp", "tsp", "kg", "L");
+                unitCombo.setValue("g");
+                unitCombo.setEditable(true);
+                
+                ingGrid.add(new Label("Ingredient Name:"), 0, 0);
+                ingGrid.add(ingNameField, 1, 0);
+                ingGrid.add(new Label("Initial Quantity:"), 0, 1);
+                ingGrid.add(ingQtyField, 1, 1);
+                ingGrid.add(new Label("Unit:"), 0, 2);
+                ingGrid.add(unitCombo, 1, 2);
+                
+                newIngDialog.getDialogPane().setContent(ingGrid);
+                
+                // Disable create button until name is entered
+                Node createButton = newIngDialog.getDialogPane().lookupButton(createBtn);
+                createButton.setDisable(true);
+                ingNameField.textProperty().addListener((obs, oldV, newV) -> {
+                    createButton.setDisable(newV == null || newV.trim().isEmpty());
+                });
+                
+                newIngDialog.setResultConverter(dialogButton -> {
+                    if (dialogButton == createBtn) {
+                        String name = ingNameField.getText().trim();
+                        double qty = 100;
+                        try { qty = Double.parseDouble(ingQtyField.getText().trim()); } catch (Exception ignored) {}
+                        String unit = unitCombo.getValue();
+                        if (unit == null || unit.isEmpty()) unit = "g";
+                        
+                        return new InventoryItem(name, qty, unit);
+                    }
+                    return null;
+                });
+                
+                java.util.Optional<InventoryItem> result = newIngDialog.showAndWait();
+                result.ifPresent(newItem -> {
+                    // Add to store inventory
+                    store.getInventory().put(newItem.getName(), newItem);
+                    store.saveData();
+                    
+                    // Refresh the inventory table in Inventory Management
+                    refreshData();
+                    
+                    // Refresh the dropdown
+                    String ingName = newItem.getName();
+                    if (!baseIngredientsRef.contains(ingName)) {
+                        baseIngredientsRef.add(ingName);
+                    }
+                    
+                    // Add to dropdown with stock info
+                    String displayText = ingName + " [" + newItem.getQuantity() + " " + newItem.getUnit() + " available]";
+                    ingredientCombo.getItems().add(displayText);
+                    ingredientUnits.put(ingName, newItem.getUnit());
+                    ingredientStocks.put(ingName, newItem.getQuantity());
+                    
+                    // Select the new ingredient
+                    ingredientCombo.setValue(displayText);
+                    unitLabel.setText(newItem.getUnit());
+                    
+                    showAlert("Success", "Ingredient '" + ingName + "' added to inventory!", Alert.AlertType.INFORMATION);
+                });
+            });
+            
+            addRow.getChildren().addAll(ingredientCombo, addQtyField, unitLabel, addBtn, newIngredientBtn);
             
             // Selected ingredients display using FlowPane (tag-style chips)
             Label selectedLabel = new Label("Selected Ingredients:");

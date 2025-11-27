@@ -1,7 +1,0 @@
-75dde51c-171b-4984-8b07-3bd076effb54|JERWIN|2025-11-27 20:31:48|SALE|530.0|062|Order completed for dasdasd|
-348c7c27-535a-4162-8149-62e105b7544a|JERWIN|2025-11-27 20:47:37|SALE|530.0|064|Order completed for Glennyboi|
-63682192-73ff-4b90-a583-2da3af28f3a1|JERWIN|2025-11-27 21:32:33|SALE|530.0|1001|Order completed for Glenn|
-869867a4-6950-4325-beb9-7125ec454c3f|JERWIN|2025-11-27 23:55:51|SALE|500.0|1059|Payment received from S|
-17e1b8b2-8af5-420b-9437-f4f5c636debd|cashier2|2025-11-27 23:56:31|SALE|300.0|1058|Payment received from Guest|
-7119f4de-10e1-427b-972b-1ee1eca36dad|cashier2|2025-11-28 00:25:12|SALE|270.0|1002|Payment received from glenn|
-2874a51d-8a35-4639-b125-a25835d80643|cashier2|2025-11-28 00:27:11|REFUND|-133.25|RTN-9831469E|Refund for return - Original receipt: RCP-EE4CC0C9|

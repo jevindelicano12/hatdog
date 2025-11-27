@@ -328,13 +328,22 @@ public class CustomerApp extends Application {
         
         Label title = new Label("System Under Maintenance");
         title.setFont(Font.font("Segoe UI", FontWeight.BOLD, 42));
-        title.setTextFill(Color.WHITE);
+        title.setTextFill(Color.web("#FF6B6B"));
         
-        Label subtitle = new Label("We're currently performing scheduled maintenance.\nPlease try again later.");
+        Label subtitle = new Label("The ordering kiosk is currently unavailable.\nPlease wait while our team performs maintenance.");
         subtitle.setFont(Font.font("Segoe UI", 18));
         subtitle.setTextFill(Color.web("#a0a0a0"));
         subtitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
         subtitle.setWrapText(true);
+        
+        // Coffee cup icon
+        Label coffeeIcon = new Label("☕");
+        coffeeIcon.setFont(Font.font(60));
+        coffeeIcon.setTextFill(Color.web("#a0a0a0"));
+        
+        Label waitLabel = new Label("Please Wait...");
+        waitLabel.setFont(Font.font("Segoe UI", javafx.scene.text.FontPosture.ITALIC, 16));
+        waitLabel.setTextFill(Color.web("#a0a0a0"));
         
         // Auto-retry button
         Button retryBtn = new Button("🔄 Check Again");
@@ -344,11 +353,16 @@ public class CustomerApp extends Application {
         retryBtn.setOnMouseExited(e -> retryBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-padding: 15 40; -fx-background-radius: 30; -fx-cursor: hand;"));
         retryBtn.setOnAction(e -> showWelcomeScreen());
         
-        content.getChildren().addAll(icon, title, subtitle, retryBtn);
+        content.getChildren().addAll(icon, title, subtitle, coffeeIcon, waitLabel, retryBtn);
         root.getChildren().add(content);
         
-        Scene scene = new Scene(root, 1600, 900);
-        setScenePreserveWindowSize(scene);
+        // Directly set on persistentRoot instead of using setScenePreserveWindowSize
+        if (persistentRoot != null) {
+            persistentRoot.getChildren().setAll(root);
+        } else {
+            Scene scene = new Scene(root, 1600, 900);
+            setScenePreserveWindowSize(scene);
+        }
         
         // Periodically check if maintenance mode has been disabled
         Timeline maintenanceChecker = new Timeline(new KeyFrame(Duration.seconds(10), ev -> {
