@@ -25,7 +25,7 @@ public class Product {
     private double soyMilkPrice = 25.0;
 
     // Sugar level options (0%, 25%, 50%, 75%, 100%)
-    private java.util.List<String> sugarLevels = new java.util.ArrayList<>();
+    private java.util.List<String> sugarLevels;
 
     public Product(String id, String name, double price) {
         this.id = id;
@@ -38,13 +38,7 @@ public class Product {
         this.sizeSurcharges.put("Small", 0.0);
         this.sizeSurcharges.put("Medium", 20.0);
         this.sizeSurcharges.put("Large", 30.0);
-        // Default: all sugar levels available
-        this.sugarLevels = new java.util.ArrayList<>();
-        this.sugarLevels.add("0% sugar");
-        this.sugarLevels.add("25% sugar");
-        this.sugarLevels.add("50% sugar");
-        this.sugarLevels.add("75% sugar");
-        this.sugarLevels.add("100% sugar");
+        // Sugar levels will be initialized lazily in getSugarLevels()
     }
 
     public Product(String id, String name, double price, Map<String, Double> recipe) {
@@ -54,12 +48,7 @@ public class Product {
         this.recipe = recipe;
         this.category = "Uncategorized";
         // Default: all sugar levels available
-        this.sugarLevels = new java.util.ArrayList<>();
-        this.sugarLevels.add("0% sugar");
-        this.sugarLevels.add("25% sugar");
-        this.sugarLevels.add("50% sugar");
-        this.sugarLevels.add("75% sugar");
-        this.sugarLevels.add("100% sugar");
+        // Sugar levels will be initialized lazily in getSugarLevels()
     }
 
     public Product(String id, String name, double price, Map<String, Double> recipe, String category) {
@@ -72,23 +61,26 @@ public class Product {
         this.sizeSurcharges.put("Small", 0.0);
         this.sizeSurcharges.put("Medium", 20.0);
         this.sizeSurcharges.put("Large", 30.0);
-        // Default: all sugar levels available
-        this.sugarLevels = new java.util.ArrayList<>();
-        this.sugarLevels.add("0% sugar");
-        this.sugarLevels.add("25% sugar");
-        this.sugarLevels.add("50% sugar");
-        this.sugarLevels.add("75% sugar");
-        this.sugarLevels.add("100% sugar");
+        // Sugar levels will be initialized lazily in getSugarLevels()
     }
 
     // Getters and setters
         // Sugar level getters and setters
         public java.util.List<String> getSugarLevels() {
+            if (sugarLevels == null) {
+                // Lazy initialization of default sugar levels
+                sugarLevels = new java.util.ArrayList<>();
+                sugarLevels.add("0% sugar");
+                sugarLevels.add("25% sugar");
+                sugarLevels.add("50% sugar");
+                sugarLevels.add("75% sugar");
+                sugarLevels.add("100% sugar");
+            }
             return sugarLevels;
         }
 
         public void setSugarLevels(java.util.List<String> sugarLevels) {
-            this.sugarLevels = sugarLevels != null ? new java.util.ArrayList<>(sugarLevels) : new java.util.ArrayList<>();
+            this.sugarLevels = sugarLevels != null ? new java.util.ArrayList<>(sugarLevels) : null;
         }
     public String getId() {
         return id;
