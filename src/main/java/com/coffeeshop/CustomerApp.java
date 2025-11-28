@@ -1971,8 +1971,6 @@ public class CustomerApp extends Application {
         
         // SUGAR LEVEL SECTION (only for non-pastry products)
         if (!isPastry) {
-            // debug: show value of sugar levels
-            System.out.println("DEBUG: product=" + product.getName() + " category=" + product.getCategory() + " sugarLevels=" + product.getSugarLevels());
             VBox sugarSection = new VBox(12);
             Label sugarTitle = new Label("SUGAR LEVEL");
             sugarTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
@@ -1983,7 +1981,6 @@ public class CustomerApp extends Application {
             sugarButtons.setAlignment(Pos.CENTER_LEFT);
 
             List<String> sugarLevels = product.getSugarLevels();
-            System.out.println("DEBUG: compact form product " + product.getName() + " sugarLevels: " + sugarLevels);
             // Interpretation rules:
             // - null: admin did not configure sugar levels -> show sensible defaults
             // - empty list: admin explicitly disabled sugar for this product -> do not show sugar UI
@@ -2049,10 +2046,6 @@ public class CustomerApp extends Application {
             sugarSection.getChildren().addAll(sugarTitle, sugarButtons);
             // Only add sugar section if there are allowed levels configured (or defaults exist)
             if (allowedLevels.length > 0) form.getChildren().add(sugarSection);
-            // Temporary fix: hide sugar for Cappuccino
-            if (product.getName().equals("Cappuccino")) {
-                form.getChildren().remove(sugarSection);
-            }
         }
 
         // ADD-ONS SECTION - Dynamically loaded from database
@@ -2514,7 +2507,6 @@ public class CustomerApp extends Application {
 
         // Sugar level (omit for pastry/bakery items unless admin configured)
         java.util.List<String> productSugarList = product.getSugarLevels();
-        System.out.println("DEBUG: detailed form product " + product.getName() + " sugarLevels: " + productSugarList);
         String[] sugarLevels;
         // Same interpretation here: null => defaults, empty => admin-disabled => hide
         if (productSugarList == null) {
@@ -2534,7 +2526,6 @@ public class CustomerApp extends Application {
         final ToggleGroup sugarGroup = hasSugarOptions && !isPastry ? new ToggleGroup() : null;
         final RadioButton[] sugarBtns = hasSugarOptions && !isPastry ? new RadioButton[sugarLevels.length] : null;
         if (sugarSection != null) {
-            System.out.println("DEBUG: detailed sugar form building for product=" + product.getName() + " sugarLevels=" + product.getSugarLevels());
             Label sugarTitle = new Label("Sugar Level");
             sugarTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
 
@@ -3138,10 +3129,6 @@ public class CustomerApp extends Application {
         // Add sections only if they were created (Espresso/pastry may omit sugar/add-ons/size)
         if (tempSection != null) customSection.getChildren().add(tempSection);
         if (sugarSection != null) customSection.getChildren().add(sugarSection);
-        // Temporary fix: hide sugar for Cappuccino
-        if (product.getName().equals("Cappuccino")) {
-            customSection.getChildren().remove(sugarSection);
-        }
         if (addOnsSection != null) customSection.getChildren().add(addOnsSection);
         if (sizeSection != null) customSection.getChildren().add(sizeSection);
         customSection.getChildren().add(bottomSection);
