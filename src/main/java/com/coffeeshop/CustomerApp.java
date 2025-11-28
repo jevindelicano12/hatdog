@@ -36,6 +36,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import java.util.List;
+import java.util.ArrayList;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -1967,6 +1969,87 @@ public class CustomerApp extends Application {
             }
         }
         
+        // SUGAR LEVEL SECTION (only for non-pastry products)
+        if (!isPastry) {
+            // debug: show value of sugar levels
+            System.out.println("DEBUG: product=" + product.getName() + " category=" + product.getCategory() + " sugarLevels=" + product.getSugarLevels());
+            VBox sugarSection = new VBox(12);
+            Label sugarTitle = new Label("SUGAR LEVEL");
+            sugarTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            sugarTitle.setTextFill(Color.web("#999999"));
+            sugarTitle.setStyle("-fx-text-fill: #999999; -fx-font-size: 10px;");
+
+            HBox sugarButtons = new HBox(10);
+            sugarButtons.setAlignment(Pos.CENTER_LEFT);
+
+            List<String> sugarLevels = product.getSugarLevels();
+            // Interpretation rules:
+            // - null: admin did not configure sugar levels -> show sensible defaults
+            // - empty list: admin explicitly disabled sugar for this product -> do not show sugar UI
+            // - non-empty list: use the configured values
+            String[] allowedLevels;
+            if (sugarLevels == null) {
+                // no admin configuration, fall back to defaults
+                allowedLevels = new String[]{"0%", "25%", "50%", "75%", "100%"};
+            } else if (sugarLevels.isEmpty()) {
+                // admin explicitly disabled sugar options -> no allowed levels
+                allowedLevels = new String[0];
+            } else {
+                java.util.List<String> normalized = new ArrayList<>();
+                for (String s : sugarLevels) {
+                    int n = parseSugarLevel(s);
+                    normalized.add(n + "%");
+                }
+                allowedLevels = normalized.toArray(new String[0]);
+            }
+
+            List<Button> sugarPills = new ArrayList<>();
+            final int[] selectedSugarLevel = {50};
+            // Determine initial selection: if editing an item, use its sugar; otherwise prefer 50% or first allowed level
+            int defaultSugar = 50;
+            if (customizingOrderItem != null) defaultSugar = customizingOrderItem.getSugarLevel();
+            else {
+                for (String s : allowedLevels) if (s.equals("50%")) { defaultSugar = 50; break; }
+                if (allowedLevels.length > 0 && defaultSugar != 50) {
+                    try { defaultSugar = parseSugarLevel(allowedLevels[0]); } catch (Exception ignored) {}
+                }
+            }
+            for (String level : allowedLevels) {
+                Button pill = new Button(level);
+                pill.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 12));
+                pill.setPadding(new Insets(8, 16, 8, 16));
+                int numeric = parseSugarLevel(level);
+                pill.setStyle(numeric == defaultSugar ? getPillSelectedStyle() : getPillDefaultStyle());
+                if (numeric == defaultSugar) selectedSugarLevel[0] = numeric;
+                pill.setUserData(numeric); // store numeric sugar level
+                pill.setOnAction(e -> {
+                    // Single-select behavior: deselect all others
+                    boolean nowSelected = !pill.getStyle().equals(getPillSelectedStyle());
+                    for (Button other : sugarPills) {
+                        if (other != pill) other.setStyle(getPillDefaultStyle());
+                    }
+                    pill.setStyle(nowSelected ? getPillSelectedStyle() : getPillDefaultStyle());
+                    // store selection
+                    try { selectedSugarLevel[0] = (Integer) pill.getUserData(); } catch (Exception ignored) {}
+                });
+                pill.setOnMouseEntered(e -> {
+                    if (!pill.getStyle().equals(getPillSelectedStyle())) {
+                        pill.setStyle("-fx-text-fill: #333333; -fx-border-color: #CCCCCC; -fx-border-width: 1; -fx-background-color: #F5F5F5; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;");
+                    }
+                });
+                pill.setOnMouseExited(e -> {
+                    if (!pill.getStyle().equals(getPillSelectedStyle())) {
+                        pill.setStyle(getPillDefaultStyle());
+                    }
+                });
+                sugarPills.add(pill);
+                sugarButtons.getChildren().add(pill);
+            }
+            sugarSection.getChildren().addAll(sugarTitle, sugarButtons);
+            // Only add sugar section if there are allowed levels configured (or defaults exist)
+            if (allowedLevels.length > 0) form.getChildren().add(sugarSection);
+        }
+
         // ADD-ONS SECTION - Dynamically loaded from database
         java.util.List<com.coffeeshop.model.AddOn> availableAddOns = store.getAddOnsForProduct(product.getId());
         if (!availableAddOns.isEmpty()) {
@@ -2353,6 +2436,20 @@ public class CustomerApp extends Application {
     private String getPillSelectedStyle() {
         return "-fx-text-fill: #FFFFFF; -fx-border-color: #2C2C2C; -fx-border-width: 1; -fx-background-color: #2C2C2C; -fx-background-radius: 20; -fx-border-radius: 20; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-size: 12px;";
     }
+
+    // Parse sugar level string like "50%" or "50% sugar" and return numeric percentage.
+    // Returns 50 as a safe default on parse failure.
+    private int parseSugarLevel(String level) {
+        if (level == null) return 50;
+        try {
+            // Extract numeric portion (digits) using regex
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)").matcher(level);
+            if (m.find()) {
+                return Integer.parseInt(m.group(1));
+            }
+        } catch (Exception ignored) {}
+        return 50;
+    }
     
     // Update total price based on product base price + size cost
     private void updateTotalPrice(Label totalPriceLabel, Product product, double sizeCost) {
@@ -2410,13 +2507,28 @@ public class CustomerApp extends Application {
             tempSection.getChildren().addAll(tempTitle, tempButtons);
         }
 
-        // Sugar level (omit for Espresso and pastry/bakery items)
-        String[] sugarLevels = new String[] {"0%", "25%", "50%", "75%", "100%"};
-        final VBox sugarSection = (!isEspresso && !isPastry) ? new VBox(8) : null;
-        final HBox sugarButtons = (!isEspresso && !isPastry) ? new HBox(8) : null;
-        final ToggleGroup sugarGroup = (!isEspresso && !isPastry) ? new ToggleGroup() : null;
-        final RadioButton[] sugarBtns = (!isEspresso && !isPastry) ? new RadioButton[sugarLevels.length] : null;
+        // Sugar level (omit for pastry/bakery items unless admin configured)
+        java.util.List<String> productSugarList = product.getSugarLevels();
+        String[] sugarLevels;
+        // Same interpretation here: null => defaults, empty => admin-disabled => hide
+        if (productSugarList == null) {
+            sugarLevels = new String[]{"0%", "25%", "50%", "75%", "100%"};
+        } else if (productSugarList.isEmpty()) {
+            sugarLevels = new String[0];
+        } else {
+            java.util.List<String> normalized = new java.util.ArrayList<>();
+            for (String s : productSugarList) {
+                normalized.add(parseSugarLevel(s) + "%");
+            }
+            sugarLevels = normalized.toArray(new String[0]);
+        }
+        boolean hasSugarOptions = sugarLevels.length > 0;
+        final VBox sugarSection = hasSugarOptions && !isPastry ? new VBox(8) : null;
+        final HBox sugarButtons = hasSugarOptions && !isPastry ? new HBox(8) : null;
+        final ToggleGroup sugarGroup = hasSugarOptions && !isPastry ? new ToggleGroup() : null;
+        final RadioButton[] sugarBtns = hasSugarOptions && !isPastry ? new RadioButton[sugarLevels.length] : null;
         if (sugarSection != null) {
+            System.out.println("DEBUG: detailed sugar form building for product=" + product.getName() + " sugarLevels=" + product.getSugarLevels());
             Label sugarTitle = new Label("Sugar Level");
             sugarTitle.setFont(Font.font("Segoe UI", FontWeight.SEMI_BOLD, 14));
 
@@ -2431,13 +2543,17 @@ public class CustomerApp extends Application {
             if (customizingOrderItem != null) {
                 int currentSugar = customizingOrderItem.getSugarLevel();
                 for (int i = 0; i < sugarLevels.length; i++) {
-                    if (Integer.parseInt(sugarLevels[i].replace("%", "")) == currentSugar) {
+                    if (parseSugarLevel(sugarLevels[i]) == currentSugar) {
                         sugarBtns[i].setSelected(true);
                         break;
                     }
                 }
             } else {
-                sugarBtns[2].setSelected(true); // 50% default for new items
+                // Try to select 50% if present, otherwise choose first available
+                int idx50 = -1;
+                for (int i = 0; i < sugarLevels.length; i++) if (parseSugarLevel(sugarLevels[i]) == 50) { idx50 = i; break; }
+                if (idx50 >= 0) sugarBtns[idx50].setSelected(true);
+                else if (sugarBtns.length > 0) sugarBtns[0].setSelected(true);
             }
 
             sugarSection.getChildren().addAll(new Label("Sugar Level"), sugarButtons);
@@ -2791,13 +2907,43 @@ public class CustomerApp extends Application {
                 if (sugarBtns != null) {
                     for (int i = 0; i < sugarBtns.length; i++) {
                         if (sugarBtns[i].isSelected()) {
-                            sugarLevel = Integer.parseInt(sugarLevels[i].replace("%", ""));
+                            sugarLevel = parseSugarLevel(sugarLevels[i]);
                             break;
                         }
                     }
                 } else {
-                    // Espresso: sugar not applicable
-                    sugarLevel = 0;
+                    // Check compact form: look for either RadioButtons or Buttons with Integer userData
+                    final int[] foundSugar = {-1};
+                    java.util.function.Consumer<javafx.scene.Node> findSugar = new java.util.function.Consumer<javafx.scene.Node>() {
+                        @Override
+                        public void accept(javafx.scene.Node node) {
+                            if (node instanceof javafx.scene.control.RadioButton) {
+                                javafx.scene.control.RadioButton rb = (javafx.scene.control.RadioButton) node;
+                                String txt = rb.getText();
+                                if (txt != null && txt.trim().endsWith("%") && rb.isSelected()) {
+                                    try { foundSugar[0] = Integer.parseInt(txt.replace("%", "")); } catch (Exception ignored) {}
+                                }
+                            } else if (node instanceof javafx.scene.control.Button) {
+                                javafx.scene.control.Button b = (javafx.scene.control.Button) node;
+                                Object ud = b.getUserData();
+                                if (ud instanceof Integer) {
+                                    // check if visually selected (pill style)
+                                    if (b.getStyle() != null && b.getStyle().equals(getPillSelectedStyle())) {
+                                        foundSugar[0] = (Integer) ud;
+                                    }
+                                }
+                            } else if (node instanceof javafx.scene.layout.Pane) {
+                                javafx.scene.layout.Pane p = (javafx.scene.layout.Pane) node;
+                                for (javafx.scene.Node child : p.getChildren()) accept(child);
+                            }
+                        }
+                    };
+                    for (javafx.scene.Node child : customSection.getChildren()) { findSugar.accept(child); }
+                    if (foundSugar[0] != -1) sugarLevel = foundSugar[0];
+                    else {
+                        final boolean isPastryForScan = isPastry;
+                        sugarLevel = isPastryForScan ? 0 : 50; // fallback
+                    }
                 }
                 
                 // Calculate add-ons (recompute same values used by live total)

@@ -1,65 +1,89 @@
 package com.coffeeshop;
 
-import com.coffeeshop.model.*;
-import com.coffeeshop.service.Store;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+
+import com.coffeeshop.model.CashTransaction;
+import com.coffeeshop.model.CashierAccount;
+import com.coffeeshop.model.InventoryItem;
+import com.coffeeshop.model.ItemRecord;
+import com.coffeeshop.model.OrderRecord;
+import com.coffeeshop.model.PendingOrder;
+import com.coffeeshop.model.Product;
+import com.coffeeshop.model.Receipt;
 import com.coffeeshop.service.PersistenceManager;
+import com.coffeeshop.service.SalesAnalytics;
+import com.coffeeshop.service.Store;
 import com.coffeeshop.service.TextDatabase;
+
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
-import java.io.File;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.XYChart;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.Cursor;
-import javafx.scene.Node;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.util.Duration;
-import java.time.YearMonth;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
-import com.coffeeshop.service.SalesAnalytics;
-import com.coffeeshop.model.Receipt;
-import com.coffeeshop.model.ItemRecord;
-import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.NumberAxis;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.XYChart;
-import java.time.format.DateTimeFormatter;
 
 public class AdminApp extends Application {
     private Store store;
@@ -4317,12 +4341,18 @@ public class AdminApp extends Application {
         VBox imageSection = new VBox(10);
         imageSection.setPadding(new Insets(15));
         imageSection.setStyle("-fx-border-color: #e0e0e0; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: #f9f9f9;");
+        // Enable sugar toggle for new product (default enabled)
+        CheckBox enableSugarAdd = new CheckBox("Enable Sugar Options");
+        enableSugarAdd.setSelected(true);
+
         imageSection.getChildren().addAll(
             new Label("📸 Product Image:"),
             imagePreview,
             uploadImageBtn,
             imagePathLabel
         );
+        // Put sugar toggle inside image section so it doesn't require rearranging grid rows
+        imageSection.getChildren().add(enableSugarAdd);
 
         grid.add(imageSection, 0, 7, 2, 1);
 
@@ -4504,6 +4534,12 @@ public class AdminApp extends Application {
                         newProd.setOatMilkPrice(Double.parseDouble(oatMilkPriceAdd.getText().isEmpty() ? "25" : oatMilkPriceAdd.getText()));
                         newProd.setAlmondMilkPrice(Double.parseDouble(almondMilkPriceAdd.getText().isEmpty() ? "25" : almondMilkPriceAdd.getText()));
                         newProd.setSoyMilkPrice(Double.parseDouble(soyMilkPriceAdd.getText().isEmpty() ? "25" : soyMilkPriceAdd.getText()));
+                    } catch (Exception ignored) {}
+                    // Respect Enable Sugar toggle for newly created product
+                    try {
+                        if (enableSugarAdd != null && !enableSugarAdd.isSelected()) {
+                            newProd.setSugarLevels(new ArrayList<>());
+                        }
                     } catch (Exception ignored) {}
                     return newProd;
                 } catch (NumberFormatException ex) {
@@ -4824,6 +4860,49 @@ public class AdminApp extends Application {
         );
 
         grid.add(imageSection, 0, 5, 2, 1);
+            // Sugar Level Section
+            Label sugarLevelLabel = new Label("Sugar Level:");
+            sugarLevelLabel.setStyle("-fx-font-weight: bold;");
+
+            // Enable/disable sugar options toggle
+            CheckBox enableSugarEdit = new CheckBox("Enable Sugar Options");
+            boolean sugarEnabled = (product.getSugarLevels() != null && !product.getSugarLevels().isEmpty());
+            enableSugarEdit.setSelected(sugarEnabled);
+
+            CheckBox sugar0 = new CheckBox("0%");
+            CheckBox sugar25 = new CheckBox("25%");
+            CheckBox sugar50 = new CheckBox("50%");
+            CheckBox sugar75 = new CheckBox("75%");
+            CheckBox sugar100 = new CheckBox("100%");
+            List<CheckBox> sugarChecks = Arrays.asList(sugar0, sugar25, sugar50, sugar75, sugar100);
+            // Pre-check based on product's sugarLevels
+            List<String> existingSugarLevels = product.getSugarLevels();
+            for (CheckBox cb : sugarChecks) {
+                if (existingSugarLevels != null && existingSugarLevels.contains(cb.getText())) {
+                    cb.setSelected(true);
+                }
+                // Reflect current enabled state
+                cb.setDisable(!enableSugarEdit.isSelected());
+            }
+
+            // Toggle listener to enable/disable sugar checkboxes and clear selection when disabled
+            enableSugarEdit.selectedProperty().addListener((obs, oldV, newV) -> {
+                for (CheckBox cb : sugarChecks) {
+                    cb.setDisable(!newV);
+                    if (!newV) cb.setSelected(false);
+                }
+            });
+
+            HBox sugarRow = new HBox(12);
+            sugarRow.setAlignment(Pos.CENTER_LEFT);
+            sugarRow.getChildren().addAll(sugarChecks);
+
+            // Combine toggle + checkboxes in a single column cell to avoid changing grid row indices
+            VBox sugarBox = new VBox(8);
+            sugarBox.getChildren().addAll(enableSugarEdit, sugarRow);
+
+            grid.add(sugarLevelLabel, 0, 7);
+            grid.add(sugarBox, 1, 7);
 
         // Ingredients editor: use a button to open a popup dialog instead of inline container
         java.util.Map<String, Double> selectedIngredients = new java.util.HashMap<>();
@@ -5214,10 +5293,10 @@ public class AdminApp extends Application {
                         return null;
                     }
                     product.setName(newName);
-                    
+
                     // Update description
                     product.setDescription(descriptionEditField.getText());
-                    
+
                     double newPrice = Double.parseDouble(priceField.getText());
                     // Update price
                     product.setPrice(newPrice);
@@ -5233,7 +5312,7 @@ public class AdminApp extends Application {
                         sizesMap.put("Medium", Double.parseDouble(mediumPriceEdit.getText().isEmpty() ? "0" : mediumPriceEdit.getText()));
                         sizesMap.put("Large", Double.parseDouble(largePriceEdit.getText().isEmpty() ? "0" : largePriceEdit.getText()));
                         product.setSizeSurcharges(sizesMap);
-                        
+
                         // Update milk options
                         product.setHasMilkOptions(enableMilkOptionsEdit.isSelected());
                         product.setHasOatMilk(oatMilkEdit.isSelected());
@@ -5243,6 +5322,19 @@ public class AdminApp extends Application {
                         product.setAlmondMilkPrice(Double.parseDouble(almondMilkPriceEdit.getText().isEmpty() ? "25" : almondMilkPriceEdit.getText()));
                         product.setSoyMilkPrice(Double.parseDouble(soyMilkPriceEdit.getText().isEmpty() ? "25" : soyMilkPriceEdit.getText()));
                     } catch (Exception ignored) {}
+
+                    // Sugar Level update: respect the Enable Sugar toggle
+                    if (enableSugarEdit != null && !enableSugarEdit.isSelected()) {
+                        product.setSugarLevels(new ArrayList<>());
+                    } else {
+                        List<String> selectedSugarLevels = new ArrayList<>();
+                        for (CheckBox cb : Arrays.asList(sugar0, sugar25, sugar50, sugar75, sugar100)) {
+                            if (cb.isSelected()) {
+                                selectedSugarLevels.add(cb.getText());
+                            }
+                        }
+                        product.setSugarLevels(selectedSugarLevels);
+                    }
 
                     // Validate selected ingredient quantities
                     if (selectedIngredients != null) {
@@ -5270,19 +5362,19 @@ public class AdminApp extends Application {
                         if (!imagesDir.exists()) {
                             imagesDir.mkdirs();
                         }
-                        
+
                         // Delete all existing images for this product ID (any extension)
                         String productId = product.getId();
-                        File[] existingImages = imagesDir.listFiles((dir, name) -> 
-                            name.startsWith(productId + ".") || name.equals(productId + ".jpg") || 
-                            name.equals(productId + ".jpeg") || name.equals(productId + ".png") || 
+                        File[] existingImages = imagesDir.listFiles((dir, name) ->
+                            name.startsWith(productId + ".") || name.equals(productId + ".jpg") ||
+                            name.equals(productId + ".jpeg") || name.equals(productId + ".png") ||
                             name.equals(productId + ".gif") || name.equals(productId + ".bmp"));
                         if (existingImages != null) {
                             for (File oldImage : existingImages) {
                                 oldImage.delete();
                             }
                         }
-                        
+
                         // Copy new image with product ID as filename
                         String fileName = selectedImageFile[0].getName();
                         String fileExtension = fileName.substring(fileName.lastIndexOf("."));

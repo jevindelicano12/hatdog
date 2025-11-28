@@ -24,6 +24,9 @@ public class Product {
     private double almondMilkPrice = 25.0;
     private double soyMilkPrice = 25.0;
 
+    // Sugar level options (0%, 25%, 50%, 75%, 100%)
+    private java.util.List<String> sugarLevels = new java.util.ArrayList<>();
+
     public Product(String id, String name, double price) {
         this.id = id;
         this.name = name;
@@ -35,6 +38,13 @@ public class Product {
         this.sizeSurcharges.put("Small", 0.0);
         this.sizeSurcharges.put("Medium", 20.0);
         this.sizeSurcharges.put("Large", 30.0);
+        // Default: all sugar levels available
+        this.sugarLevels = new java.util.ArrayList<>();
+        this.sugarLevels.add("0% sugar");
+        this.sugarLevels.add("25% sugar");
+        this.sugarLevels.add("50% sugar");
+        this.sugarLevels.add("75% sugar");
+        this.sugarLevels.add("100% sugar");
     }
 
     public Product(String id, String name, double price, Map<String, Double> recipe) {
@@ -43,6 +53,13 @@ public class Product {
         this.price = price;
         this.recipe = recipe;
         this.category = "Uncategorized";
+        // Default: all sugar levels available
+        this.sugarLevels = new java.util.ArrayList<>();
+        this.sugarLevels.add("0% sugar");
+        this.sugarLevels.add("25% sugar");
+        this.sugarLevels.add("50% sugar");
+        this.sugarLevels.add("75% sugar");
+        this.sugarLevels.add("100% sugar");
     }
 
     public Product(String id, String name, double price, Map<String, Double> recipe, String category) {
@@ -55,9 +72,24 @@ public class Product {
         this.sizeSurcharges.put("Small", 0.0);
         this.sizeSurcharges.put("Medium", 20.0);
         this.sizeSurcharges.put("Large", 30.0);
+        // Default: all sugar levels available
+        this.sugarLevels = new java.util.ArrayList<>();
+        this.sugarLevels.add("0% sugar");
+        this.sugarLevels.add("25% sugar");
+        this.sugarLevels.add("50% sugar");
+        this.sugarLevels.add("75% sugar");
+        this.sugarLevels.add("100% sugar");
     }
 
     // Getters and setters
+        // Sugar level getters and setters
+        public java.util.List<String> getSugarLevels() {
+            return sugarLevels;
+        }
+
+        public void setSugarLevels(java.util.List<String> sugarLevels) {
+            this.sugarLevels = sugarLevels != null ? new java.util.ArrayList<>(sugarLevels) : new java.util.ArrayList<>();
+        }
     public String getId() {
         return id;
     }
