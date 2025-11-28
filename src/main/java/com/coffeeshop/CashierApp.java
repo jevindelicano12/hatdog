@@ -46,6 +46,7 @@ public class CashierApp extends Application {
     private TextArea receiptDetailArea;
     private double lastCashReceived = 0.0;
     private double lastChange = 0.0;
+    private Runnable refreshStatusColumnsCallback; // Callback to refresh Live Order Status panels
 
     @Override
     public void start(Stage primaryStage) {
@@ -1773,6 +1774,9 @@ public class CashierApp extends Application {
             VBox.setVgrow(newReadyCol, Priority.ALWAYS);
             statusColumnsContainer.getChildren().addAll(newPreparingCol, newReadyCol);
         };
+        
+        // Store the refresh callback at class level so it can be called from other methods
+        this.refreshStatusColumnsCallback = refreshStatusColumnsRef[0];
         
         // Preparing column (top row) - takes half the available height
         VBox preparingColumn = createCompactStatusColumn("⏳ PREPARING", "#F59E0B", preparingList, false, refreshStatusColumnsRef[0]);
@@ -3567,6 +3571,11 @@ public class CashierApp extends Application {
             // Save and refresh the order queue
             TextDatabase.savePendingOrder(exchangeOrder);
             loadPendingOrdersFromFile();
+            
+            // Refresh the Live Order Status panels to show the new exchange order
+            if (refreshStatusColumnsCallback != null) {
+                javafx.application.Platform.runLater(refreshStatusColumnsCallback);
+            }
         }
         
         Alert success = new Alert(Alert.AlertType.INFORMATION);
